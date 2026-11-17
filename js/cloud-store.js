@@ -1,3 +1,4 @@
+import { accountEmail } from "@hub/account";
 import { normalizeEvent } from "@hub/calendar";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/+esm";
 import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
@@ -77,16 +78,13 @@ export function createCloudStore(url, anonKey) {
       if (data.session?.user) await loadProfile(data.session.user);
     },
 
-    async signIn(email, password) {
-      const { data, error } = await sb.auth.signInWithPassword({ email: email.trim(), password });
-      if (error) {
-        if (/invalid login/i.test(error.message)) throw new Error("信箱或密碼不正確。");
-        if (/email not confirmed/i.test(error.message)) throw new Error("請先到信箱點開邀請信，完成確認後再登入。");
-        throw new Error("登入沒有成功，請稍後再試。");
-      }
+    async signIn(account, password) {
+      const email = accountEmail(account);
+      const { data, error } = await sb.auth.signInWithPassword({ email, password });
+      if (error) throw new Error("帳號或密碼錯誤");
       await loadProfile(data.user);
-      if (!profile) throw new Error("這個帳號還沒加入團隊。請請管理員重新邀請，或用 SQL 建立管理員資料。");
-      if (!profile.is_active) throw new Error("這個帳號已停用，請聯絡管理員。");
+      if (!profile) throw new Error("這個帳號還沒加入團隊。請聯絡管理者。");
+      if (!profile.is_active) throw new Error("這個帳號已停用，請聯絡管理者。");
       return profile;
     },
 
@@ -103,7 +101,19 @@ export function createCloudStore(url, anonKey) {
 
     async updatePassword(password) {
       const { error } = await sb.auth.updateUser({ password });
-      if (error) throw new Error("密碼沒有更新，請改用至少 6 個字元再試一次。");
+      if (error) throw new Error("密碼沒有更新。請用至少 8 個字元，且不要和現在的相同。");
+    },
+
+    async markPasswordChanged() {
+      const { error } = await sb.rpc("mark_password_changed");
+      if (error) throw new Error("新密碼已設定，但登入狀態沒有更新。請再試一次。");
+      if (profile) profile.must_change_password = false;
+    },
+
+    async listTeamRoster() {
+      const { data, error } = await sb.rpc("team_roster");
+      fail(error, "讀取同仁名單時發生問題");
+      return data || [];
     },
 
     async listProfiles() {
