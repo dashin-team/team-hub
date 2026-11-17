@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#142d4e">
+  <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
   <title>TEAM HUB｜南恩團隊數位總部</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
@@ -57,7 +57,6 @@
     <div class="gate-card">
       <div class="brand-mark"><span>南</span> TEAM HUB</div>
       <h1>設定新密碼</h1>
-      <p class="sub">設定完成後就可以進入團隊數位總部。</p>
       <form id="recoveryForm">
         <label class="field">新密碼
           <input id="newPassword" type="password" autocomplete="new-password" required minlength="6">
@@ -68,98 +67,208 @@
     </div>
   </div>
 
-  <div id="app" class="shell" hidden>
+  <div id="app" class="app" hidden>
     <div id="backdrop" class="backdrop"></div>
-    <aside id="sidebar" class="sidebar">
-      <div class="brand">
-        <div class="team">南恩團隊</div>
+    <aside id="drawer" class="drawer" aria-label="功能選單">
+      <div class="drawer-brand">
+        <small>南恩團隊</small>
         <b>TEAM HUB</b>
-        <small>團隊數位總部</small>
       </div>
-      <nav class="nav" aria-label="主要功能">
-        <div class="nav-label">工作台</div>
-        <button type="button" data-nav="home"><span>▦</span>首頁總覽</button>
-        <div class="nav-label">日常工作</div>
-        <button type="button" data-nav="ai"><span>✦</span>AI 工具箱</button>
-        <button type="button" data-nav="assets"><span>▤</span>素材庫</button>
-        <button type="button" data-nav="learn"><span>▣</span>教育訓練</button>
-        <button type="button" data-nav="tasks"><span>☑</span>工作任務</button>
-        <div class="nav-label">客戶與社群</div>
-        <button type="button" data-nav="clients"><span>☺</span>客戶管理</button>
-        <button type="button" data-nav="social"><span>◎</span>社群追蹤</button>
-        <div class="nav-label">團隊</div>
-        <button type="button" data-nav="announcements"><span>◉</span>團隊公告</button>
-        <button type="button" class="manager-only" data-nav="members"><span>人</span>團隊成員</button>
+      <nav>
+        <button type="button" data-nav="home">總覽</button>
+        <button type="button" data-nav="clients">名單</button>
+        <button type="button" data-nav="tasks">行程</button>
+        <button type="button" data-nav="social">競賽</button>
+        <button type="button" data-nav="learn">訓練</button>
+        <button type="button" data-nav="ai">工具</button>
+        <button type="button" class="manager-only" data-nav="announcements">管理</button>
       </nav>
-      <div class="side-foot" id="sideFoot">請勿輸入真實客戶個資</div>
-      <button class="btn secondary small demo-only" id="resetDemo" type="button">還原示範資料</button>
+      <div class="drawer-foot">
+        <div id="whoName"></div>
+        <div id="sideFoot">請勿輸入真實客戶個資</div>
+        <span class="badge" id="modeBadge">示範資料</span>
+        <label class="field demo-only" style="margin-top:10px">示範視角
+          <select id="previewRole" aria-label="示範視角">
+            <option value="admin">管理員</option>
+            <option value="manager">主管</option>
+            <option value="member">一般夥伴</option>
+          </select>
+        </label>
+        <button class="btn secondary small demo-only" id="resetDemo" type="button">還原示範資料</button>
+        <button class="btn secondary small cloud-only" id="signOutBtn" type="button">登出</button>
+      </div>
     </aside>
     <div class="main">
       <header class="topbar">
-        <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單">☰</button>
-        <div class="crumb" id="crumb">首頁總覽</div>
+        <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
+        <div class="top-title" id="crumb">總覽</div>
         <div class="top-spacer"></div>
-        <span class="badge" id="modeBadge">示範資料</span>
-        <label class="demo-only field" style="margin:0;min-width:132px">
-          <select id="previewRole" aria-label="示範視角">
-            <option value="admin">示範：管理員</option>
-            <option value="manager">示範：主管</option>
-            <option value="member">示範：一般夥伴</option>
-          </select>
-        </label>
-        <div class="who" id="whoName"></div>
-        <button class="btn secondary small cloud-only" id="signOutBtn" type="button">登出</button>
+        <button class="avatar-btn" id="avatarBtn" type="button" aria-label="開啟選單">
+          <span id="avatarLetter">南</span>
+          <i id="avatarDot" class="ndot" hidden></i>
+        </button>
       </header>
       <div class="content">
         <section class="page" id="page-home">
-          <div class="welcome">
-            <h1>讓每一次服務，都更有價值。</h1>
-            <p id="welcomeText">歡迎回到南恩團隊數位總部。</p>
-          </div>
-          <div class="banner demo-only">目前是示範資料，只存在這台裝置的瀏覽器，不會同步給其他夥伴，也不是真實團隊統計。</div>
-          <div class="note">公司核准前，請用虛構資料練習。不要輸入身分證、病歷、完整保單號碼或銀行帳戶。</div>
-          <div class="stats" id="homeStats"></div>
-          <div id="homeSocial"></div>
-          <div class="section-head"><h2>常用功能</h2><span>快速開始</span></div>
-          <div class="quick" id="homeQuick"></div>
-          <div class="columns">
-            <div class="panel">
-              <h3>我的待辦</h3>
-              <div id="homeTasks"></div>
-              <button class="btn secondary" type="button" data-nav="tasks">前往工作任務</button>
+          <p class="date-line" id="greetDate"></p>
+          <h1 class="greet" id="greetLine">早安。</h1>
+          <p class="demo-line demo-only">示範資料，只存在這台瀏覽器，不會同步，也不是真實統計。</p>
+          <p class="privacy-line">公司核准前請用虛構資料。不要輸入身分證、病歷、完整保單號碼或銀行帳戶。</p>
+          <article class="advice">
+            <div class="mini" id="adviceAvatar">南</div>
+            <div>
+              <div class="kicker">每日建議 · 你的節奏</div>
+              <p id="dailyAdvice"></p>
             </div>
-            <div class="panel">
-              <h3>即將到來的提醒</h3>
-              <div id="homeReminders"></div>
-            </div>
-          </div>
-          <div class="section-head"><h2>團隊公告</h2><button class="btn secondary small" type="button" data-nav="announcements">看全部</button></div>
-          <div class="panel" id="homeNotices"></div>
+          </article>
+          <div class="metric-grid" id="homeStats"></div>
+          <div class="section-head"><h2>近期行程</h2><button type="button" data-nav="tasks">行事曆</button></div>
+          <div id="homeSchedule"></div>
+          <div class="carousel" id="podium"></div>
+          <div class="section-head"><h2>公告</h2><button type="button" class="manager-only" data-nav="announcements">管理</button></div>
+          <div id="homeNotices"></div>
         </section>
 
-        <section class="page" id="page-ai">
-          <h1 class="page-title">AI 智慧工具箱</h1>
-          <p class="sub">把重複的草稿交給指令，把時間留給客戶。指令可先改再複製，請勿貼上可識別的客戶資料。</p>
-          <input class="search" id="toolSearch" placeholder="搜尋工具，例如：生日、保單檢視、IG、邀約">
-          <div class="tools" id="toolList"></div>
-          <form id="toolForm" class="panel manager-only" style="margin-top:16px">
-            <h3>新增團隊指令</h3>
+        <section class="page" id="page-clients">
+          <h1 class="page-title">名單</h1>
+          <p class="sub">每位夥伴維護自己負責的客戶。主管看得到團隊，看不到別組。</p>
+          <input class="search" id="clientSearch" placeholder="搜尋客戶、標籤或備註">
+          <label class="checkline"><input id="showArchived" type="checkbox"> 顯示已封存</label>
+          <div id="clientList"></div>
+          <form id="customerForm" class="panel">
+            <h3 id="customerFormTitle">新增客戶</h3>
+            <input type="hidden" name="id">
             <div class="form-grid cols-2">
-              <label class="field">名稱<input name="title" required maxlength="80"></label>
-              <label class="field">分類<input name="category" placeholder="客戶服務、社群、教材" maxlength="40"></label>
+              <label class="field">客戶稱呼<input name="display_name" required maxlength="80" placeholder="王先生（示範）"></label>
+              <label class="field manager-only">負責人
+                <select name="owner_id" id="customerOwner"></select>
+              </label>
+              <label class="field">電話（選填）<input name="phone" maxlength="30"></label>
+              <label class="field">電子郵件（選填）<input name="email" type="email" maxlength="200"></label>
+              <label class="field">偏好聯絡
+                <select name="preferred_contact">
+                  <option value="LINE">LINE</option>
+                  <option value="電話">電話</option>
+                  <option value="見面">見面</option>
+                  <option value="其他">其他</option>
+                </select>
+              </label>
+              <label class="field">生日月日（選填）<input name="birthday_md" placeholder="03-18" maxlength="5"></label>
+              <label class="field">服務標籤<input name="service_tags" placeholder="意外、實支實付"></label>
             </div>
-            <label class="field">指令內容<textarea name="prompt" required maxlength="8000"></textarea></label>
-            <button class="btn" type="submit">加入工具箱</button>
+            <label class="field">備註<textarea name="notes" maxlength="4000"></textarea></label>
+            <div class="row">
+              <button class="btn" type="submit">儲存客戶</button>
+              <button class="btn secondary" id="customerCancel" type="button" hidden>取消編輯</button>
+            </div>
           </form>
+          <div id="clientDetail"></div>
         </section>
 
-        <section class="page" id="page-assets">
-          <h1 class="page-title">行銷素材庫</h1>
-          <p class="sub">團隊共用的素材入口。正式檔案請放在公司核准的雲端連結，不把客戶檔案放在這裡。</p>
+        <section class="page" id="page-tasks">
+          <h1 class="page-title">行程</h1>
+          <p class="sub">提醒與待辦放在一起。一般夥伴只看得到自己的。</p>
+          <div id="scheduleBoard"></div>
+          <form id="taskForm" class="panel">
+            <h3>新增一件事</h3>
+            <div class="form-grid cols-2">
+              <label class="field">要做的事<input id="taskTitle" name="title" required maxlength="200" placeholder="例如：關心三位客戶"></label>
+              <label class="field">日期<input name="due_date" type="date"></label>
+            </div>
+            <button class="btn" type="submit">加入行程</button>
+          </form>
+          <p class="muted" id="taskSummary"></p>
+          <div id="taskList"></div>
+          <button class="btn secondary" id="clearDone" type="button">清除已完成</button>
+        </section>
+
+        <section class="page" id="page-social">
+          <h1 class="page-title">競賽</h1>
+          <p class="sub">看的是經營行動：粉絲成長、限動回報、貼文與 Reels。不需要 IG 密碼，也不用粉絲數定輸贏。</p>
+          <div id="socialStats" class="metric-grid"></div>
+          <div class="panel">
+            <div class="section-head" style="margin-top:0"><h2>粉絲成長</h2><span class="muted">相較前一筆</span></div>
+            <div id="socialRank"></div>
+          </div>
+          <div class="columns">
+            <form id="storyForm" class="panel">
+              <h3>每日限動回報</h3>
+              <p class="sub">同一天再送出會更新原紀錄。未回報不會被當成沒有發。</p>
+              <div class="form-grid cols-2">
+                <label class="field">日期<input name="story_date" type="date" required></label>
+                <label class="field">限動則數<input name="story_count" type="number" min="0" max="100" value="1"></label>
+              </div>
+              <label class="checkline"><input name="posted" type="checkbox" checked> 今天有發布限動</label>
+              <button class="btn" type="submit">儲存每日回報</button>
+              <div id="storyWeek" class="week" style="margin-top:12px"></div>
+            </form>
+            <form id="followerForm" class="panel">
+              <h3>粉絲數更新</h3>
+              <p class="sub">建議每週記一次。第一筆只當基準。</p>
+              <div class="form-grid cols-2">
+                <label class="field">日期<input name="snapshot_date" type="date" required></label>
+                <label class="field">目前粉絲數<input name="follower_count" type="number" min="0" step="1" placeholder="例如 1280" required></label>
+              </div>
+              <label class="checkline"><input name="verified" type="checkbox"> 已核對專業主控板或截圖</label>
+              <button class="btn" type="submit">儲存粉絲數</button>
+            </form>
+          </div>
+          <form id="accountForm" class="panel">
+            <h3>我的 Instagram</h3>
+            <p class="sub" id="accountStatus"></p>
+            <div class="form-grid cols-3">
+              <label class="field">帳號名稱<input name="instagram_username" required maxlength="40" placeholder="your.name"></label>
+              <label class="field">類型
+                <select name="account_type">
+                  <option value="personal">個人帳號</option>
+                  <option value="creator">創作者</option>
+                  <option value="business">商業帳號</option>
+                  <option value="unknown">還不確定</option>
+                </select>
+              </label>
+              <label class="field">主頁連結（選填）<input name="profile_url" type="url" placeholder="https://www.instagram.com/..."></label>
+            </div>
+            <button class="btn secondary" type="submit">儲存帳號</button>
+          </form>
+          <div class="panel" id="teamStories"></div>
+          <form id="postForm" class="panel">
+            <h3>貼文／Reels</h3>
+            <div class="form-grid cols-3">
+              <label class="field">發布日期<input name="published_on" type="date" required></label>
+              <label class="field">類型
+                <select name="content_type">
+                  <option value="post">一般貼文</option>
+                  <option value="reel">Reels</option>
+                </select>
+              </label>
+              <label class="field">連結（選填）<input name="permalink" type="url" placeholder="https://"></label>
+            </div>
+            <button class="btn" type="submit">新增發布紀錄</button>
+            <div class="table-wrap" id="postList" style="margin-top:12px"></div>
+          </form>
+          <p class="privacy-line" id="socialGoals"></p>
+          <p class="privacy-line">自動抓取 Instagram 尚未開放。權杖以後只放在伺服器。手動回報仍然可用。</p>
+        </section>
+
+        <section class="page" id="page-learn">
+          <h1 class="page-title">訓練</h1>
+          <p class="sub">教材與團隊素材放在同一個地方。學完就標記。</p>
+          <div class="panel" id="learnSummary"></div>
+          <div id="courseList"></div>
+          <div id="teamLearn" class="manager-only"></div>
+          <form id="courseForm" class="panel manager-only">
+            <h3>新增教材</h3>
+            <label class="field">標題<input name="title" required maxlength="80"></label>
+            <label class="field">說明<input name="description" maxlength="400"></label>
+            <label class="field">教材連結（選填，https）<input name="content_url" type="url" placeholder="https://"></label>
+            <button class="btn" type="submit">發布教材</button>
+          </form>
+          <div class="section-head"><h2>素材庫</h2></div>
+          <p class="sub">正式檔案請用公司核准的雲端連結。</p>
           <input class="search" id="assetSearch" placeholder="搜尋素材名稱或用途">
-          <div class="chips" id="assetCats"></div>
-          <div class="asset-grid" id="assetList"></div>
-          <form id="assetForm" class="panel manager-only" style="margin-top:16px">
+          <div class="tag-row" id="assetCats"></div>
+          <div id="assetList" style="margin-top:12px"></div>
+          <form id="assetForm" class="panel manager-only">
             <h3>新增素材入口</h3>
             <div class="form-grid cols-2">
               <label class="field">名稱<input name="title" required maxlength="80"></label>
@@ -178,159 +287,36 @@
           </form>
         </section>
 
-        <section class="page" id="page-learn">
-          <h1 class="page-title">教育訓練中心</h1>
-          <p class="sub">每次學一個用得上的方法。學完就標記，主管可以看團隊進度。</p>
-          <div class="panel" id="learnSummary"></div>
-          <div id="courseList" style="margin-top:12px"></div>
-          <div id="teamLearn" class="manager-only"></div>
-          <form id="courseForm" class="panel manager-only" style="margin-top:16px">
-            <h3>新增教材</h3>
-            <label class="field">標題<input name="title" required maxlength="80"></label>
-            <label class="field">說明<input name="description" maxlength="400"></label>
-            <label class="field">教材連結（選填，https）<input name="content_url" type="url" placeholder="https://"></label>
-            <button class="btn" type="submit">發布教材</button>
-          </form>
-        </section>
-
-        <section class="page" id="page-tasks">
-          <h1 class="page-title">工作任務</h1>
-          <p class="sub">把自己今天要做的事寫下來。一般夥伴只看得到自己的任務。</p>
-          <form id="taskForm" class="panel">
+        <section class="page" id="page-ai">
+          <h1 class="page-title">工具</h1>
+          <p class="sub">選一個工作指令，改成你的情境再複製。請勿貼上可識別的客戶資料。</p>
+          <input class="search" id="toolSearch" placeholder="搜尋，例如：生日、保單檢視、邀約">
+          <div id="toolList"></div>
+          <form id="toolForm" class="panel manager-only">
+            <h3>新增團隊指令</h3>
             <div class="form-grid cols-2">
-              <label class="field">要做的事<input id="taskTitle" name="title" required maxlength="200" placeholder="例如：關心三位客戶、整理本週保單檢視"></label>
-              <label class="field">預計日期<input name="due_date" type="date"></label>
+              <label class="field">名稱<input name="title" required maxlength="80"></label>
+              <label class="field">分類<input name="category" placeholder="客戶服務、社群" maxlength="40"></label>
             </div>
-            <button class="btn" type="submit">新增任務</button>
+            <label class="field">指令內容<textarea name="prompt" required maxlength="8000"></textarea></label>
+            <button class="btn" type="submit">加入工具</button>
           </form>
-          <p class="muted" id="taskSummary"></p>
-          <div class="panel" id="taskList"></div>
-          <button class="btn secondary" id="clearDone" type="button">清除已完成</button>
-        </section>
-
-        <section class="page" id="page-clients">
-          <h1 class="page-title">客戶管理中心</h1>
-          <p class="sub">每位夥伴維護自己負責的客戶。主管看得到團隊，看不到別組的資料。這裡只放服務需要的最少內容。</p>
-          <div class="note">不記錄身分證、完整生日、病歷、理賠文件、銀行帳戶或完整保單號碼。生日若要提醒，只填月日。</div>
-          <input class="search" id="clientSearch" placeholder="搜尋客戶、標籤或備註">
-          <label class="checkline"><input id="showArchived" type="checkbox"> 顯示已封存</label>
-          <div id="clientList"></div>
-          <form id="customerForm" class="panel" style="margin-top:16px">
-            <h3 id="customerFormTitle">新增客戶</h3>
-            <input type="hidden" name="id">
-            <div class="form-grid cols-2">
-              <label class="field">客戶稱呼<input name="display_name" required maxlength="80" placeholder="王先生（示範）"></label>
-              <label class="field manager-only">負責人
-                <select name="owner_id" id="customerOwner"></select>
-              </label>
-              <label class="field">電話（選填）<input name="phone" maxlength="30" placeholder="0912-000-000"></label>
-              <label class="field">電子郵件（選填）<input name="email" type="email" maxlength="200"></label>
-              <label class="field">偏好聯絡
-                <select name="preferred_contact">
-                  <option value="LINE">LINE</option>
-                  <option value="電話">電話</option>
-                  <option value="見面">見面</option>
-                  <option value="其他">其他</option>
-                </select>
-              </label>
-              <label class="field">生日月日（選填）<input name="birthday_md" placeholder="03-18" maxlength="5"></label>
-              <label class="field">服務標籤<input name="service_tags" placeholder="車險、醫療保障"></label>
-            </div>
-            <label class="field">備註<textarea name="notes" maxlength="4000" placeholder="不要寫病歷或完整保單內容"></textarea></label>
-            <div class="row">
-              <button class="btn" type="submit">儲存客戶</button>
-              <button class="btn secondary" id="customerCancel" type="button" hidden>取消編輯</button>
-            </div>
-          </form>
-          <div id="clientDetail"></div>
-        </section>
-
-        <section class="page" id="page-social">
-          <h1 class="page-title">社群經營追蹤</h1>
-          <p class="sub">每天回報有沒有發限動，每週更新一次粉絲數。主管看團隊彙總，夥伴維護自己的紀錄。不需要提供 IG 密碼。</p>
-          <div id="socialStats" class="social-stats"></div>
-          <div class="panel" style="margin-top:12px">
-            <div class="section-head" style="margin-top:0"><h2>粉絲成長</h2><span>相較前一筆快照</span></div>
-            <div class="table-wrap" id="socialRank"></div>
-          </div>
-          <div class="columns">
-            <form id="storyForm" class="panel">
-              <h3>每日限動回報</h3>
-              <p class="sub">同一天再送出一次，會更新原本那一筆。未回報不會被當成沒有發。</p>
-              <div class="form-grid cols-2">
-                <label class="field">日期<input name="story_date" type="date" required></label>
-                <label class="field">限動則數<input name="story_count" type="number" min="0" max="100" value="1"></label>
-              </div>
-              <label class="checkline"><input name="posted" type="checkbox" checked> 今天有發布限動</label>
-              <button class="btn" type="submit">儲存每日回報</button>
-              <div id="storyWeek" class="week" style="margin-top:12px"></div>
-            </form>
-            <form id="followerForm" class="panel">
-              <h3>粉絲數更新</h3>
-              <p class="sub">建議每週記一次。第一筆只當基準，不計算成長率。</p>
-              <div class="form-grid cols-2">
-                <label class="field">日期<input name="snapshot_date" type="date" required></label>
-                <label class="field">目前粉絲數<input name="follower_count" type="number" min="0" step="1" placeholder="例如 1280" required></label>
-              </div>
-              <label class="checkline"><input name="verified" type="checkbox"> 已核對 IG 專業主控板或截圖</label>
-              <button class="btn" type="submit">儲存粉絲數</button>
-            </form>
-          </div>
-          <form id="accountForm" class="panel">
-            <h3>我的 Instagram 帳號</h3>
-            <p class="sub" id="accountStatus"></p>
-            <div class="form-grid cols-3">
-              <label class="field">帳號名稱<input name="instagram_username" required maxlength="40" placeholder="your.name"></label>
-              <label class="field">類型
-                <select name="account_type">
-                  <option value="personal">個人帳號</option>
-                  <option value="creator">創作者</option>
-                  <option value="business">商業帳號</option>
-                  <option value="unknown">還不確定</option>
-                </select>
-              </label>
-              <label class="field">主頁連結（選填）<input name="profile_url" type="url" placeholder="https://www.instagram.com/..."></label>
-            </div>
-            <button class="btn secondary" type="submit">儲存帳號</button>
-          </form>
-          <div class="panel" id="teamStories"></div>
-          <form id="postForm" class="panel">
-            <h3>貼文／Reels 紀錄</h3>
-            <div class="form-grid cols-3">
-              <label class="field">發布日期<input name="published_on" type="date" required></label>
-              <label class="field">類型
-                <select name="content_type">
-                  <option value="post">一般貼文</option>
-                  <option value="reel">Reels</option>
-                </select>
-              </label>
-              <label class="field">連結（選填）<input name="permalink" type="url" placeholder="https://www.instagram.com/..."></label>
-            </div>
-            <button class="btn" type="submit">新增發布紀錄</button>
-            <div class="table-wrap" id="postList" style="margin-top:12px"></div>
-          </form>
-          <div class="note" id="socialGoals"></div>
-          <div class="note">自動抓取 Instagram 尚未開放。以後若要串官方 API，權杖只放在伺服器，個人帳號仍用手動回報。粉絲數不是評斷夥伴的唯一標準。</div>
         </section>
 
         <section class="page" id="page-announcements">
-          <h1 class="page-title">團隊公告</h1>
-          <p class="sub">重要的事放這裡，不用在群組裡來回翻。</p>
-          <div class="panel" id="announcementList"></div>
-          <form id="announcementForm" class="panel manager-only" style="margin-top:16px">
+          <h1 class="page-title">管理</h1>
+          <p class="sub">公告、成員與角色。夥伴不能把自己改成主管。</p>
+          <div id="announcementList"></div>
+          <form id="announcementForm" class="panel manager-only">
             <h3>發布公告</h3>
             <label class="field">標題<input name="title" required maxlength="120"></label>
             <label class="field">內容<textarea name="body" required maxlength="8000"></textarea></label>
-            <label class="checkline"><input name="publish" type="checkbox" checked> 立即發布（取消勾選則先存草稿，夥伴看不到）</label>
+            <label class="checkline"><input name="publish" type="checkbox" checked> 立即發布</label>
             <button class="btn" type="submit">儲存公告</button>
           </form>
-        </section>
-
-        <section class="page" id="page-members">
-          <h1 class="page-title">團隊成員</h1>
-          <p class="sub">管理員負責邀請與調整角色。夥伴不能自己改成主管。</p>
-          <div class="panel" id="memberList"></div>
-          <form id="inviteForm" class="panel admin-only cloud-only" style="margin-top:16px">
+          <div class="section-head"><h2>成員</h2></div>
+          <div id="memberList"></div>
+          <form id="inviteForm" class="panel admin-only cloud-only">
             <h3>邀請夥伴</h3>
             <div class="form-grid cols-3">
               <label class="field">姓名<input name="display_name" required maxlength="80"></label>
@@ -345,24 +331,43 @@
             </div>
             <button class="btn" type="submit">寄出邀請信</button>
           </form>
-          <div class="note demo-only">示範模式不會寄信。接上 Supabase 並部署邀請功能後，管理員就可以在這裡邀請夥伴。</div>
+          <p class="privacy-line demo-only">示範模式不會寄信。接上 Supabase 並部署邀請功能後才能邀請。</p>
         </section>
-        <p class="footer">南恩團隊 TEAM HUB · 團隊數位總部 · 請勿輸入真實客戶個資</p>
+        <p class="footer">南恩團隊 TEAM HUB · 請勿輸入真實客戶個資</p>
+      </div>
+      <div class="dock">
+        <div class="dock-inner">
+          <button class="pill" type="button" data-nav="social">本週社群經營</button>
+          <div class="fabs">
+            <button class="fab" type="button" data-nav="tasks" aria-label="任務">任務</button>
+            <button class="fab" type="button" data-nav="social" aria-label="回報">回報</button>
+            <button class="fab dark" id="secretaryBtn" type="button">秘書</button>
+          </div>
+        </div>
       </div>
     </div>
+  </div>
+
+  <div id="secretary" class="sheet" hidden>
+    <div class="row spread">
+      <h3>秘書</h3>
+      <button class="icon-btn" id="secretaryClose" type="button" aria-label="關閉">✕</button>
+    </div>
+    <p class="sub">依照你今天的行程與回報，整理下一步。不會連到外部聊天服務。</p>
+    <div id="secretaryBody"></div>
   </div>
 
   <div id="modal" class="modal-bg">
     <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
       <div class="row spread">
-        <h3 id="modalTitle">AI 指令</h3>
+        <h3 id="modalTitle">工作指令</h3>
         <button class="icon-btn" id="modalClose" type="button" aria-label="關閉">✕</button>
       </div>
-      <p class="sub">可以先改成你的情境，再複製到公司允許的 AI 工具。</p>
+      <p class="sub">可以先改成你的情境，再複製到公司允許的工具。</p>
       <textarea id="modalText"></textarea>
       <div class="row end">
-        <button class="btn secondary" id="modalReset" type="button">還原指令</button>
-        <button class="btn" id="modalCopy" type="button">複製指令</button>
+        <button class="btn secondary" id="modalReset" type="button">還原</button>
+        <button class="btn" id="modalCopy" type="button">複製</button>
       </div>
     </div>
   </div>

@@ -132,10 +132,23 @@ try {
     if (!ready) throw new Error("app not ready");
   }, "app");
 
-  const homeText = await evalJson(ws, "document.getElementById('page-home').innerText");
-  if (!homeText.includes("南恩團隊")) throw new Error("首頁沒有團隊名稱");
+  const homeText = await evalJson(ws, "document.body.innerText");
+  if (!homeText.includes("南恩團隊")) throw new Error("沒有團隊名稱");
   if (!homeText.includes("示範資料")) throw new Error("沒有示範資料標示");
-  if (!homeText.includes("本週社群")) throw new Error("主管首頁沒有社群彙總");
+  if (!homeText.includes("近7日新增名單") || !homeText.includes("粉絲成長")) throw new Error("總覽缺統計或排行");
+  if (homeText.includes("問卷")) throw new Error("不該出現問卷積分");
+  await evalJson(ws, "document.getElementById('menuBtn').click()");
+  await waitFor(async () => {
+    const open = await evalJson(ws, "document.getElementById('drawer').classList.contains('open')");
+    if (!open) throw new Error("選單沒打開");
+    return open;
+  }, "menu");
+  await evalJson(ws, "document.dispatchEvent(new KeyboardEvent('keydown', {key:'Escape'}))");
+  await waitFor(async () => {
+    const open = await evalJson(ws, "document.getElementById('drawer').classList.contains('open')");
+    if (open) throw new Error("Esc 沒關上選單");
+    return true;
+  }, "esc");
 
   await setViewport(ws, 390, 844, true);
   await wait(200);
@@ -151,13 +164,16 @@ try {
 
   await evalJson(ws, "document.querySelector('[data-action=open-client]').click()");
   await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('clientDetail').innerText");
-    if (!text.includes("保單摘要")) throw new Error("客戶明細沒打開");
+    const text = await evalJson(ws, "document.getElementById('coverageBoard') ? document.getElementById('coverageBoard').innerText : ''");
+    if (!text.includes("保障")) throw new Error("保障檢視沒打開");
     return text;
   }, "client detail");
-  if (!(await evalJson(ws, "document.getElementById('clientDetail').innerText")).includes("末四碼")) {
-    throw new Error("保單摘要沒有末四碼");
-  }
+  await evalJson(ws, "document.querySelector('[data-tab=policies]').click()");
+  await waitFor(async () => {
+    const text = await evalJson(ws, "document.getElementById('clientDetail').innerText");
+    if (!text.includes("末四碼")) throw new Error("保單摘要沒有末四碼");
+    return text;
+  }, "policy pane");
 
   await evalJson(ws, "document.querySelector('[data-nav=social]').click()");
   await waitFor(async () => {
@@ -255,8 +271,17 @@ try {
 
   await setViewport(ws, 390, 844, true);
   await evalJson(ws, "document.querySelector('[data-nav=home]').click()");
-  await wait(250);
-  await shot(ws, "mobile_home");
+  await wait(300);
+  await evalJson(ws, "window.scrollTo(0,0)");
+  await shot(ws, "mobile_overview");
+  await evalJson(ws, "document.querySelector('[data-nav=ai]').click()");
+  await waitFor(async () => {
+    const text = await evalJson(ws, "document.getElementById('page-ai').classList.contains('active') ? document.getElementById('toolList').innerText : ''");
+    if (!text.includes("客戶關心訊息")) throw new Error(text.slice(0, 80));
+    return text;
+  }, "tools shot");
+  await evalJson(ws, "window.scrollTo(0,0)");
+  await shot(ws, "mobile_tools");
   await evalJson(ws, "document.querySelector('[data-nav=clients]').click()");
   await waitFor(async () => {
     const text = await evalJson(ws, "document.getElementById('clientList').innerText");
@@ -265,18 +290,24 @@ try {
   }, "clients again");
   await evalJson(ws, "window.scrollTo(0,0)");
   await shot(ws, "mobile_clients");
-  await evalJson(ws, "document.querySelector('[data-nav=social]').click()");
-  await wait(250);
-  await evalJson(ws, "const count = document.querySelector('#storyForm [name=story_count]'); if (count) count.value = '1'; window.scrollTo(0,0);");
-  await shot(ws, "mobile_social");
+  await evalJson(ws, "document.querySelector('[data-action=open-client]').click()");
+  await waitFor(async () => {
+    const text = await evalJson(ws, "document.getElementById('coverageBoard') ? document.getElementById('coverageBoard').innerText : ''");
+    if (!text.includes("保障") || !text.includes("缺口")) throw new Error(text.slice(0, 120));
+    return text;
+  }, "coverage");
+  await evalJson(ws, "const board = document.getElementById('coverageBoard'); window.scrollTo(0, board.getBoundingClientRect().top + window.scrollY - 64);");
+  await wait(200);
+  await shot(ws, "mobile_coverage");
+  const covered = await evalJson(ws, "document.getElementById('coverageBoard').innerText");
+  if (!covered.includes("已涵蓋") || !covered.includes("實支實付")) throw new Error(covered.slice(0, 180));
 
   await setViewport(ws, 1280, 800, false);
-  await wait(250);
-  await evalJson(ws, "window.scrollTo(0,0)");
-  await shot(ws, "desktop_social");
   await evalJson(ws, "document.querySelector('[data-nav=home]').click()");
-  await wait(250);
-  await shot(ws, "desktop_home");
+  await wait(300);
+  const drawerVisible = await evalJson(ws, "getComputedStyle(document.getElementById('drawer')).transform === 'none'");
+  if (!drawerVisible) throw new Error("桌機側欄沒有固定顯示");
+  await shot(ws, "desktop_overview");
 
   if (errors.length) {
     throw new Error(`主控台錯誤：\n${errors.join("\n")}`);
