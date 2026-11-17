@@ -106,7 +106,7 @@ begin
   from private.app_settings
   where key = 'default_password';
 
-  if secret is null or char_length(btrim(secret)) < 8 then
+  if secret is null or char_length(btrim(secret)) < 1 then
     raise exception '還沒設定團隊預設密碼';
   end if;
 
@@ -221,7 +221,7 @@ begin
   end if;
 
   select value into secret from private.app_settings where key = 'default_password';
-  if secret is null or char_length(btrim(secret)) < 8 then
+  if secret is null or char_length(btrim(secret)) < 1 then
     raise exception '還沒設定團隊預設密碼';
   end if;
 
