@@ -1,4 +1,5 @@
 import { addDays, isoDate } from "@hub/metrics";
+import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
 import { randomId, safeLocal, safeSession } from "@hub/safe";
 
 const STORAGE_KEY = "naneun-team-hub-demo-v1";
@@ -45,9 +46,41 @@ function seed() {
   }));
 
   const customers = [
-    customer("TH-1001", PEOPLE.lin, "王先生（示範）", "0912-000-101", ["車險", "醫療保障"], "03-18", "虛構資料。有小孩，偏好用 LINE 聯絡。"),
-    customer("TH-1002", PEOPLE.lin, "李小姐（示範）", "0912-000-102", ["家庭保障"], "11-02", "虛構資料。準備年度保障檢視。"),
-    customer("TH-1003", PEOPLE.huang, "陳媽媽（示範）", "0912-000-103", ["醫療保障"], "06-21", "虛構資料。在意門診與住院。"),
+    customer("TH-1001", PEOPLE.lin, "王先生（示範）", "0912-000-101", ["車險", "醫療保障"], "03-18", "虛構資料。有小孩，偏好用 LINE 聯絡。", {
+      nickname: "阿王",
+      birth_date: "1992-03-18",
+      gender: "男",
+      referrer: "陳同事（示範）",
+      contact_method: "LINE",
+      hobbies: "騎車、手沖咖啡",
+      lead_source: "朋友介紹",
+      relation_social: 7,
+      relation_business: 4,
+      analysis_worry: "擔心小孩教育金不夠，也在意突然的醫療支出。",
+      analysis_dream: "希望五年內準備一筆教育基金。",
+      analysis_work: "業務工作，收入不固定。房貸每月約兩萬。",
+      analysis_existing: "已有實支實付與意外險。",
+      analysis_insured: "本人",
+      analysis_beneficiary: "配偶",
+      analysis_pay_method: "年繳",
+      analysis_decision: "配偶會一起決定，目前沒有其他業務員聯繫。",
+      analysis_health: "目前沒有住院紀錄，偶發過敏。此為虛構描述。",
+      analysis_next: "下週約訪，做一次保障檢視。",
+      analysis_family: "配偶與一名小孩。",
+    }),
+    customer("TH-1002", PEOPLE.lin, "李小姐（示範）", "0912-000-102", ["家庭保障"], "11-02", "虛構資料。準備年度保障檢視。", {
+      birth_date: "1988-11-02",
+      gender: "女",
+      contact_method: "電話",
+      hobbies: "烘焙",
+      lead_source: "講座",
+      analysis_dream: "想在退休前把房貸還清。",
+    }),
+    customer("TH-1003", PEOPLE.huang, "陳媽媽（示範）", "0912-000-103", ["醫療保障"], "06-21", "虛構資料。在意門診與住院。", {
+      gender: "女",
+      birth_date: "1975-06-21",
+      contact_method: "見面",
+    }),
     customer("TH-1004", PEOPLE.zhang, "周先生（示範）", "0912-000-104", ["退休規劃"], "", "虛構資料。五年內打算退休。"),
     customer("TH-1005", PEOPLE.wu, "林小弟（示範）", "0912-000-105", ["意外保障"], "01-09", "虛構資料。常騎車通勤。"),
   ];
@@ -157,7 +190,7 @@ function seed() {
   ];
 
   return {
-    version: 3,
+    version: 4,
     profiles,
     customers,
     policies,
@@ -170,8 +203,8 @@ function seed() {
     announcements,
   };
 
-  function customer(code, owner, name, phone, tags, birthday, notes) {
-    return {
+  function customer(code, owner, name, phone, tags, birthday, notes, extra = {}) {
+    const row = {
       id: uid(),
       team_id: DEMO_TEAM_ID,
       owner_id: owner,
@@ -183,11 +216,24 @@ function seed() {
       service_tags: tags,
       birthday_md: birthday || null,
       notes,
+      gender: null,
+      relation_social: null,
+      relation_business: null,
+      birth_date: null,
       privacy_notice_recorded_at: nowIso(),
       is_archived: false,
       created_at: nowIso(),
       updated_at: nowIso(),
     };
+    for (const key of PROFILE_TEXT_FIELDS) row[key] = extra[key] || (key === "notes" ? notes : "");
+    if (extra.birth_date) {
+      row.birth_date = extra.birth_date;
+      row.birthday_md = String(extra.birth_date).slice(5);
+    }
+    row.gender = extra.gender || null;
+    row.relation_social = extra.relation_social ?? null;
+    row.relation_business = extra.relation_business ?? null;
+    return row;
   }
 
   function policy(ownerCustomer, category, insurer, expiryIn, renewalIn, last4) {
@@ -258,7 +304,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 3 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 4 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -530,22 +576,21 @@ export function createDemoStore() {
       if (!state.profiles.some((item) => item.id === ownerId && item.team_id === me.team_id)) {
         throw new Error("負責人必須是同團隊的夥伴");
       }
+      const norm = normalizeCustomerInput(input);
+      if (norm.error) throw new Error(norm.error);
       if (input.id) {
         const row = state.customers.find((item) => item.id === input.id && item.team_id === me.team_id);
         if (!row || (!manager() && row.owner_id !== me.id)) throw new Error("找不到客戶");
-        Object.assign(row, {
+        const previousOwner = row.owner_id;
+        Object.assign(row, norm.fields, {
           owner_id: ownerId,
-          display_name: input.display_name.trim(),
-          phone: (input.phone || "").trim(),
           email: (input.email || "").trim(),
           preferred_contact: input.preferred_contact || "",
           service_tags: input.service_tags || [],
-          birthday_md: input.birthday_md || null,
-          notes: (input.notes || "").trim(),
           is_archived: Boolean(input.is_archived),
           updated_at: nowIso(),
         });
-        if (row.owner_id !== ownerId) {
+        if (previousOwner !== ownerId) {
           state.policies.forEach((item) => {
             if (item.customer_id === row.id) item.owner_id = ownerId;
           });
@@ -561,17 +606,14 @@ export function createDemoStore() {
         team_id: me.team_id,
         owner_id: ownerId,
         ref_code: nextRef(),
-        display_name: input.display_name.trim(),
-        phone: (input.phone || "").trim(),
         email: (input.email || "").trim(),
         preferred_contact: input.preferred_contact || "",
         service_tags: input.service_tags || [],
-        birthday_md: input.birthday_md || null,
-        notes: (input.notes || "").trim(),
         privacy_notice_recorded_at: nowIso(),
         is_archived: false,
         created_at: nowIso(),
         updated_at: nowIso(),
+        ...norm.fields,
       };
       state.customers.unshift(row);
       persist();

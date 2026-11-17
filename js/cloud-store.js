@@ -1,4 +1,5 @@
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/+esm";
+import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
 
 function fail(error, fallback) {
   if (!error) return;
@@ -215,19 +216,25 @@ export function createCloudStore(url, anonKey) {
     },
 
     async saveCustomer(input) {
+      const norm = normalizeCustomerInput(input);
+      if (norm.error) throw new Error(norm.error);
       const payload = {
         team_id: profile.team_id,
         owner_id: input.owner_id || profile.id,
-        display_name: input.display_name.trim(),
-        phone: (input.phone || "").trim() || null,
+        display_name: norm.fields.display_name,
+        phone: norm.fields.phone || null,
         email: (input.email || "").trim() || null,
         preferred_contact: input.preferred_contact || null,
         service_tags: input.service_tags || [],
-        birthday_md: input.birthday_md || null,
-        notes: (input.notes || "").trim() || null,
+        birthday_md: norm.fields.birthday_md,
+        birth_date: norm.fields.birth_date,
+        gender: norm.fields.gender,
+        relation_social: norm.fields.relation_social,
+        relation_business: norm.fields.relation_business,
         is_archived: Boolean(input.is_archived),
         privacy_notice_recorded_at: new Date().toISOString(),
       };
+      for (const key of PROFILE_TEXT_FIELDS) payload[key] = norm.fields[key] || null;
       if (input.id) {
         const { data, error } = await sb.from("customers").update(payload).eq("id", input.id).select().single();
         fail(error, "客戶沒有更新");

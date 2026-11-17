@@ -5,23 +5,24 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117h 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117i 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117h">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117i">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117h",
-      "@hub/guides": "./js/guides.js?v=20261117h",
-      "@hub/store": "./js/store.js?v=20261117h",
-      "@hub/metrics": "./js/metrics.js?v=20261117h",
-      "@hub/config": "./js/config.js?v=20261117h",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117h",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117h",
-      "@hub/safe": "./js/safe-browser.js?v=20261117h",
-      "@hub/contest": "./js/contest.js?v=20261117h"
+      "@hub/app": "./js/app.js?v=20261117i",
+      "@hub/guides": "./js/guides.js?v=20261117i",
+      "@hub/store": "./js/store.js?v=20261117i",
+      "@hub/metrics": "./js/metrics.js?v=20261117i",
+      "@hub/config": "./js/config.js?v=20261117i",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117i",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117i",
+      "@hub/safe": "./js/safe-browser.js?v=20261117i",
+      "@hub/contest": "./js/contest.js?v=20261117i",
+      "@hub/profile": "./js/client-profile.js?v=20261117i"
     }
   }
   </script>
@@ -191,34 +192,61 @@
           <input class="search" id="clientSearch" placeholder="搜尋客戶、標籤或備註">
           <label class="checkline"><input id="showArchived" type="checkbox"> 顯示已封存</label>
           <div id="clientList"></div>
-          <form id="customerForm" class="panel">
-            <h3 id="customerFormTitle">新增客戶</h3>
+          <div id="clientDetail"></div>
+          <form id="customerForm" class="panel client-form" autocomplete="off">
+            <h3 id="customerFormTitle">新增名單</h3>
             <input type="hidden" name="id">
-            <div class="form-grid cols-2">
-              <label class="field">客戶稱呼<input name="display_name" required maxlength="80" placeholder="王先生（示範）"></label>
-              <label class="field manager-only">負責人
-                <select name="owner_id" id="customerOwner"></select>
-              </label>
-              <label class="field">電話（選填）<input name="phone" maxlength="30"></label>
-              <label class="field">電子郵件（選填）<input name="email" type="email" maxlength="200"></label>
-              <label class="field">偏好聯絡
-                <select name="preferred_contact">
-                  <option value="LINE">LINE</option>
-                  <option value="電話">電話</option>
-                  <option value="見面">見面</option>
-                  <option value="其他">其他</option>
-                </select>
-              </label>
-              <label class="field">生日月日（選填）<input name="birthday_md" placeholder="03-18" maxlength="5"></label>
-              <label class="field">服務標籤<input name="service_tags" placeholder="意外、實支實付"></label>
+            <input type="hidden" name="birthday_md_keep">
+            <input type="hidden" name="relation_social" id="relationSocial">
+            <input type="hidden" name="relation_business" id="relationBusiness">
+            <label class="npss"><span>姓名</span><input name="display_name" required maxlength="80" placeholder="王先生（示範）"></label>
+            <label class="npss manager-only"><span>負責人</span><select name="owner_id" id="customerOwner"></select></label>
+            <label class="npss"><span>暱稱</span><input name="nickname" maxlength="80"></label>
+            <div class="npss">
+              <label for="birthRoc">生日</label>
+              <input id="birthRoc" name="birth_roc" inputmode="numeric" maxlength="12" placeholder="92/03/15" autocomplete="off">
+              <button class="text-btn" id="birthBtn" type="button">選日期</button>
+              <input id="birthPicker" class="birth-native" type="date" tabindex="-1" aria-hidden="true">
             </div>
-            <label class="field">備註<textarea name="notes" maxlength="4000"></textarea></label>
+            <div class="npss">
+              <span>性別</span>
+              <div class="choice">
+                <label><input type="radio" name="gender" value="男"> 男</label>
+                <label><input type="radio" name="gender" value="女"> 女</label>
+              </div>
+            </div>
+            <label class="npss"><span>手機1</span><input name="phone" maxlength="30" inputmode="tel"></label>
+            <label class="npss"><span>介紹人</span><input name="referrer" maxlength="80"></label>
+            <label class="npss"><span>聯絡方式</span><input name="contact_method" maxlength="120" placeholder="LINE、電話或見面"></label>
+            <label class="npss"><span>興趣/嗜好</span><input name="hobbies" maxlength="200"></label>
+            <label class="npss"><span>客戶來源</span><input name="lead_source" maxlength="80"></label>
+            <button class="npss relation-open" id="relationOpen" type="button">
+              <span>關係定位</span>
+              <strong id="relationText">請選擇</strong>
+            </button>
+            <label class="notes-field">備註<textarea name="notes" maxlength="4000"></textarea></label>
+            <section id="analysisBlock">
+              <div class="section-head">
+                <h3>五項度客戶分析</h3>
+                <b id="analysisScore">完成度 0/8</b>
+              </div>
+              <p class="sub">依編號填寫。第 5 格會跟著上面的欄位自動更新。</p>
+              <div id="analysisFields"></div>
+              <div class="section-head">
+                <h3>客戶資料分析表</h3>
+                <div class="row">
+                  <button class="btn secondary small" id="analysisFull" type="button">全螢幕</button>
+                  <button class="btn secondary small" id="analysisDownload" type="button">下載圖片</button>
+                </div>
+              </div>
+              <div id="analysisGrid"></div>
+            </section>
+            <p class="privacy-line">請用虛構或已核准的資料。不要填身分證、病歷文件、完整保單號碼或銀行帳戶。</p>
             <div class="row">
-              <button class="btn" type="submit">儲存客戶</button>
-              <button class="btn secondary" id="customerCancel" type="button" hidden>取消編輯</button>
+              <button class="btn" type="submit">儲存名單</button>
+              <button class="btn secondary" id="customerCancel" type="button" hidden>改為新增</button>
             </div>
           </form>
-          <div id="clientDetail"></div>
         </section>
 
         <section class="page" id="page-tasks">
@@ -345,7 +373,55 @@
     <div id="secretaryBody"></div>
   </div>
 
+  <div id="relationSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="relationTitle">
+    <div class="modal">
+      <h3 id="relationTitle">請自行評分與準客戶的關係定位級別 (1~10分)</h3>
+      <label class="field">社交
+        <select id="relationSocialPick"></select>
+      </label>
+      <label class="field">商業
+        <select id="relationBusinessPick"></select>
+      </label>
+      <div class="row">
+        <button class="btn secondary" id="relationCancel" type="button">取消</button>
+        <button class="btn" id="relationOk" type="button">確認</button>
+      </div>
+    </div>
+  </div>
+
+  <div id="cellSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="cellSheetTitle">
+    <div class="modal">
+      <h3 id="cellSheetTitle"></h3>
+      <p id="cellSheetHint" class="note-hint"></p>
+      <textarea id="cellSheetBody" rows="6" maxlength="4000"></textarea>
+      <div id="cellSheetSubs"></div>
+      <p class="sub">這格會立刻反映到分析表。關掉後請按「儲存名單」。</p>
+      <button class="btn" id="cellSheetClose" type="button">關閉</button>
+    </div>
+  </div>
+
+  <div id="gridFull" class="grid-full" hidden>
+    <div class="row spread">
+      <strong>客戶資料分析表</strong>
+      <div class="row">
+        <button class="btn secondary small" id="gridFullDownload" type="button">下載圖片</button>
+        <button class="btn secondary small" id="gridFullClose" type="button">關閉</button>
+      </div>
+    </div>
+    <div id="gridFullBody"></div>
+  </div>
+
+  <div id="pngSheet" class="modal-bg" role="dialog" aria-modal="true">
+    <div class="modal">
+      <h3>客戶資料分析表</h3>
+      <p class="sub">若沒有自動存檔，可以長按圖片儲存。</p>
+      <img id="pngPreview" alt="客戶資料分析表">
+      <a id="pngDownload" class="btn" download="客戶資料分析表.png">下載圖片</a>
+      <button class="btn secondary" id="pngClose" type="button">關閉</button>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117h"></script>
+  <script type="module" src="./js/app.js?v=20261117i"></script>
 </body>
 </html>
