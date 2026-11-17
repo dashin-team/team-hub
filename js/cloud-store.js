@@ -1,3 +1,4 @@
+import { normalizeEvent } from "@hub/calendar";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/+esm";
 import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
 
@@ -187,11 +188,13 @@ export function createCloudStore(url, anonKey) {
 
     async saveTask(input) {
       if (input.id) {
-        const { data, error } = await sb.from("tasks").update({
+        const patch = {
           is_done: Boolean(input.is_done),
           completed_at: input.is_done ? new Date().toISOString() : null,
           title: input.title,
-        }).eq("id", input.id).select().single();
+        };
+        if (input.due_date) patch.due_date = input.due_date;
+        const { data, error } = await sb.from("tasks").update(patch).eq("id", input.id).select().single();
         fail(error, "任務沒有更新");
         return data;
       }
@@ -209,6 +212,33 @@ export function createCloudStore(url, anonKey) {
     async deleteTask(id) {
       const { error } = await sb.from("tasks").delete().eq("id", id);
       fail(error, "任務沒有刪除");
+    },
+
+    async listCalendarEvents() {
+      return rows(sb.from("calendar_events").select("*").order("event_date"), "讀取行事曆時發生問題");
+    },
+
+    async saveCalendarEvent(input) {
+      const norm = normalizeEvent(input);
+      if (norm.error) throw new Error(norm.error);
+      const payload = {
+        ...norm.fields,
+        team_id: profile.team_id,
+        owner_id: profile.id,
+      };
+      if (input.id) {
+        const { data, error } = await sb.from("calendar_events").update(payload).eq("id", input.id).select().single();
+        fail(error, "活動沒有更新");
+        return data;
+      }
+      const { data, error } = await sb.from("calendar_events").insert(payload).select().single();
+      fail(error, "活動沒有新增");
+      return data;
+    },
+
+    async deleteCalendarEvent(id) {
+      const { error } = await sb.from("calendar_events").delete().eq("id", id);
+      fail(error, "活動沒有刪除");
     },
 
     async listCustomers() {
