@@ -230,6 +230,16 @@ try {
     if (!text.includes("王先生") || text.includes("陳媽媽")) throw new Error(`夥伴看到不該看的客戶: ${text}`);
     return text;
   }, "member clients");
+  await evalJson(ws, "document.querySelector('[data-nav=tasks]').click()");
+  await evalJson(ws, "document.querySelector('[data-cal-view=list]').click()");
+  await waitFor(async () => {
+    const text = await evalJson(ws, "document.getElementById('page-tasks').innerText");
+    const team = await evalJson(ws, "document.getElementById('calTeam').innerText");
+    if (!text.includes("約王先生喝咖啡") || text.includes("詩涵示範增員")) throw new Error(`行事曆隔離失敗: ${text.slice(0, 180)}`);
+    if (team.trim()) throw new Error("一般夥伴不該看到團隊盤點");
+    if (!text.includes("盤點") || !text.includes("完成率")) throw new Error("沒有盤點");
+    return text;
+  }, "member calendar");
   await evalJson(ws, "document.getElementById('previewRole').value = 'admin'; document.getElementById('previewRole').dispatchEvent(new Event('change'))");
   await evalJson(ws, "document.querySelector('[data-nav=ai]').click()");
   await waitFor(async () => {
@@ -241,16 +251,29 @@ try {
   }, "tools");
 
   await evalJson(ws, "document.querySelector('[data-nav=tasks]').click()");
+  await evalJson(ws, "document.querySelector('[data-cal-view=month]').click()");
+  await waitFor(async () => {
+    const text = await evalJson(ws, "document.getElementById('page-tasks').innerText");
+    if (!text.includes("行事曆") || !text.includes("團隊盤點")) throw new Error(`主管行事曆不完整: ${text.slice(0, 160)}`);
+    return text;
+  }, "calendar");
+  await evalJson(ws, "document.querySelector('.cal-cell.today').click()");
+  await waitFor(async () => {
+    const open = await evalJson(ws, "document.getElementById('calSheet').classList.contains('show')");
+    if (!open) throw new Error("沒有打開當天");
+    return open;
+  }, "calendar day");
   await evalJson(ws, `
-    document.getElementById('taskTitle').value = '瀏覽器測試任務';
-    document.getElementById('taskForm').requestSubmit();
+    document.querySelector('#calForm [name=title]').value = '瀏覽器測試約訪';
+    document.querySelector('#calForm [name=event_type]').value = 'visit';
+    document.getElementById('calForm').requestSubmit();
     true
   `);
   await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('taskList').innerText");
-    if (!text.includes("瀏覽器測試任務")) throw new Error("任務沒新增");
+    const text = await evalJson(ws, "document.getElementById('calDayList').innerText");
+    if (!text.includes("瀏覽器測試約訪")) throw new Error("活動沒有存進當天");
     return text;
-  }, "task");
+  }, "calendar save");
 
   await evalJson(ws, "document.getElementById('resetDemo').click();");
   await waitFor(async () => {

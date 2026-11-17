@@ -5,24 +5,25 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117i 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117j 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117i">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117j">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117i",
-      "@hub/guides": "./js/guides.js?v=20261117i",
-      "@hub/store": "./js/store.js?v=20261117i",
-      "@hub/metrics": "./js/metrics.js?v=20261117i",
-      "@hub/config": "./js/config.js?v=20261117i",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117i",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117i",
-      "@hub/safe": "./js/safe-browser.js?v=20261117i",
-      "@hub/contest": "./js/contest.js?v=20261117i",
-      "@hub/profile": "./js/client-profile.js?v=20261117i"
+      "@hub/app": "./js/app.js?v=20261117j",
+      "@hub/guides": "./js/guides.js?v=20261117j",
+      "@hub/store": "./js/store.js?v=20261117j",
+      "@hub/metrics": "./js/metrics.js?v=20261117j",
+      "@hub/config": "./js/config.js?v=20261117j",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117j",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117j",
+      "@hub/safe": "./js/safe-browser.js?v=20261117j",
+      "@hub/contest": "./js/contest.js?v=20261117j",
+      "@hub/profile": "./js/client-profile.js?v=20261117j",
+      "@hub/calendar": "./js/calendar.js?v=20261117j"
     }
   }
   </script>
@@ -135,7 +136,7 @@
       <nav>
         <button type="button" data-nav="home">總覽</button>
         <button type="button" data-nav="clients">名單</button>
-        <button type="button" data-nav="tasks">行程</button>
+        <button type="button" data-nav="tasks">行事曆</button>
         <button type="button" data-nav="social">競賽</button>
         <button type="button" data-nav="learn">訓練</button>
         <button type="button" data-nav="ai">工具</button>
@@ -250,20 +251,27 @@
         </section>
 
         <section class="page" id="page-tasks">
-          <h1 class="page-title">行程</h1>
-          <p class="sub">提醒與待辦放在一起。一般夥伴只看得到自己的。</p>
-          <div id="scheduleBoard"></div>
-          <form id="taskForm" class="panel">
-            <h3>新增一件事</h3>
-            <div class="form-grid cols-2">
-              <label class="field">要做的事<input id="taskTitle" name="title" required maxlength="200" placeholder="例如：關心三位客戶"></label>
-              <label class="field">日期<input name="due_date" type="date"></label>
-            </div>
-            <button class="btn" type="submit">加入行程</button>
-          </form>
-          <p class="muted" id="taskSummary"></p>
-          <div id="taskList"></div>
-          <button class="btn secondary" id="clearDone" type="button">清除已完成</button>
+          <h1 class="page-title">行事曆</h1>
+          <p class="sub">規劃約訪、拜訪和送件，再盤點這週、這個月做了多少。原本的待辦仍留在這裡。</p>
+          <label class="field manager-only">看哪一位
+            <select id="calMember" aria-label="看哪一位夥伴"></select>
+          </label>
+          <div class="cal-toolbar">
+            <button class="icon-btn" id="calPrev" type="button" aria-label="上一個">‹</button>
+            <strong id="calLabel"></strong>
+            <button class="icon-btn" id="calNext" type="button" aria-label="下一個">›</button>
+            <button class="btn secondary small" id="calToday" type="button">今天</button>
+          </div>
+          <div class="seg cal-views" role="group" aria-label="行事曆檢視">
+            <button type="button" data-cal-view="month">月</button>
+            <button type="button" data-cal-view="week">週</button>
+            <button type="button" data-cal-view="list">清單</button>
+          </div>
+          <div class="cal-legend" id="calLegend"></div>
+          <p class="muted" id="calScope"></p>
+          <div id="calBoard"></div>
+          <section class="panel" id="calStock"></section>
+          <section class="panel manager-only" id="calTeam"></section>
         </section>
 
         <section class="page" id="page-social">
@@ -356,7 +364,7 @@
       <div class="dock">
         <div class="dock-inner">
           <div class="fabs">
-            <button class="fab" type="button" data-nav="tasks" aria-label="任務">任務</button>
+            <button class="fab" type="button" data-nav="tasks" aria-label="行事曆">行事曆</button>
             <button class="fab dark" id="secretaryBtn" type="button">秘書</button>
           </div>
         </div>
@@ -421,7 +429,39 @@
     </div>
   </div>
 
+  <div id="calSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="calSheetTitle">
+    <div class="modal">
+      <div class="row spread">
+        <h3 id="calSheetTitle">活動</h3>
+        <button class="icon-btn" id="calSheetClose" type="button" aria-label="關閉">✕</button>
+      </div>
+      <div id="calDayList"></div>
+      <form id="calForm" autocomplete="off">
+        <input type="hidden" name="id">
+        <input type="hidden" name="source" value="event">
+        <label class="field">標題<input name="title" required maxlength="200" placeholder="例如：約王先生喝咖啡"></label>
+        <div class="form-grid cols-2">
+          <label class="field">日期<input name="event_date" type="date" required></label>
+          <label class="field cal-event-only">時間（選填）<input name="event_time" type="time"></label>
+        </div>
+        <label class="field cal-event-only">類型
+          <select name="event_type" id="calType"></select>
+        </label>
+        <label class="field cal-event-only">連結客戶（選填）
+          <select name="customer_id" id="calClient"></select>
+        </label>
+        <label class="field cal-event-only">備註<textarea name="note" maxlength="4000"></textarea></label>
+        <label class="checkline"><input name="is_done" type="checkbox"> 已完成</label>
+        <div class="row">
+          <button class="btn" type="submit">儲存</button>
+          <button class="btn secondary" id="calNew" type="button">改為新增</button>
+          <button class="btn danger" id="calDelete" type="button" hidden>刪除</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117i"></script>
+  <script type="module" src="./js/app.js?v=20261117j"></script>
 </body>
 </html>

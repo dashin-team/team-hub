@@ -1,3 +1,13 @@
+import {
+  EVENT_TYPES,
+  WEEKDAYS,
+  eventType,
+  monthGrid,
+  shiftMonth,
+  shiftWeek,
+  stocktake,
+  weekdayIndex,
+} from "@hub/calendar";
 import { CURRENT_CONTEST } from "@hub/contest";
 import {
   ANALYSIS_SECTIONS,
@@ -30,7 +40,7 @@ const PAGE_ALIAS = { assets: "learn", members: "announcements" };
 const PAGE_NAMES = {
   home: "總覽",
   clients: "名單",
-  tasks: "行程",
+  tasks: "行事曆",
   social: "競賽",
   learn: "訓練",
   ai: "工具",
@@ -43,6 +53,11 @@ let page = "home";
 let assetCat = "全部";
 let selectedCustomerId = null;
 let coverageView = "gaps";
+let calView = "month";
+let calCursor = "";
+let calFocus = "";
+let calOwner = "";
+let calItems = [];
 let toastTimer = 0;
 
 function toast(message) {
@@ -133,7 +148,7 @@ async function renderPage() {
     await renderLearn();
     await renderAssets();
   }
-  if (page === "tasks") await renderTasks();
+  if (page === "tasks") await renderCalendar();
   if (page === "clients") await renderClients();
   if (page === "social") renderContest();
   if (page === "announcements") {
@@ -169,7 +184,7 @@ function coverageOf(policies) {
   return COVERAGE_AREAS.map((area) => ({ ...area, covered: areaCovered(policies, area) }));
 }
 
-function upcomingItems(tasks, reminders, profile, today, days) {
+function upcomingItems(tasks, reminders, events, profile, today, days) {
   const end = addDays(today, days);
   const rows = [];
   reminders
@@ -177,7 +192,10 @@ function upcomingItems(tasks, reminders, profile, today, days) {
     .forEach((item) => rows.push({ date: String(item.due_at).slice(0, 10), title: item.title, kind: KIND_LABEL[item.kind] || "提醒" }));
   tasks
     .filter((item) => !item.is_done && item.due_date && (profile.role === "admin" || item.owner_id === profile.id))
-    .forEach((item) => rows.push({ date: item.due_date, title: item.title, kind: "任務" }));
+    .forEach((item) => rows.push({ date: item.due_date, title: item.title, kind: "待辦" }));
+  events
+    .filter((item) => !item.is_done && (profile.role === "admin" || item.owner_id === profile.id))
+    .forEach((item) => rows.push({ date: item.event_date, title: item.title, kind: eventType(item.event_type)?.label || "活動" }));
   return rows.filter((item) => item.date >= today && item.date <= end).sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title, "zh-Hant"));
 }
 
@@ -195,16 +213,17 @@ function renderContest() {
 
 async function renderHome() {
   const profile = me();
-  const [tasks, reminders, announcements, customers, records] = await Promise.all([
+  const [tasks, reminders, events, announcements, customers, records] = await Promise.all([
     store.listTasks(),
     store.listReminders(),
+    store.listCalendarEvents(),
     store.listAnnouncements(),
     store.listCustomers(),
     store.listServiceRecords(),
   ]);
   const today = isoDate();
   const since = addDays(today, -7);
-  const agenda = upcomingItems(tasks, reminders, profile, today, 14);
+  const agenda = upcomingItems(tasks, reminders, events, profile, today, 14);
   const nearest = agenda[0];
   const advice = nearest
     ? `近期有一件事：${nearest.title}，${formatDate(nearest.date)} 前處理即可。`
@@ -230,7 +249,7 @@ async function renderHome() {
   $("homeNotices").innerHTML = visibleNews.map((item) =>
     `<div class="notice"><b>${esc(item.title)}</b><small>${esc(item.body)}</small></div>`).join("")
     || `<div class="empty">目前沒有公告。</div>`;
-  $("secretaryBody").innerHTML = `<p>${esc(advice)}</p><div class="row"><button class="btn secondary small" type="button" data-nav="tasks">看行程</button><button class="btn secondary small" type="button" data-nav="social">看本季競賽</button><button class="btn secondary small" type="button" data-nav="ai">看投保指南</button></div>`;
+  $("secretaryBody").innerHTML = `<p>${esc(advice)}</p><div class="row"><button class="btn secondary small" type="button" data-nav="tasks">看行事曆</button><button class="btn secondary small" type="button" data-nav="social">看本季競賽</button><button class="btn secondary small" type="button" data-nav="ai">看投保指南</button></div>`;
 }
 
 async function refreshDot() {
@@ -294,21 +313,220 @@ async function renderLearn() {
   $("teamLearn").innerHTML = `<div class="section-head"><h2>團隊學習</h2><span>已完成的單元</span></div><div class="panel">${lines || `<div class="empty">還沒有成員。</div>`}</div>`;
 }
 
-async function renderTasks() {
+function calendarItems(events, tasks, reminders, ownerId) {
+  const rows = [];
+  events.filter((item) => item.owner_id === ownerId).forEach((item) => rows.push({
+    id: item.id,
+    source: "event",
+    owner_id: item.owner_id,
+    title: item.title,
+    date: String(item.event_date).slice(0, 10),
+    time: item.event_time ? String(item.event_time).slice(0, 5) : "",
+    type: item.event_type,
+    customer_id: item.customer_id || "",
+    note: item.note || "",
+    is_done: Boolean(item.is_done),
+  }));
+  tasks.filter((item) => item.owner_id === ownerId && item.due_date).forEach((item) => rows.push({
+    id: item.id,
+    source: "task",
+    owner_id: item.owner_id,
+    title: item.title,
+    date: String(item.due_date).slice(0, 10),
+    time: "",
+    type: "task",
+    customer_id: "",
+    note: "",
+    is_done: Boolean(item.is_done),
+  }));
+  reminders.filter((item) => item.owner_id === ownerId && item.status === "open").forEach((item) => rows.push({
+    id: item.id,
+    source: "reminder",
+    owner_id: item.owner_id,
+    title: item.title,
+    date: String(item.due_at).slice(0, 10),
+    time: "",
+    type: "reminder",
+    customer_id: item.customer_id || "",
+    note: "",
+    is_done: false,
+  }));
+  return rows.sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || "") || a.title.localeCompare(b.title, "zh-Hant"));
+}
+
+function itemColor(item) {
+  if (item.type === "task") return "#c4a574";
+  if (item.type === "reminder") return "#b0a89d";
+  return eventType(item.type)?.color || "#8a8176";
+}
+
+function itemLabel(item) {
+  if (item.type === "task") return "待辦";
+  if (item.type === "reminder") return "提醒";
+  return eventType(item.type)?.label || "活動";
+}
+
+function chipText(item, customers) {
+  const who = customers.find((customer) => customer.id === item.customer_id);
+  const bits = [item.time, itemLabel(item), item.title, who ? who.display_name : ""].filter(Boolean);
+  return bits.join(" ");
+}
+
+function dotsHtml(items) {
+  const shown = items.slice(0, 4).map((item) =>
+    `<i class="dot ${item.is_done ? "done" : ""}" style="background:${itemColor(item)}" title="${esc(itemLabel(item))}"></i>`).join("");
+  const more = items.length > 4 ? `<span class="cal-more">+${items.length - 4}</span>` : "";
+  return `<span class="cal-dots">${shown}${more}</span>`;
+}
+
+function stockBlock(title, tally) {
+  const lines = EVENT_TYPES.map((type) => {
+    const count = tally.byType[type.id];
+    return `<div class="cal-count"><span><i style="background:${type.color}"></i>${esc(type.label)}</span><b>${count.done}/${count.planned}</b></div>`;
+  }).join("");
+  const extra = [
+    tally.tasks.planned ? `<p class="muted">原有待辦 ${tally.tasks.done}/${tally.tasks.planned}，不計入完成率。</p>` : "",
+    tally.reminders ? `<p class="muted">未完成的客戶提醒 ${tally.reminders} 件。</p>` : "",
+  ].join("");
+  return `<h3>${esc(title)}</h3>${lines}<p>計畫 ${tally.planned} · 完成 ${tally.done} · 未完成 ${tally.open} · 完成率 ${tally.rate}%</p>${extra}`;
+}
+
+function teamTable(profiles, events, today) {
+  const rows = profiles.map((person) => {
+    const mine = calendarItems(events, [], [], person.id);
+    const tally = stocktake(mine, today);
+    const detail = (bucket) => EVENT_TYPES.map((type) => `${type.label} ${bucket.byType[type.id].done}/${bucket.byType[type.id].planned}`).join("、");
+    return `<tr><td>${esc(person.display_name)}</td><td><b>${tally.week.done}/${tally.week.planned} · ${tally.week.rate}%</b><small>${esc(detail(tally.week))}</small></td><td><b>${tally.month.done}/${tally.month.planned} · ${tally.month.rate}%</b><small>${esc(detail(tally.month))}</small></td></tr>`;
+  }).join("");
+  return `<h3>團隊盤點</h3><div class="table-wrap"><table class="cal-team"><thead><tr><th>夥伴</th><th>本週</th><th>本月</th></tr></thead><tbody>${rows || `<tr><td colspan="3">還沒有夥伴。</td></tr>`}</tbody></table></div>`;
+}
+
+function paintCalForm(item, date) {
+  const form = $("calForm");
+  const editingTask = item?.source === "task";
+  form.elements.id.value = item?.id || "";
+  form.elements.source.value = editingTask ? "task" : "event";
+  form.elements.title.value = item?.title || "";
+  form.elements.event_date.value = item?.date || date;
+  form.elements.event_time.value = item?.time || "";
+  form.elements.event_type.value = eventType(item?.type) ? item.type : "visit";
+  form.elements.customer_id.value = item?.customer_id || "";
+  form.elements.note.value = item?.note || "";
+  form.elements.is_done.checked = Boolean(item?.is_done);
+  document.querySelectorAll(".cal-event-only").forEach((node) => { node.hidden = editingTask; });
+  $("calDelete").hidden = !item || item.source === "reminder";
+  $("calForm").hidden = item?.source === "reminder" || !canEditCalendar();
+}
+
+function canEditCalendar() {
+  return viewedOwnerId() === me()?.id;
+}
+
+function viewedOwnerId() {
   const profile = me();
-  const tasks = await store.listTasks();
-  const visible = profile.role === "admin" ? tasks : tasks.filter((item) => item.owner_id === profile.id);
-  const profiles = profile.role === "admin" ? await store.listProfiles() : [profile];
-  const pending = visible.filter((item) => !item.is_done).length;
-  const reminders = await store.listReminders();
-  const agenda = upcomingItems(visible, reminders, profile, isoDate(), 14);
-  $("scheduleBoard").innerHTML = agenda.length ? agenda.map((item) =>
-    `<div class="schedule-item"><span>${esc(item.title)}</span><small class="muted">${esc(item.kind)} ${formatDate(item.date)}</small></div>`).join("")
-    : `<div class="schedule-empty">（此區間沒有行程）</div>`;
-  $("taskSummary").textContent = `共 ${visible.length} 項，待完成 ${pending} 項，已完成 ${visible.length - pending} 項`;
-  $("taskList").innerHTML = visible.map((item) =>
-    `<div class="list-item ${item.is_done ? "done" : ""}"><label class="task-line"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" ${item.is_done ? "checked" : ""}><span>${esc(item.title)}${profile.role === "admin" && item.owner_id !== profile.id ? `（${esc(nameOf(item.owner_id, profiles))}）` : ""}</span></label><span class="muted">${formatDate(item.due_date)}</span><button class="btn secondary small" type="button" data-action="delete-task" data-id="${esc(item.id)}">刪除</button></div>`).join("")
-    || `<div class="empty">目前沒有任務。先加一件今天想完成的事。</div>`;
+  if (!profile) return "";
+  if (!canManageTeam(profile.role)) return profile.id;
+  return calOwner || profile.id;
+}
+
+function paintDayList(date, customers) {
+  const items = calItems.filter((item) => item.date === date);
+  const editable = canEditCalendar();
+  $("calDayList").innerHTML = items.map((item) => {
+    const done = item.is_done ? " done" : "";
+    const check = editable && item.source !== "reminder"
+      ? `<input type="checkbox" data-action="${item.source === "task" ? "toggle-task" : "toggle-event"}" data-id="${esc(item.id)}" ${item.is_done ? "checked" : ""}>`
+      : "";
+    const edit = item.source === "reminder" ? "" : `<button class="btn secondary small" type="button" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}">編輯</button>`;
+    return `<div class="list-item${done}"><label class="task-line">${check}<span>${esc(chipText(item, customers))}</span></label>${edit}</div>`;
+  }).join("") || `<p class="muted">這一天還沒有活動。</p>`;
+}
+
+function openCalendarDay(date, itemId) {
+  calFocus = date;
+  const [year, month, day] = date.split("-");
+  $("calSheetTitle").textContent = `${Number(month)}月${Number(day)}日 ${WEEKDAYS[weekdayIndex(date)]}`;
+  const customers = calCustomers;
+  const client = $("calClient");
+  const current = client.value;
+  client.innerHTML = `<option value="">不連結</option>${customers.map((customer) => `<option value="${esc(customer.id)}">${esc(customer.display_name)}</option>`).join("")}`;
+  client.value = current;
+  paintDayList(date, customers);
+  const item = itemId ? calItems.find((row) => row.id === itemId) : null;
+  paintCalForm(item, date);
+  $("calNew").hidden = !canEditCalendar();
+  $("calSheet").classList.add("show");
+  if (!item && canEditCalendar()) $("calForm").elements.title.focus();
+}
+
+let calCustomers = [];
+
+async function renderCalendar() {
+  const profile = me();
+  if (!calCursor) calCursor = isoDate();
+  if (!$("calType").dataset.ready) {
+    $("calType").innerHTML = EVENT_TYPES.map((type) => `<option value="${type.id}">${esc(type.label)}</option>`).join("");
+    $("calType").dataset.ready = "1";
+  }
+  const today = isoDate();
+  const [events, tasks, reminders, profiles, customers] = await Promise.all([
+    store.listCalendarEvents(),
+    store.listTasks(),
+    store.listReminders(),
+    store.listProfiles(),
+    store.listCustomers(),
+  ]);
+  calCustomers = customers;
+  const ownerId = viewedOwnerId();
+  if (!profiles.some((person) => person.id === ownerId)) calOwner = "";
+  const activeOwner = viewedOwnerId();
+  calItems = calendarItems(events, tasks, reminders, activeOwner);
+  const owner = profiles.find((person) => person.id === activeOwner) || profile;
+  $("calMember").innerHTML = [`<option value="">我的行事曆</option>`].concat(profiles.filter((person) => person.id !== profile.id).map((person) =>
+    `<option value="${esc(person.id)}">${esc(person.display_name)}</option>`)).join("");
+  $("calMember").value = calOwner && calOwner !== profile.id ? calOwner : "";
+  $("calScope").textContent = canEditCalendar() ? "點一天可以新增或修改。" : `正在看${owner.display_name}的行事曆，不能改對方的活動。`;
+  document.querySelectorAll("[data-cal-view]").forEach((button) => button.classList.toggle("on", button.dataset.calView === calView));
+  $("calLegend").innerHTML = EVENT_TYPES.map((type) =>
+    `<span><i class="dot" style="background:${type.color}"></i>${esc(type.label)}</span>`).join("")
+    + `<span><i class="dot" style="background:#c4a574"></i>待辦</span><span><i class="dot" style="background:#b0a89d"></i>提醒</span>`;
+  if (calView === "month") {
+    const grid = monthGrid(calCursor);
+    $("calLabel").textContent = grid.label;
+    const head = WEEKDAYS.map((day) => `<div class="cal-dow">${day}</div>`).join("");
+    const cells = grid.weeks.flat().map((day) => {
+      const mine = calItems.filter((item) => item.date === day.date);
+      const classes = ["cal-cell", day.inMonth ? "" : "out", day.date === today ? "today" : ""].filter(Boolean).join(" ");
+      return `<button class="${classes}" type="button" data-action="cal-day" data-date="${day.date}"><b>${Number(day.date.slice(8))}</b>${dotsHtml(mine)}</button>`;
+    }).join("");
+    $("calBoard").innerHTML = `<div class="cal-month">${head}${cells}</div>`;
+  } else if (calView === "week") {
+    const start = weekStartSafe(calCursor);
+    $("calLabel").textContent = `${formatDate(start)} – ${formatDate(addDays(start, 6))}`;
+    $("calBoard").innerHTML = `<div class="cal-week">${Array.from({ length: 7 }, (_, index) => {
+      const date = addDays(start, index);
+      const mine = calItems.filter((item) => item.date === date);
+      const chips = mine.map((item) =>
+        `<button class="cal-chip ${item.is_done ? "done" : ""}" type="button" style="--c:${itemColor(item)}" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${date}">${esc(chipText(item, customers))}</button>`).join("")
+        || `<span class="muted">沒有活動</span>`;
+      return `<article class="cal-daycard ${date === today ? "today" : ""}"><header><button type="button" data-action="cal-day" data-date="${date}"><b>${Number(date.slice(8))} ${WEEKDAYS[index]}</b></button></header><div class="cal-chips">${chips}</div></article>`;
+    }).join("")}</div>`;
+  } else {
+    const grid = monthGrid(calCursor);
+    $("calLabel").textContent = grid.label;
+    const mine = calItems.filter((item) => item.date.startsWith(calCursor.slice(0, 7)));
+    $("calBoard").innerHTML = `<div class="cal-list">${mine.map((item) =>
+      `<button class="cal-row" type="button" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${esc(item.date)}"><span>${esc(formatDate(item.date))} ${esc(chipText(item, customers))}</span><i class="dot ${item.is_done ? "done" : ""}" style="background:${itemColor(item)}"></i></button>`).join("") || `<div class="empty">這個月還沒有活動。</div>`}</div>`;
+  }
+  const tally = stocktake(calItems, today);
+  $("calStock").innerHTML = `<div class="cal-stock"><h2>盤點</h2>${stockBlock(`本週 ${formatDate(tally.weekStart)} – ${formatDate(tally.weekEnd)}`, tally.week)}${stockBlock(`${today.slice(0, 4)}年${Number(today.slice(5, 7))}月`, tally.month)}</div>`;
+  $("calTeam").innerHTML = canManageTeam(profile.role) ? teamTable(profiles, events, today) : "";
+  if ($("calSheet").classList.contains("show") && calFocus) paintDayList(calFocus, customers);
+}
+
+function weekStartSafe(iso) {
+  const index = weekdayIndex(iso);
+  return addDays(iso, -index);
 }
 
 function mountAnalysisFields() {
@@ -579,12 +797,24 @@ async function handleAction(event) {
     if (target.dataset.action === "toggle-task") {
       const tasks = await store.listTasks();
       const task = tasks.find((item) => item.id === id);
-      if (task) await store.saveTask({ id, title: task.title, is_done: target.checked });
-      await renderTasks();
+      if (task && task.owner_id === me().id) await store.saveTask({ id, title: task.title, is_done: target.checked });
+      await renderCalendar();
+    }
+    if (target.dataset.action === "toggle-event") {
+      const events = await store.listCalendarEvents();
+      const row = events.find((item) => item.id === id);
+      if (row && row.owner_id === me().id) await store.saveCalendarEvent({ ...row, is_done: target.checked });
+      await renderCalendar();
     }
     if (target.dataset.action === "delete-task") {
       await store.deleteTask(id);
-      await renderTasks();
+      await renderCalendar();
+    }
+    if (target.dataset.action === "cal-day") {
+      openCalendarDay(target.dataset.date);
+    }
+    if (target.dataset.action === "cal-edit") {
+      openCalendarDay(target.dataset.date || calItems.find((item) => item.id === id)?.date, id);
     }
     if (target.dataset.action === "coverage-tab") {
       coverageView = target.dataset.tab === "policies" ? "policies" : "gaps";
@@ -664,11 +894,11 @@ function bind() {
     }
   });
   document.body.addEventListener("click", (event) => {
-    if (event.target.closest("[data-action='toggle-task']")) return;
+    if (event.target.closest("[data-action='toggle-task'], [data-action='toggle-event']")) return;
     handleAction(event);
   });
   document.body.addEventListener("change", (event) => {
-    if (event.target.matches("[data-action='toggle-task']")) handleAction(event);
+    if (event.target.matches("[data-action='toggle-task'], [data-action='toggle-event']")) handleAction(event);
   });
   $("menuBtn").onclick = () => ($("drawer").classList.contains("open") ? closeMenu() : openMenu());
   $("avatarBtn").onclick = () => ($("drawer").classList.contains("open") ? closeMenu() : openMenu());
@@ -680,6 +910,7 @@ function bind() {
       $("relationSheet").classList.remove("show");
       $("cellSheet").classList.remove("show");
       $("pngSheet").classList.remove("show");
+      $("calSheet").classList.remove("show");
       $("gridFull").hidden = true;
     }
   });
@@ -691,6 +922,8 @@ function bind() {
   $("previewRole").addEventListener("change", async () => {
     store.setPreviewRole($("previewRole").value);
     selectedCustomerId = null;
+    calOwner = "";
+    calView = "month";
     resetCustomerForm();
     if (page === "announcements" && !canManageTeam(me().role)) page = "home";
     await renderPage();
@@ -703,17 +936,49 @@ function bind() {
   $("resetDemo").onclick = async () => {
     store.resetDemo();
     selectedCustomerId = null;
+    calOwner = "";
     resetCustomerForm();
     toast("已回到最初的示範資料");
     await renderPage();
   };
-  $("clearDone").onclick = async () => {
-    const tasks = await store.listTasks();
-    for (const task of tasks) {
-      if (task.is_done && task.owner_id === me().id) await store.deleteTask(task.id);
-    }
-    await renderTasks();
+  $("calPrev").onclick = () => {
+    calCursor = calView === "week" ? shiftWeek(calCursor || isoDate(), -1) : shiftMonth(calCursor || isoDate(), -1);
+    renderCalendar();
   };
+  $("calNext").onclick = () => {
+    calCursor = calView === "week" ? shiftWeek(calCursor || isoDate(), 1) : shiftMonth(calCursor || isoDate(), 1);
+    renderCalendar();
+  };
+  $("calToday").onclick = () => {
+    calCursor = isoDate();
+    calFocus = calCursor;
+    renderCalendar();
+  };
+  document.querySelectorAll("[data-cal-view]").forEach((button) => {
+    button.onclick = () => {
+      calView = button.dataset.calView;
+      renderCalendar();
+    };
+  });
+  $("calMember").onchange = () => {
+    calOwner = $("calMember").value;
+    renderCalendar();
+  };
+  $("calSheetClose").onclick = () => $("calSheet").classList.remove("show");
+  $("calNew").onclick = () => paintCalForm(null, calFocus || isoDate());
+  $("calDelete").onclick = async () => {
+    const form = $("calForm");
+    const id = form.elements.id.value;
+    if (!id) return;
+    try {
+      if (form.elements.source.value === "task") await store.deleteTask(id);
+      else await store.deleteCalendarEvent(id);
+      paintCalForm(null, form.elements.event_date.value);
+      toast("已刪除");
+      await renderCalendar();
+    } catch (error) { toast(error.message); }
+  };
+  $("calForm").addEventListener("submit", onCalendar);
   $("forceDemoFromBlock").onclick = () => {
     forceDemoMode();
     location.reload();
@@ -752,7 +1017,6 @@ function bind() {
     }
   });
 
-  $("taskForm").addEventListener("submit", onTask);
   $("assetForm").addEventListener("submit", onAsset);
   $("courseForm").addEventListener("submit", onCourse);
   $("customerForm").addEventListener("submit", onCustomer);
@@ -830,15 +1094,31 @@ function bind() {
   });
 }
 
-async function onTask(event) {
+async function onCalendar(event) {
   event.preventDefault();
-  const data = readForm(event.target);
-  if (!data.title.trim()) return;
+  if (!canEditCalendar()) return;
+  const form = event.target;
+  const data = readForm(form);
+  data.is_done = form.elements.is_done.checked;
   try {
-    await store.saveTask({ title: data.title, due_date: data.due_date || null });
-    event.target.reset();
-    toast("已新增任務");
-    await renderTasks();
+    if (data.source === "task") {
+      await store.saveTask({ id: data.id, title: data.title, due_date: data.event_date, is_done: data.is_done });
+    } else {
+      await store.saveCalendarEvent({
+        id: data.id || null,
+        title: data.title,
+        event_date: data.event_date,
+        event_time: data.event_time,
+        event_type: data.event_type,
+        customer_id: data.customer_id,
+        note: data.note,
+        is_done: data.is_done,
+      });
+    }
+    toast("已存進行事曆");
+    calCursor = data.event_date || calCursor;
+    await renderCalendar();
+    if (data.event_date) openCalendarDay(data.event_date);
   } catch (error) { toast(error.message); }
 }
 

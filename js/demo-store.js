@@ -1,3 +1,4 @@
+import { normalizeEvent } from "@hub/calendar";
 import { addDays, isoDate } from "@hub/metrics";
 import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
 import { randomId, safeLocal, safeSession } from "@hub/safe";
@@ -126,6 +127,22 @@ function seed() {
     task(PEOPLE.manager, "整理新人可以用的素材連結", false, 1),
   ];
 
+  const calendarEvents = [
+    calEvent(PEOPLE.lin, "約王先生喝咖啡", "visit", 0, "10:00", 0, "虛構。先聊近況，不先談商品。", false),
+    calEvent(PEOPLE.lin, "李小姐年度面談", "meet", 1, "14:30", 1, "虛構。帶保障檢視表。", false),
+    calEvent(PEOPLE.lin, "送件練習（示範）", "deal", -1, "16:00", 0, "虛構。不是真實送件。", true),
+    calEvent(PEOPLE.lin, "週三教材小課", "train", 2, "19:00", null, "虛構。團隊內部分享。", false),
+    calEvent(PEOPLE.lin, "認識一位新人朋友", "recruit", -3, "11:00", null, "虛構。只是約喝咖啡。", true),
+    calEvent(PEOPLE.lin, "整理客戶近況", "other", 4, null, null, "", false),
+    calEvent(PEOPLE.lin, "上週已完成的約訪", "visit", -6, "09:30", 1, "", true),
+    calEvent(PEOPLE.huang, "詩涵示範增員", "recruit", 0, "15:00", 2, "虛構。", false),
+    calEvent(PEOPLE.huang, "增員說明會", "recruit", 3, "19:30", null, "虛構。", false),
+    calEvent(PEOPLE.manager, "新人陪訪", "meet", 1, "10:30", null, "虛構。", false),
+    calEvent(PEOPLE.admin, "看本週團隊行程", "other", 0, "09:00", null, "虛構。", false),
+    calEvent(PEOPLE.zhang, "送件前再確認", "deal", 2, "13:00", 3, "虛構。", false),
+    calEvent(PEOPLE.wu, "教育訓練簽到", "train", -2, "18:30", null, "虛構。", true),
+  ];
+
   const assets = [
     ["社群貼文版型", "社群貼文", "社群內容與貼文版型的集中入口", "▧"],
     ["保單檢視說明素材", "客戶服務", "年度保單檢視及服務說明", "▤"],
@@ -190,13 +207,14 @@ function seed() {
   ];
 
   return {
-    version: 4,
+    version: 5,
     profiles,
     customers,
     policies,
     service_records: serviceRecords,
     reminders,
     tasks,
+    calendar_events: calendarEvents,
     assets,
     courses,
     course_progress: courseProgress,
@@ -271,6 +289,23 @@ function seed() {
     };
   }
 
+  function calEvent(owner, title, type, dayOffset, time, customerIndex, note, done) {
+    return {
+      id: uid(),
+      team_id: DEMO_TEAM_ID,
+      owner_id: owner,
+      title,
+      event_date: addDays(today, dayOffset),
+      event_time: time,
+      event_type: type,
+      customer_id: customerIndex == null ? null : customers[customerIndex].id,
+      note: note || "",
+      is_done: Boolean(done),
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    };
+  }
+
   function task(owner, title, isDone, dueIn) {
     return {
       id: uid(),
@@ -304,7 +339,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 4 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 5 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -531,6 +566,7 @@ export function createDemoStore() {
         const row = state.tasks.find((item) => item.id === input.id);
         if (!row || (row.owner_id !== me.id && me.role !== "admin")) throw new Error("找不到任務");
         row.title = input.title?.trim() || row.title;
+        if (input.due_date) row.due_date = input.due_date;
         row.is_done = Boolean(input.is_done);
         row.completed_at = row.is_done ? row.completed_at || nowIso() : null;
         row.updated_at = nowIso();
@@ -558,6 +594,51 @@ export function createDemoStore() {
       const row = state.tasks.find((item) => item.id === id);
       if (!row || (row.owner_id !== me.id && me.role !== "admin")) throw new Error("找不到任務");
       state.tasks = state.tasks.filter((item) => item.id !== id);
+      persist();
+    },
+
+    async listCalendarEvents() {
+      const me = requireProfile();
+      return (state.calendar_events || []).filter((item) => {
+        if (item.team_id !== me.team_id) return false;
+        return manager() || item.owner_id === me.id;
+      });
+    },
+
+    async saveCalendarEvent(input) {
+      const me = requireProfile();
+      const norm = normalizeEvent(input);
+      if (norm.error) throw new Error(norm.error);
+      if (norm.fields.customer_id) {
+        const customer = state.customers.find((item) => item.id === norm.fields.customer_id && item.team_id === me.team_id);
+        if (!customer || (!manager() && customer.owner_id !== me.id)) throw new Error("找不到這位客戶");
+      }
+      if (!state.calendar_events) state.calendar_events = [];
+      if (input.id) {
+        const row = state.calendar_events.find((item) => item.id === input.id && item.team_id === me.team_id);
+        if (!row || row.owner_id !== me.id) throw new Error("只能修改自己的行事曆");
+        Object.assign(row, norm.fields, { updated_at: nowIso() });
+        persist();
+        return row;
+      }
+      const row = {
+        id: uid(),
+        team_id: me.team_id,
+        owner_id: me.id,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+        ...norm.fields,
+      };
+      state.calendar_events.unshift(row);
+      persist();
+      return row;
+    },
+
+    async deleteCalendarEvent(id) {
+      const me = requireProfile();
+      const row = (state.calendar_events || []).find((item) => item.id === id);
+      if (!row || row.owner_id !== me.id) throw new Error("只能刪除自己的活動");
+      state.calendar_events = state.calendar_events.filter((item) => item.id !== id);
       persist();
     },
 
