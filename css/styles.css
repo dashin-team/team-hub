@@ -33,6 +33,10 @@ h1, h2, h3, p { margin-top: 0; }
   border-radius: 20px;
   padding: 28px 22px;
 }
+.hub-logo {
+  display: block; width: 132px; height: 132px; margin: 0 auto 4px; border-radius: 50%;
+  box-shadow: 0 10px 24px rgba(90, 68, 36, 0.16);
+}
 .brand-mark { display: inline-flex; gap: 10px; align-items: center; letter-spacing: 0.14em; font-weight: 700; color: var(--gold-deep); }
 .brand-mark span {
   width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;

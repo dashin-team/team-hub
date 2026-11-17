@@ -26,10 +26,11 @@ jobs:
 
       - name: 整理靜態網站
         run: |
-          mkdir -p _site/css _site/js
-          cp index.html favicon.svg .nojekyll _site/
+          mkdir -p _site/css _site/js _site/assets
+          cp index.html favicon.svg favicon-32.png apple-touch-icon.png .nojekyll _site/
           cp css/styles.css _site/css/
           cp js/*.js _site/js/
+          cp assets/logo-daxin.png _site/assets/
 
       - name: 設定 Pages
         uses: actions/configure-pages@v5
