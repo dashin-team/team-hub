@@ -190,16 +190,28 @@ textarea { min-height: 110px; resize: vertical; }
 .seg { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin-top: 14px; }
 .seg button { border: 0; background: transparent; min-height: 42px; border-radius: 99px; color: #8b97a3; }
 .seg button.on { background: #f7f9fb; color: var(--gold-deep); box-shadow: 4px 4px 10px #d4dde6, -3px -3px 8px #fff; }
+.seg button.seg-gap.on { color: #8f3d32; }
+.seg-dot {
+  display: inline-block; width: 8px; height: 8px; margin-left: 6px; border-radius: 50%;
+  background: #c45c4a; box-shadow: 0 0 0 3px #f6ddd6; vertical-align: 1px;
+}
 .gap-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 16px; }
 .neo-tile {
-  background: #eef3f8; border-radius: 20px; min-height: 108px; padding: 12px 6px;
-  text-align: center; color: #7d8b98;
-  box-shadow: 5px 6px 12px #d4dee7, -4px -4px 10px #fff;
+  border-radius: 20px; min-height: 108px; padding: 12px 6px; text-align: center;
 }
 .neo-tile .sym { font-size: 22px; display: block; margin-bottom: 6px; }
-.neo-tile b { display: block; color: #4e5b67; font-size: 14px; font-weight: 620; }
-.neo-tile.ok { color: var(--gold-deep); }
-.neo-tile.ok b { color: var(--gold-deep); }
+.neo-tile b { display: block; font-size: 14px; font-weight: 650; }
+.neo-tile small { display: block; margin-top: 2px; font-size: 12px; }
+.neo-tile.gap {
+  background: #f8ebe6; color: #a24b3e;
+  box-shadow: 5px 6px 12px #ead4cc, -4px -4px 10px #fff, inset 0 0 0 1px #f3d4cb;
+}
+.neo-tile.gap b, .neo-tile.gap small { color: #8f3d32; }
+.neo-tile.ok {
+  background: #e7f3ea; color: #2f6b45;
+  box-shadow: 5px 6px 12px #d3e4d8, -4px -4px 10px #fff, inset 0 0 0 1px #cfe3d6;
+}
+.neo-tile.ok b, .neo-tile.ok small { color: #24613d; }
 .list-item { display: flex; justify-content: space-between; gap: 8px; padding: 10px 0; border-bottom: 1px solid #efe6d8; }
 .muted { color: var(--muted); font-size: 12px; }
 .form-grid { display: grid; gap: 10px; }

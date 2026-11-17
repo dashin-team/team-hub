@@ -436,8 +436,8 @@ async function renderClientDetail(customers, profiles) {
   const coverageHtml = `<section class="neo" id="coverageBoard">
     <div class="neo-top">
       <svg class="ring" viewBox="0 0 80 80" aria-hidden="true">
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#d5dee8" stroke-width="8"></circle>
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#b0894f" stroke-width="8" stroke-linecap="round" stroke-dasharray="${ring.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" transform="rotate(-90 40 40)"></circle>
+        <circle cx="40" cy="40" r="32" fill="none" stroke="#e7b2a6" stroke-width="8"></circle>
+        <circle cx="40" cy="40" r="32" fill="none" stroke="#3d8f5c" stroke-width="8" stroke-linecap="round" stroke-dasharray="${ring.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" transform="rotate(-90 40 40)"></circle>
         <text x="40" y="46" text-anchor="middle" font-size="16" fill="#4e5b67">${ratio}%</text>
       </svg>
       <div>
@@ -452,7 +452,7 @@ async function renderClientDetail(customers, profiles) {
     </div>
     <div class="seg">
       <button type="button" data-action="coverage-tab" data-tab="policies" class="${coverageView === "policies" ? "on" : ""}">保單</button>
-      <button type="button" data-action="coverage-tab" data-tab="gaps" class="${coverageView === "gaps" ? "on" : ""}">缺口</button>
+      <button type="button" data-action="coverage-tab" data-tab="gaps" class="seg-gap ${coverageView === "gaps" ? "on" : ""}">缺口<span class="seg-dot" aria-hidden="true"></span></button>
     </div>
     ${coverageView === "gaps" ? `<div class="section-head"><h2>保障檢視</h2></div><div class="gap-grid">${areas.map((area) => `<div class="neo-tile ${area.covered ? "ok" : "gap"}"><span class="sym">${area.covered ? "●" : "○"}</span><b>${esc(area.label)}</b><small>${area.covered ? "已涵蓋" : "缺口"}</small></div>`).join("")}</div><p class="muted">依這位客戶的保單摘要歸類，不是完整需求分析。</p>` : ""}
   </section>`;
