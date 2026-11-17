@@ -128,9 +128,11 @@ function seed() {
   ];
 
   const policies = [
-    policy(customers[0], "車險", "示範產險", 45, 20, "1280"),
-    policy(customers[0], "醫療保障", "示範人壽", 200, 30, "3341"),
-    policy(customers[2], "醫療保障", "示範人壽", 15, 7, "9088"),
+    policy(customers[0], "意外", "示範產險", 45, 20, "1280"),
+    policy(customers[0], "實支實付", "示範人壽", 200, 30, "3341"),
+    policy(customers[2], "日額・手術", "示範人壽", 15, 7, "9088"),
+    policy(customers[3], "身價", "示範人壽", 400, 60, "2201"),
+    policy(customers[4], "長照", "示範人壽", 90, 30, "4410"),
   ];
 
   const serviceRecords = [
@@ -151,9 +153,9 @@ function seed() {
 
   const reminders = [
     reminder(PEOPLE.lin, customers[0].id, policies[0].id, "birthday", "王先生生日提醒", 12),
-    reminder(PEOPLE.lin, customers[0].id, policies[0].id, "renewal", "王先生車險續保", 20),
+    reminder(PEOPLE.lin, customers[0].id, policies[0].id, "renewal", "王先生意外保障續保", 20),
     reminder(PEOPLE.lin, customers[1].id, null, "follow_up", "約李小姐年度檢視", 3),
-    reminder(PEOPLE.huang, customers[2].id, policies[2].id, "policy_expiry", "陳媽媽醫療保障即將到期", 15),
+    reminder(PEOPLE.huang, customers[2].id, policies[2].id, "policy_expiry", "陳媽媽住院日額即將到期", 15),
     reminder(PEOPLE.admin, null, null, "other", "確認本週團隊公告", 1),
   ];
 
@@ -252,7 +254,7 @@ function seed() {
   ];
 
   return {
-    version: 1,
+    version: 2,
     profiles,
     customers,
     policies,
@@ -394,7 +396,7 @@ function loadState() {
     const raw = localStorage.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 1 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 2 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();

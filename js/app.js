@@ -1,5 +1,6 @@
 import { openStore, forceDemoMode } from "./store.js";
 import {
+  COVERAGE_AREAS,
   CONNECTION_LABEL,
   KIND_LABEL,
   POLICY_CATEGORIES,
@@ -23,16 +24,15 @@ import {
   weekStart,
 } from "./metrics.js";
 
+const PAGE_ALIAS = { assets: "learn", members: "announcements" };
 const PAGE_NAMES = {
-  home: "首頁總覽",
-  ai: "AI 工具箱",
-  assets: "素材庫",
-  learn: "教育訓練",
-  tasks: "工作任務",
-  clients: "客戶管理",
-  social: "社群追蹤",
-  announcements: "團隊公告",
-  members: "團隊成員",
+  home: "總覽",
+  clients: "名單",
+  tasks: "行程",
+  social: "競賽",
+  learn: "訓練",
+  ai: "工具",
+  announcements: "管理",
 };
 
 const $ = (id) => document.getElementById(id);
@@ -40,6 +40,7 @@ let store;
 let page = "home";
 let assetCat = "全部";
 let selectedCustomerId = null;
+let coverageView = "gaps";
 let modalOriginal = "";
 let toastTimer = 0;
 
@@ -66,8 +67,9 @@ function nameOf(id, profiles) {
 }
 
 function go(next) {
+  next = PAGE_ALIAS[next] || next;
   if (!PAGE_NAMES[next]) next = "home";
-  if (next === "members" && !canManageTeam(me()?.role)) next = "home";
+  if (next === "announcements" && !canManageTeam(me()?.role)) next = "home";
   page = next;
   const url = new URL(location.href);
   url.searchParams.set("page", page);
@@ -78,22 +80,31 @@ function go(next) {
 }
 
 function closeMenu() {
-  $("sidebar").classList.remove("open");
+  $("drawer").classList.remove("open");
   $("backdrop").classList.remove("show");
+  $("menuBtn").setAttribute("aria-expanded", "false");
+}
+
+function openMenu() {
+  $("drawer").classList.add("open");
+  $("backdrop").classList.add("show");
+  $("menuBtn").setAttribute("aria-expanded", "true");
 }
 
 function applyRoleChrome() {
   const profile = me();
   document.body.dataset.mode = store.mode;
   document.body.dataset.role = profile?.role || "member";
+  document.body.dataset.page = page;
   $("modeBadge").textContent = store.mode === "demo" ? "示範資料" : "雲端資料";
   $("modeBadge").classList.toggle("cloud", store.mode === "cloud");
+  const letter = (profile?.display_name || "南").slice(0, 1);
   $("whoName").textContent = profile ? `${profile.display_name}・${ROLE_LABEL[profile.role]}` : "";
-  $("sideFoot").textContent = profile
-    ? `${profile.display_name}\n${ROLE_LABEL[profile.role]}\n請勿輸入真實客戶個資`
-    : "請勿輸入真實客戶個資";
+  $("avatarLetter").textContent = letter;
+  $("adviceAvatar") && ($("adviceAvatar").textContent = letter);
+  $("sideFoot").textContent = "請勿輸入真實客戶個資";
   if (store.mode === "demo") $("previewRole").value = store.previewRole;
-  $("crumb").textContent = PAGE_NAMES[page] || "首頁總覽";
+  $("crumb").textContent = PAGE_NAMES[page] || "總覽";
   document.querySelectorAll("[data-nav]").forEach((button) => {
     const active = button.dataset.nav === page;
     button.classList.toggle("active", active);
@@ -136,21 +147,83 @@ function tagsFrom(value) {
 }
 
 async function renderPage() {
+  page = PAGE_ALIAS[page] || page;
+  if (!PAGE_NAMES[page]) page = "home";
+  if (page === "announcements" && !canManageTeam(me()?.role)) page = "home";
   applyRoleChrome();
   if (page === "home") await renderHome();
   if (page === "ai") await renderTools();
-  if (page === "assets") await renderAssets();
-  if (page === "learn") await renderLearn();
+  if (page === "learn") {
+    await renderLearn();
+    await renderAssets();
+  }
   if (page === "tasks") await renderTasks();
   if (page === "clients") await renderClients();
   if (page === "social") await renderSocial();
-  if (page === "announcements") await renderAnnouncements();
-  if (page === "members") await renderMembers();
+  if (page === "announcements") {
+    await renderAnnouncements();
+    await renderMembers();
+  }
+  await refreshDot();
+}
+
+function greeting(date) {
+  const hour = date.getHours();
+  if (hour < 11) return "早安";
+  if (hour < 17) return "午安";
+  return "晚安";
+}
+
+function weekdayLabel(iso) {
+  const [y, m, d] = iso.split("-").map(Number);
+  const date = new Date(y, m - 1, d);
+  const week = ["日", "一", "二", "三", "四", "五", "六"][date.getDay()];
+  return `週${week} · ${m}月${d}日`;
+}
+
+function areaCovered(policies, area) {
+  return policies.some((policy) => {
+    if (policy.status && policy.status !== "active") return false;
+    const text = `${policy.policy_category || ""} ${policy.notes || ""}`;
+    return area.keys.some((key) => text.includes(key));
+  });
+}
+
+function coverageOf(policies) {
+  return COVERAGE_AREAS.map((area) => ({ ...area, covered: areaCovered(policies, area) }));
+}
+
+function upcomingItems(tasks, reminders, profile, today, days) {
+  const end = addDays(today, days);
+  const rows = [];
+  reminders
+    .filter((item) => item.status === "open" && (profile.role === "admin" || item.owner_id === profile.id))
+    .forEach((item) => rows.push({ date: String(item.due_at).slice(0, 10), title: item.title, kind: KIND_LABEL[item.kind] || "提醒" }));
+  tasks
+    .filter((item) => !item.is_done && item.due_date && (profile.role === "admin" || item.owner_id === profile.id))
+    .forEach((item) => rows.push({ date: item.due_date, title: item.title, kind: "任務" }));
+  return rows.filter((item) => item.date >= today && item.date <= end).sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title, "zh-Hant"));
+}
+
+function podiumHtml(title, note, ranked) {
+  const slots = [
+    { place: "第二", person: ranked[1] },
+    { place: "領先", person: ranked[0] },
+    { place: "第三", person: ranked[2] },
+  ];
+  return `<section class="slide"><div class="slide-head"><b>${esc(title)}</b><span>${esc(note)}</span></div><div class="podium">${slots.map(({ place, person }) => `
+    <div class="podium-col ${place === "領先" ? "first" : ""}">
+      <div class="rank-label">${place}</div>
+      <div class="ava">${esc(person ? person.name.slice(0, 1) : "—")}</div>
+      <b>${esc(person?.name || "—")}</b>
+      <strong>${esc(person?.score || "—")}</strong>
+      <small>${esc(person?.sub || "")}</small>
+    </div>`).join("")}</div></section>`;
 }
 
 async function renderHome() {
   const profile = me();
-  const [tasks, reminders, announcements, customers, accounts, stories, posts, snapshots] = await Promise.all([
+  const [tasks, reminders, announcements, customers, accounts, stories, posts, snapshots, profiles, records] = await Promise.all([
     store.listTasks(),
     store.listReminders(),
     store.listAnnouncements(),
@@ -159,57 +232,63 @@ async function renderHome() {
     store.listStories(),
     store.listPosts(),
     store.listSnapshots(),
+    store.listProfiles(),
+    store.listServiceRecords(),
   ]);
-  const mineTasks = tasks.filter((item) => item.owner_id === profile.id);
-  const openTasks = mineTasks.filter((item) => !item.is_done);
   const today = isoDate();
-  const soon = reminders
-    .filter((item) => item.status === "open" && item.owner_id === profile.id)
-    .filter((item) => String(item.due_at).slice(0, 10) <= addDays(today, 30))
-    .sort((a, b) => String(a.due_at).localeCompare(String(b.due_at)));
-  const activeCustomers = customers.filter((item) => !item.is_archived);
-  const weekNet = weekNetTotal(accounts, snapshots, today);
-  $("welcomeText").textContent = `${profile.display_name}，歡迎回到南恩團隊。今天也把專業服務做好。`;
-  const cards = [
-    ["我的待辦", openTasks.length, "今天看得到的下一步"],
-    ["已完成任務", mineTasks.filter((item) => item.is_done).length, "累積下來的行動"],
-    ["即將提醒", soon.length, "生日、到期、續保"],
-    ["負責客戶", activeCustomers.filter((item) => item.owner_id === profile.id).length, "不含已封存"],
+  const start = weekStart(today);
+  const since = addDays(today, -7);
+  const mine = accounts.find((item) => item.owner_id === profile.id);
+  const reportedToday = stories.some((item) => item.owner_id === profile.id && item.story_date === today);
+  const agenda = upcomingItems(tasks, reminders, profile, today, 14);
+  const nearest = agenda[0];
+  let advice = "這幾天沒有到期的提醒。按自己的拜訪節奏進行即可。";
+  if (nearest) advice = `近期有一件事：${nearest.title}，${formatDate(nearest.date)} 前處理即可。`;
+  else if (mine && !reportedToday) advice = "今天的限動還沒回報。記一筆就好，未回報不會被看成沒有發。";
+  $("greetDate").textContent = weekdayLabel(today);
+  $("greetLine").textContent = `${greeting(new Date())}，${profile.display_name}。`;
+  $("dailyAdvice").textContent = advice;
+  const newNames = customers.filter((item) => !item.is_archived && String(item.created_at).slice(0, 10) >= since).length;
+  const activity = records.filter((item) => String(item.service_date).slice(0, 10) >= since).length;
+  const visits = records.filter((item) => String(item.service_date).slice(0, 10) === today).length;
+  const metrics = [
+    [newNames, "近7日新增名單", "clients"],
+    [activity, "近7日活動量", "tasks"],
+    [visits, "今日拜訪量", "tasks"],
+    [agenda.filter((item) => item.date <= addDays(today, 7)).length, "近7日行程", "tasks"],
   ];
-  if (canManageTeam(profile.role)) {
-    cards[3] = ["團隊客戶", activeCustomers.length, "同團隊、未封存"];
-  }
-  $("homeStats").innerHTML = cards.map(([label, value, hint]) =>
-    `<div class="stat"><small>${esc(label)}</small><strong>${esc(value)}</strong><em>${esc(hint)}</em></div>`).join("");
-  if (canManageTeam(profile.role)) {
-    const start = weekStart(today);
-    const reported = new Set(stories.filter((item) => item.story_date >= start && item.story_date <= today).map((item) => item.owner_id));
-    const weekPosts = posts.filter((item) => String(item.published_at).slice(0, 10) >= start && String(item.published_at).slice(0, 10) <= today);
-    $("homeSocial").className = "note";
-    $("homeSocial").textContent = `本週社群：限動回報 ${reported.size}/${accounts.length} 人，貼文與 Reels ${weekPosts.length} 則，粉絲淨增 ${formatNet(weekNet)}。未回報不等於沒有發。`;
-  } else {
-    $("homeSocial").className = "";
-    $("homeSocial").textContent = "";
-  }
-  $("homeQuick").innerHTML = [
-    ["ai", "✦", "AI 工具箱", "複製工作指令"],
-    ["assets", "▤", "素材庫", "找團隊素材"],
-    ["learn", "▣", "教育訓練", "學完就打勾"],
-    ["tasks", "☑", "工作任務", "寫下今天要做的"],
-    ["clients", "☺", "客戶管理", "服務紀錄與提醒"],
-    ["social", "◎", "社群追蹤", "限動與粉絲數"],
-  ].map(([id, icon, title, desc]) =>
-    `<button class="tile" type="button" data-nav="${id}"><span class="symbol">${icon}</span><span><b>${title}</b><small>${desc}</small></span></button>`).join("");
-  $("homeTasks").innerHTML = openTasks.slice(0, 4).map((item) =>
-    `<div class="list-item"><span>${esc(item.title)}</span><small class="muted">${formatDate(item.due_date)}</small></div>`).join("")
-    || `<div class="empty">今天還沒有待辦。到工作任務加一項吧。</div>`;
-  $("homeReminders").innerHTML = soon.slice(0, 5).map((item) =>
-    `<div class="list-item"><span><b>${esc(KIND_LABEL[item.kind] || "提醒")}</b> ${esc(item.title)}</span><small class="muted">${formatDate(item.due_at)}</small></div>`).join("")
-    || `<div class="empty">30 天內沒有未完成的提醒。</div>`;
+  $("homeStats").innerHTML = metrics.map(([value, label, dest]) =>
+    `<button class="metric" type="button" data-nav="${dest}"><b>${esc(value)}</b><span>${esc(label)} →</span></button>`).join("");
+  $("homeSchedule").innerHTML = agenda.slice(0, 2).map((item) =>
+    `<div class="schedule-item"><span>${esc(item.title)}</span><small class="muted">${esc(item.kind)} ${formatDate(item.date)}</small></div>`).join("")
+    || `<div class="schedule-empty">（此區間沒有行程）</div>`;
+  const growthRank = accounts.map((account) => {
+    const result = accountGrowth(snapshots, account.id);
+    return { name: nameOf(account.owner_id, profiles), score: formatNet(result.net), sub: "粉絲淨增", net: result.net ?? -999999 };
+  }).sort((a, b) => b.net - a.net);
+  const storyRank = accounts.map((account) => {
+    const days = new Set(stories.filter((item) => item.account_id === account.id && item.posted && item.story_date >= start && item.story_date <= today).map((item) => item.story_date)).size;
+    return { name: nameOf(account.owner_id, profiles), score: `${days} 天`, sub: "本週有發限動", net: days };
+  }).sort((a, b) => b.net - a.net);
+  $("podium").innerHTML = `<div class="carousel-track" id="podiumTrack">${podiumHtml("粉絲成長", "相較前一筆快照", growthRank)}${podiumHtml("限動回報", "本週有發布的天數", storyRank)}</div><div class="dots" id="podiumDots"><button type="button" class="on" data-slide="0" aria-label="粉絲成長"></button><button type="button" data-slide="1" aria-label="限動回報"></button></div>`;
+  const track = $("podiumTrack");
+  track.onscroll = () => {
+    const index = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
+    document.querySelectorAll("#podiumDots button").forEach((dot, i) => dot.classList.toggle("on", i === index));
+  };
   const visibleNews = announcements.filter((item) => item.published_at).slice(0, 3);
   $("homeNotices").innerHTML = visibleNews.map((item) =>
-    `<div class="notice"><span class="dot"></span><div><b>${esc(item.title)}</b><small class="muted">${esc(item.body)}</small></div></div>`).join("")
+    `<div class="notice"><b>${esc(item.title)}</b><small>${esc(item.body)}</small></div>`).join("")
     || `<div class="empty">目前沒有公告。</div>`;
+  $("secretaryBody").innerHTML = `<p>${esc(advice)}</p><div class="row"><button class="btn secondary small" type="button" data-nav="tasks">看行程</button><button class="btn secondary small" type="button" data-nav="social">去回報</button><button class="btn secondary small" type="button" data-nav="ai">找工作指令</button></div>`;
+  void posts;
+}
+
+async function refreshDot() {
+  const reminders = await store.listReminders();
+  const today = isoDate();
+  const soon = reminders.some((item) => item.status === "open" && item.owner_id === me()?.id && String(item.due_at).slice(0, 10) <= addDays(today, 7));
+  $("avatarDot").hidden = !soon;
 }
 
 function weekNetTotal(accounts, snapshots, today) {
@@ -233,7 +312,7 @@ async function renderTools() {
   const tools = (await store.listTools()).filter((item) =>
     `${item.title} ${item.category || ""} ${item.prompt}`.toLowerCase().includes(q));
   $("toolList").innerHTML = tools.map((item) =>
-    `<article class="tool-card"><h3>✦ ${esc(item.title)}</h3><p class="sub">${esc(item.prompt.slice(0, 78))}${item.prompt.length > 78 ? "…" : ""}</p><button class="btn" type="button" data-action="open-tool" data-id="${esc(item.id)}">使用這個指令</button></article>`).join("")
+    `<article class="tool-card"><h3>${esc(item.title)}</h3><p>${esc(item.prompt)}</p><div class="tag-row"><button class="tag-outline" type="button" data-action="open-tool" data-id="${esc(item.id)}">${esc(item.category || "一般")}</button></div></article>`).join("")
     || `<div class="empty">找不到符合的工具。</div>`;
   $("toolList").dataset.tools = JSON.stringify(tools.map((item) => ({ id: item.id, title: item.title, prompt: item.prompt })));
 }
@@ -242,7 +321,7 @@ async function renderAssets() {
   const assets = await store.listAssets();
   const cats = ["全部", ...new Set(assets.map((item) => item.category).filter(Boolean))];
   $("assetCats").innerHTML = cats.map((cat) =>
-    `<button class="chip ${cat === assetCat ? "active" : ""}" type="button" data-cat="${esc(cat)}">${esc(cat)}</button>`).join("");
+    `<button class="tag-outline ${cat === assetCat ? "active" : ""}" type="button" data-cat="${esc(cat)}">${esc(cat)}</button>`).join("");
   const q = $("assetSearch").value.trim().toLowerCase();
   const list = assets.filter((item) =>
     (assetCat === "全部" || item.category === assetCat)
@@ -290,6 +369,11 @@ async function renderTasks() {
   const visible = profile.role === "admin" ? tasks : tasks.filter((item) => item.owner_id === profile.id);
   const profiles = profile.role === "admin" ? await store.listProfiles() : [profile];
   const pending = visible.filter((item) => !item.is_done).length;
+  const reminders = await store.listReminders();
+  const agenda = upcomingItems(visible, reminders, profile, isoDate(), 14);
+  $("scheduleBoard").innerHTML = agenda.length ? agenda.map((item) =>
+    `<div class="schedule-item"><span>${esc(item.title)}</span><small class="muted">${esc(item.kind)} ${formatDate(item.date)}</small></div>`).join("")
+    : `<div class="schedule-empty">（此區間沒有行程）</div>`;
   $("taskSummary").textContent = `共 ${visible.length} 項，待完成 ${pending} 項，已完成 ${visible.length - pending} 項`;
   $("taskList").innerHTML = visible.map((item) =>
     `<div class="list-item ${item.is_done ? "done" : ""}"><label class="task-line"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" ${item.is_done ? "checked" : ""}><span>${esc(item.title)}${profile.role === "admin" && item.owner_id !== profile.id ? `（${esc(nameOf(item.owner_id, profiles))}）` : ""}</span></label><span class="muted">${formatDate(item.due_date)}</span><button class="btn secondary small" type="button" data-action="delete-task" data-id="${esc(item.id)}">刪除</button></div>`).join("")
@@ -323,10 +407,8 @@ async function renderClients() {
     return { item, tags, owner, code, follow };
   });
   const emptyClients = `<div class="empty">沒有符合的客戶。</div>`;
-  $("clientList").innerHTML = clientRows.length ? `<div class="stack cards-only" style="margin-top:12px">${clientRows.map(({ item, tags, owner, code, follow }) =>
-    `<article class="card client-card"><div class="client-top"><div><b>${esc(item.display_name)}</b><div class="muted">${code} · ${owner}</div></div><button class="btn secondary small" type="button" data-action="open-client" data-id="${esc(item.id)}">查看</button></div><div>${tags}</div>${follow}</article>`).join("")}</div>
-    <div class="panel table-only" style="margin:12px 0"><div class="table-wrap"><table><thead><tr><th>客戶</th><th>負責人</th><th>標籤</th><th></th></tr></thead><tbody>${clientRows.map(({ item, tags, owner, code, follow }) =>
-      `<tr><td><b>${esc(item.display_name)}</b><div class="muted">${code}</div></td><td>${owner}</td><td>${tags}${follow}</td><td><button class="btn secondary small" type="button" data-action="open-client" data-id="${esc(item.id)}">查看</button></td></tr>`).join("")}</tbody></table></div></div>` : emptyClients;
+  $("clientList").innerHTML = clientRows.length ? clientRows.map(({ item, tags, owner, code, follow }) =>
+    `<button class="person" type="button" data-action="open-client" data-id="${esc(item.id)}"><span class="ava">${esc(item.display_name.slice(0, 1))}</span><span><b>${esc(item.display_name)}</b><small class="muted">${code} · ${owner}</small><div>${tags}</div>${follow}</span></button>`).join("") : emptyClients;
   if (!selectedCustomerId || !customers.some((item) => item.id === selectedCustomerId)) {
     $("clientDetail").innerHTML = "";
     return;
@@ -346,7 +428,35 @@ async function renderClientDetail(customers, profiles) {
     store.listReminders(customer.id),
   ]);
   const canEdit = canManageTeam(me().role) || customer.owner_id === me().id;
-  $("clientDetail").innerHTML = `<div class="panel" style="margin-top:12px">
+  const areas = coverageOf(policies);
+  const coveredCount = areas.filter((area) => area.covered).length;
+  const ratio = Math.round((coveredCount / areas.length) * 100);
+  const ring = 2 * Math.PI * 32;
+  const offset = ring * (1 - coveredCount / areas.length);
+  const coverageHtml = `<section class="neo" id="coverageBoard">
+    <div class="neo-top">
+      <svg class="ring" viewBox="0 0 80 80" aria-hidden="true">
+        <circle cx="40" cy="40" r="32" fill="none" stroke="#d5dee8" stroke-width="8"></circle>
+        <circle cx="40" cy="40" r="32" fill="none" stroke="#b0894f" stroke-width="8" stroke-linecap="round" stroke-dasharray="${ring.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" transform="rotate(-90 40 40)"></circle>
+        <text x="40" y="46" text-anchor="middle" font-size="16" fill="#4e5b67">${ratio}%</text>
+      </svg>
+      <div>
+        <div class="ring-label">保障完整度</div>
+        <div class="ring-label"><b>${policies.filter((item) => item.status === "active").length} 張保單</b>涵蓋 ${coveredCount} / ${areas.length} 類</div>
+        <div class="pills">
+          <button type="button" data-action="coverage-tab" data-tab="policies">紀錄</button>
+          <button type="button" data-action="coverage-tab" data-tab="gaps">缺口</button>
+          <button type="button" data-nav="ai">指令</button>
+        </div>
+      </div>
+    </div>
+    <div class="seg">
+      <button type="button" data-action="coverage-tab" data-tab="policies" class="${coverageView === "policies" ? "on" : ""}">保單</button>
+      <button type="button" data-action="coverage-tab" data-tab="gaps" class="${coverageView === "gaps" ? "on" : ""}">缺口</button>
+    </div>
+    ${coverageView === "gaps" ? `<div class="section-head"><h2>保障檢視</h2></div><div class="gap-grid">${areas.map((area) => `<div class="neo-tile ${area.covered ? "ok" : "gap"}"><span class="sym">${area.covered ? "●" : "○"}</span><b>${esc(area.label)}</b><small>${area.covered ? "已涵蓋" : "缺口"}</small></div>`).join("")}</div><p class="muted">依這位客戶的保單摘要歸類，不是完整需求分析。</p>` : ""}
+  </section>`;
+  $("clientDetail").innerHTML = `${coverageHtml}<div class="panel" style="margin-top:12px" ${coverageView === "gaps" ? "hidden" : ""}>
     <div class="client-top"><div><h3>${esc(customer.display_name)}</h3><p class="sub">${esc(customer.ref_code || "")} · 負責人 ${esc(nameOf(customer.owner_id, profiles))} · ${esc(customer.preferred_contact || "未填聯絡偏好")}</p></div>
     <div class="row">${canEdit ? `<button class="btn secondary small" type="button" data-action="edit-client" data-id="${esc(customer.id)}">編輯</button>` : ""}${canEdit ? `<button class="btn danger small" type="button" data-action="archive-client" data-id="${esc(customer.id)}" data-archived="${customer.is_archived ? "1" : "0"}">${customer.is_archived ? "取消封存" : "封存"}</button>` : ""}</div></div>
     <p>${esc(customer.notes || "還沒有備註。")}</p>
@@ -555,7 +665,12 @@ async function handleAction(event) {
       await store.deleteTask(id);
       await renderTasks();
     }
+    if (target.dataset.action === "coverage-tab") {
+      coverageView = target.dataset.tab === "policies" ? "policies" : "gaps";
+      await renderClients();
+    }
     if (target.dataset.action === "open-client") {
+      coverageView = "gaps";
       selectedCustomerId = id;
       await renderClients();
       $("clientDetail").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -623,8 +738,13 @@ function bind() {
     const nav = event.target.closest("[data-nav]");
     if (nav) {
       event.preventDefault();
+      $("secretary").hidden = true;
       go(nav.dataset.nav);
       return;
+    }
+    const slide = event.target.closest("[data-slide]");
+    if (slide && $("podiumTrack")) {
+      $("podiumTrack").scrollTo({ left: Number(slide.dataset.slide) * $("podiumTrack").clientWidth, behavior: "smooth" });
     }
     const cat = event.target.closest("[data-cat]");
     if (cat) {
@@ -639,11 +759,18 @@ function bind() {
   document.body.addEventListener("change", (event) => {
     if (event.target.matches("[data-action='toggle-task']")) handleAction(event);
   });
-  $("menuBtn").onclick = () => {
-    $("sidebar").classList.toggle("open");
-    $("backdrop").classList.toggle("show");
-  };
+  $("menuBtn").onclick = () => ($("drawer").classList.contains("open") ? closeMenu() : openMenu());
+  $("avatarBtn").onclick = () => ($("drawer").classList.contains("open") ? closeMenu() : openMenu());
   $("backdrop").onclick = closeMenu;
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "Escape") {
+      closeMenu();
+      $("secretary").hidden = true;
+      $("modal").classList.remove("show");
+    }
+  });
+  $("secretaryBtn").onclick = () => { $("secretary").hidden = false; };
+  $("secretaryClose").onclick = () => { $("secretary").hidden = true; };
   $("toolSearch").addEventListener("input", () => renderTools());
   $("assetSearch").addEventListener("input", () => renderAssets());
   $("clientSearch").addEventListener("input", () => renderClients());
@@ -652,7 +779,7 @@ function bind() {
     store.setPreviewRole($("previewRole").value);
     selectedCustomerId = null;
     resetCustomerForm();
-    if (page === "members" && !canManageTeam(me().role)) page = "home";
+    if (page === "announcements" && !canManageTeam(me().role)) page = "home";
     await renderPage();
   });
   $("signOutBtn").onclick = async () => {

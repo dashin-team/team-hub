@@ -142,7 +142,16 @@ export const KIND_LABEL = {
 };
 export const POLICY_STATUS = { active: "有效", expired: "已到期", lapsed: "已停效" };
 export const SERVICE_TYPES = ["保單檢視", "關懷聯繫", "理賠協助", "需求訪談", "其他"];
-export const POLICY_CATEGORIES = ["車險", "醫療保障", "意外保障", "壽險", "年金", "其他"];
+export const POLICY_CATEGORIES = ["一次金", "實支實付", "日額・手術", "意外", "長照", "身價", "車險", "醫療保障", "意外保障", "壽險", "年金", "其他"];
+
+export const COVERAGE_AREAS = [
+  { id: "lump", label: "一次金", keys: ["一次金", "重大疾病", "癌症"] },
+  { id: "reimburse", label: "實支實付", keys: ["實支實付", "實支"] },
+  { id: "daily", label: "日額・手術", keys: ["日額", "手術", "住院", "醫療保障", "醫療"] },
+  { id: "accident", label: "意外", keys: ["意外", "車險"] },
+  { id: "ltc", label: "長照", keys: ["長照"] },
+  { id: "life", label: "身價", keys: ["身價", "壽險", "年金"] },
+];
 
 export function canManageTeam(role) {
   return role === "admin" || role === "manager";
