@@ -5,26 +5,27 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117n 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117o 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117n">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117o">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117n",
-      "@hub/guides": "./js/guides.js?v=20261117n",
-      "@hub/store": "./js/store.js?v=20261117n",
-      "@hub/metrics": "./js/metrics.js?v=20261117n",
-      "@hub/config": "./js/config.js?v=20261117n",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117n",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117n",
-      "@hub/safe": "./js/safe-browser.js?v=20261117n",
-      "@hub/contest": "./js/contest.js?v=20261117n",
-      "@hub/profile": "./js/client-profile.js?v=20261117n",
-      "@hub/calendar": "./js/calendar.js?v=20261117n",
-      "@hub/team": "./js/team-schedule.js?v=20261117n"
+      "@hub/app": "./js/app.js?v=20261117o",
+      "@hub/guides": "./js/guides.js?v=20261117o",
+      "@hub/store": "./js/store.js?v=20261117o",
+      "@hub/metrics": "./js/metrics.js?v=20261117o",
+      "@hub/config": "./js/config.js?v=20261117o",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117o",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117o",
+      "@hub/safe": "./js/safe-browser.js?v=20261117o",
+      "@hub/contest": "./js/contest.js?v=20261117o",
+      "@hub/profile": "./js/client-profile.js?v=20261117o",
+      "@hub/calendar": "./js/calendar.js?v=20261117o",
+      "@hub/team": "./js/team-schedule.js?v=20261117o",
+      "@hub/roster": "./js/team-roster.js?v=20261117o"
     }
   }
   </script>
@@ -141,6 +142,7 @@
         <button type="button" data-nav="social">競賽</button>
         <button type="button" data-nav="learn">訓練</button>
         <button type="button" data-nav="ai">工具</button>
+        <button type="button" data-nav="roster">同仁名單</button>
         <button type="button" class="manager-only" data-nav="announcements">管理</button>
       </nav>
       <div class="drawer-foot">
@@ -331,6 +333,16 @@
           <div id="toolList" class="guide-grid"></div>
         </section>
 
+        <section class="page" id="page-roster">
+          <h1 class="page-title">同仁名單</h1>
+          <p class="sub">依區與職級查看。目前整個團隊都能看，之後會改成登入才能看。</p>
+          <div class="roster-stats" id="rosterStats"></div>
+          <input class="search" id="rosterSearch" placeholder="搜尋姓名" autocomplete="off">
+          <div class="tag-row" id="rosterRanks"></div>
+          <p class="muted" id="rosterMatch"></p>
+          <div id="rosterList"></div>
+        </section>
+
         <section class="page" id="page-announcements">
           <h1 class="page-title">管理</h1>
           <p class="sub">公告、成員與角色。夥伴不能把自己改成主管。</p>
@@ -475,6 +487,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117n"></script>
+  <script type="module" src="./js/app.js?v=20261117o"></script>
 </body>
 </html>

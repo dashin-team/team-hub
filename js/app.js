@@ -19,6 +19,7 @@ import {
   weekdayIndex,
 } from "@hub/calendar";
 import { teamDay } from "@hub/team";
+import { ROSTER_RANKS, TEAM_ROSTER, countRanks, filterRoster, rosterMembers } from "@hub/roster";
 import { CURRENT_CONTEST } from "@hub/contest";
 import {
   ANALYSIS_SECTIONS,
@@ -55,6 +56,7 @@ const PAGE_NAMES = {
   social: "競賽",
   learn: "訓練",
   ai: "工具",
+  roster: "同仁名單",
   announcements: "管理",
 };
 
@@ -68,6 +70,8 @@ let calView = "month";
 let calCursor = "";
 let calFocus = "";
 let calOwner = "";
+let rosterQuery = "";
+let rosterRank = "";
 let calItems = [];
 let toastTimer = 0;
 
@@ -162,6 +166,7 @@ async function renderPage() {
   if (page === "tasks") await renderCalendar();
   if (page === "clients") await renderClients();
   if (page === "social") renderContest();
+  if (page === "roster") renderRoster();
   if (page === "announcements") {
     await renderAnnouncements();
     await renderMembers();
@@ -268,6 +273,30 @@ async function refreshDot() {
   const today = isoDate();
   const soon = reminders.some((item) => item.status === "open" && item.owner_id === me()?.id && String(item.due_at).slice(0, 10) <= addDays(today, 7));
   $("avatarDot").hidden = !soon;
+}
+
+function renderRoster() {
+  const everyone = rosterMembers(TEAM_ROSTER);
+  const totals = countRanks(everyone);
+  $("rosterStats").innerHTML = [
+    ["全部", totals.total],
+    ["UM", totals.UM],
+    ["SP", totals.SP],
+    ["CA", totals.CA],
+  ].map(([label, count]) => `<span class="roster-stat"><b>${count}</b>${esc(label)}</span>`).join("");
+  $("rosterRanks").innerHTML = ["", ...ROSTER_RANKS].map((rank) => {
+    const label = rank || "全部";
+    const on = rosterRank === rank ? " active" : "";
+    return `<button class="tag-outline${on}" type="button" data-roster-rank="${rank}">${label}</button>`;
+  }).join("");
+  const groups = filterRoster(TEAM_ROSTER, { query: rosterQuery, rank: rosterRank });
+  const shown = groups.reduce((sum, group) => sum + group.members.length, 0);
+  $("rosterMatch").textContent = rosterQuery || rosterRank ? `目前顯示 ${shown} 人` : "";
+  $("rosterList").innerHTML = groups.map((group) => `
+    <article class="panel roster-card">
+      <h2>${esc(group.district)} · ${group.members.length}人</h2>
+      ${group.members.map((member) => `<div class="roster-row"><b>${esc(member.name)}</b><span class="rank ${member.rank.toLowerCase()}">${esc(member.rank)}</span></div>`).join("")}
+    </article>`).join("") || `<div class="empty">沒有符合的同仁。</div>`;
 }
 
 function renderTools() {
@@ -1053,6 +1082,16 @@ function bind() {
   $("secretaryClose").onclick = () => { $("secretary").hidden = true; };
   $("assetSearch").addEventListener("input", () => renderAssets());
   $("clientSearch").addEventListener("input", () => renderClients());
+  $("rosterSearch").addEventListener("input", () => {
+    rosterQuery = $("rosterSearch").value;
+    renderRoster();
+  });
+  $("rosterRanks").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-roster-rank]");
+    if (!button) return;
+    rosterRank = button.dataset.rosterRank;
+    renderRoster();
+  });
   $("showArchived").addEventListener("change", () => renderClients());
   $("previewRole").addEventListener("change", async () => {
     store.setPreviewRole($("previewRole").value);
