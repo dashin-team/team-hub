@@ -51,23 +51,76 @@ export function rocLabel(iso) {
   return `${label}/${match[2]}/${match[3]}`;
 }
 
-export function parseRoc(value) {
-  const text = String(value ?? "").trim();
-  if (!text) return { iso: null, md: null };
-  const match = /^(民前)?(\d{1,3})\/(\d{1,2})\/(\d{1,2})$/.exec(text);
-  if (!match) return { error: "生日請用民國年，例如 92/03/15。" };
-  let roc = Number(match[2]);
-  if (match[1]) roc = 1 - roc;
-  const month = Number(match[3]);
-  const day = Number(match[4]);
-  const ad = roc + 1911;
-  if (ad < 1900 || ad > 2100) return { error: "生日年份超出範圍。" };
-  const date = new Date(Date.UTC(ad, month - 1, day));
-  if (date.getUTCFullYear() !== ad || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
+function buildIso(year, month, day) {
+  if (year < 1900 || year > 2100) return { error: "生日年份超出範圍。" };
+  const date = new Date(Date.UTC(year, month - 1, day));
+  if (date.getUTCFullYear() !== year || date.getUTCMonth() !== month - 1 || date.getUTCDate() !== day) {
     return { error: "生日日期不正確。" };
   }
-  const iso = `${ad}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
+  const iso = `${year}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
   return { iso, md: iso.slice(5) };
+}
+
+function fromRoc(roc, month, day) {
+  return buildIso(roc + 1911, month, day);
+}
+
+export function parseBirth(value) {
+  const text = String(value ?? "").trim();
+  if (!text) return { iso: null, md: null };
+  const isoMatch = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+  if (isoMatch) return buildIso(Number(isoMatch[1]), Number(isoMatch[2]), Number(isoMatch[3]));
+  if (/^\d{8}$/.test(text)) {
+    return buildIso(Number(text.slice(0, 4)), Number(text.slice(4, 6)), Number(text.slice(6, 8)));
+  }
+  if (/^\d{6}$/.test(text) || /^\d{7}$/.test(text)) {
+    const yearLen = text.length === 6 ? 2 : 3;
+    return fromRoc(Number(text.slice(0, yearLen)), Number(text.slice(yearLen, yearLen + 2)), Number(text.slice(yearLen + 2)));
+  }
+  const match = /^(民前)?(\d{1,3})\/(\d{1,2})\/(\d{1,2})$/.exec(text);
+  if (!match) return { error: "生日請用民國年，例如 92/03/15 或 870325。" };
+  let roc = Number(match[2]);
+  if (match[1]) roc = 1 - roc;
+  return fromRoc(roc, Number(match[3]), Number(match[4]));
+}
+
+export function parseRoc(value) {
+  return parseBirth(value);
+}
+
+export function upcomingBirthdays(customers, today, withinDays = 30) {
+  const [year, month, day] = String(today).slice(0, 10).split("-").map(Number);
+  const todayDate = new Date(year, month - 1, day);
+  const rows = [];
+  for (const customer of customers) {
+    const parsed = parseBirth(customer.birth_date || customer.birthday_md || "");
+    if (!parsed.md) continue;
+    const [birthMonth, birthDay] = parsed.md.split("-").map(Number);
+    let occurs = year;
+    let when = new Date(occurs, birthMonth - 1, birthDay);
+    if (when.getMonth() !== birthMonth - 1) {
+      occurs += 1;
+      when = new Date(occurs, birthMonth - 1, birthDay);
+    }
+    let diff = Math.round((when - todayDate) / 86400000);
+    if (diff < 0) {
+      occurs += 1;
+      when = new Date(occurs, birthMonth - 1, birthDay);
+      if (when.getMonth() !== birthMonth - 1) continue;
+      diff = Math.round((when - todayDate) / 86400000);
+    }
+    if (diff > withinDays) continue;
+    const birthYear = parsed.iso ? Number(parsed.iso.slice(0, 4)) : null;
+    rows.push({
+      id: customer.id,
+      name: customer.display_name,
+      month: birthMonth,
+      day: birthDay,
+      days: diff,
+      age: birthYear ? occurs - birthYear : null,
+    });
+  }
+  return rows.sort((a, b) => a.days - b.days || String(a.name).localeCompare(String(b.name), "zh-Hant"));
 }
 
 export function relationLabel(social, business) {
@@ -89,7 +142,7 @@ export function normalizeCustomerInput(input) {
   for (const key of PROFILE_TEXT_FIELDS) fields[key] = String(input[key] ?? "").trim();
   const roc = String(input.birth_roc ?? "").trim();
   if (roc) {
-    const parsed = parseRoc(roc);
+    const parsed = parseBirth(roc);
     if (parsed.error) return parsed;
     fields.birth_date = parsed.iso;
     fields.birthday_md = parsed.md;

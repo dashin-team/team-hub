@@ -28,6 +28,7 @@ function nowIso() {
 
 function seed() {
   const today = isoDate();
+  const soonDay = addDays(today, 12);
   const profiles = [
     ["admin", "梁仕翰", "admin", "han@example.com"],
     ["manager", "陳可恩", "manager", "keen@example.com"],
@@ -49,12 +50,12 @@ function seed() {
   const customers = [
     customer("TH-1001", PEOPLE.lin, "王先生（示範）", "0912-000-101", ["車險", "醫療保障"], "03-18", "虛構資料。有小孩，偏好用 LINE 聯絡。", {
       nickname: "阿王",
-      birth_date: "1992-03-18",
+      birth_date: `1992-${today.slice(5)}`,
       gender: "男",
       referrer: "陳同事（示範）",
-      contact_method: "LINE",
+      contact_method: "LINE,IG",
       hobbies: "騎車、手沖咖啡",
-      lead_source: "朋友介紹",
+      lead_source: "緣故",
       relation_social: 7,
       relation_business: 4,
       analysis_worry: "擔心小孩教育金不夠，也在意突然的醫療支出。",
@@ -70,7 +71,7 @@ function seed() {
       analysis_family: "配偶與一名小孩。",
     }),
     customer("TH-1002", PEOPLE.lin, "李小姐（示範）", "0912-000-102", ["家庭保障"], "11-02", "虛構資料。準備年度保障檢視。", {
-      birth_date: "1988-11-02",
+      birth_date: `1995-${soonDay.slice(5)}`,
       gender: "女",
       contact_method: "電話",
       hobbies: "烘焙",
@@ -207,7 +208,7 @@ function seed() {
   ];
 
   return {
-    version: 6,
+    version: 7,
     profiles,
     customers,
     policies,
@@ -348,7 +349,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 6 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 7 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();
