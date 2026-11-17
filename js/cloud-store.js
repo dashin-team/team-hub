@@ -126,23 +126,6 @@ export function createCloudStore(url, anonKey) {
       return data;
     },
 
-    async listTools() {
-      return rows(sb.from("tools").select("*").order("created_at", { ascending: false }), "讀取工具時發生問題");
-    },
-
-    async saveTool(input) {
-      const { data, error } = await sb.from("tools").insert({
-        team_id: profile.team_id,
-        title: input.title.trim(),
-        category: (input.category || "一般").trim(),
-        prompt: input.prompt.trim(),
-        is_published: true,
-        created_by: profile.id,
-      }).select().single();
-      fail(error, "指令沒有儲存");
-      return data;
-    },
-
     async listAssets() {
       return rows(sb.from("assets").select("*").order("created_at", { ascending: false }), "讀取素材時發生問題");
     },

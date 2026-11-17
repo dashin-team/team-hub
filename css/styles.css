@@ -162,6 +162,16 @@ textarea { min-height: 110px; resize: vertical; }
 .tool-card, .panel, .person, .asset {
   background: transparent; border: 1px solid #e5d9c6; border-radius: 16px; padding: 16px; margin: 0 0 12px;
 }
+.guide-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.guide-card {
+  display: flex; flex-direction: column; justify-content: space-between; gap: 8px;
+  min-height: 118px; padding: 14px 12px; border-radius: 16px;
+  border: 1px solid var(--line); background: var(--soft); color: inherit; text-decoration: none;
+}
+.guide-card:hover { border-color: #d7c4a4; }
+.guide-icon { font-size: 26px; line-height: 1; }
+.guide-card b { font-size: 15px; font-weight: 650; letter-spacing: 0.02em; }
+.guide-card small { color: var(--muted); font-size: 12px; }
 .tool-card h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.14em; font-weight: 650; }
 .tool-card p { color: #5e564c; font-size: 14px; margin: 0 0 12px; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }
@@ -281,6 +291,7 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
   .form-grid.cols-2 { grid-template-columns: 1fr 1fr; }
   .form-grid.cols-3 { grid-template-columns: 1fr 1fr 1fr; }
   .greet { font-size: 40px; }
+  .guide-grid { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 
 @media (min-width: 960px) {
@@ -290,4 +301,5 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
   .menu-btn { display: none; }
   .main { flex: 1; }
   .dock-inner { padding-right: 28px; }
+  .guide-grid { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 }

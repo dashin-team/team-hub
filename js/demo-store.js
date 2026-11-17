@@ -168,28 +168,6 @@ function seed() {
     task(PEOPLE.manager, "整理新人可以用的素材連結", false, 1),
   ];
 
-  const tools = [
-    ["客戶關心訊息", "客戶服務", "依照客戶關係撰寫自然、不推銷的關心訊息。請提供三種版本：親切日常、專業溫暖、簡短自然。避免制式問候，並保留讓對方容易回覆的空間。情境：[填入不含個資的情境]。"],
-    ["年度保單檢視邀約", "客戶服務", "請幫我寫一段自然的訊息，邀請既有客戶安排年度保障檢視。重點放在確認保障內容是否符合目前生活階段，不製造恐懼、不強迫推銷。語氣像平常聊天，約 80 字。"],
-    ["生日祝福文案", "客戶服務", "請撰寫一段真誠、不油膩的生日祝福，像熟識朋友的日常訊息。不要提商品或銷售，提供三種不同語氣。對象關係：[填寫關係]。"],
-    ["IG 服務日常貼文", "社群", "請把以下服務情境改寫成自然的 IG 貼文，口吻真誠、生活化，不要有 AI 腔、不過度推銷。包含一個吸引人的開頭、內文及 3 個相關標籤。情境：[填寫去識別化情境]。"],
-    ["Threads 專業分享", "社群", "請以一般民眾聽得懂的方式，把以下保險觀念寫成 Threads 短文。先從生活情境切入，再說明觀念，最後提出一個值得思考的問題。避免誇大或未經查證的數字。主題：[填寫主題]。"],
-    ["客戶需求訪談問題", "客戶服務", "請針對以下客戶情境設計 5 個開放式需求訪談問題，避免一開始就推商品。問題要自然、尊重客戶、不帶預設答案。情境：[填寫去識別化情境]。"],
-    ["商品簡報架構", "教材", "請協助規劃一份面向一般民眾的保險商品教育簡報。先列出客戶可能遇到的生活風險、保障觀念、需要確認的條款重點及常見問題。不要自行編造商品條款、費率或理賠承諾；未知處標示待查證。主題：[填寫主題]。"],
-    ["客戶服務紀錄整理", "工作", "請將以下去識別化的服務筆記整理成：本次服務事項、客戶提出的問題、待確認事項、後續行動及預計追蹤時間。請勿推測未提供的資訊。筆記：[貼上已去識別化內容]。"],
-  ].map(([title, category, prompt], index) => ({
-    id: uid(),
-    team_id: DEMO_TEAM_ID,
-    title,
-    category,
-    prompt,
-    is_published: true,
-    created_by: PEOPLE.admin,
-    created_at: nowIso(),
-    updated_at: nowIso(),
-    sort_hint: index,
-  }));
-
   const assets = [
     ["社群貼文版型", "社群貼文", "社群內容與貼文版型的集中入口", "▧"],
     ["保單檢視說明素材", "客戶服務", "年度保單檢視及服務說明", "▤"],
@@ -261,7 +239,6 @@ function seed() {
     service_records: serviceRecords,
     reminders,
     tasks,
-    tools,
     assets,
     courses,
     course_progress: courseProgress,
@@ -521,30 +498,6 @@ export function createDemoStore() {
         updated_at: nowIso(),
       };
       state.announcements.unshift(row);
-      persist();
-      return row;
-    },
-
-    async listTools() {
-      const me = requireProfile();
-      return state.tools.filter((item) => item.team_id === me.team_id && (manager() || item.is_published));
-    },
-
-    async saveTool(input) {
-      const me = requireProfile();
-      if (!manager()) throw new Error("只有主管或管理員可以維護指令");
-      const row = {
-        id: uid(),
-        team_id: me.team_id,
-        title: input.title.trim(),
-        category: (input.category || "一般").trim(),
-        prompt: input.prompt.trim(),
-        is_published: true,
-        created_by: me.id,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      };
-      state.tools.unshift(row);
       persist();
       return row;
     },
