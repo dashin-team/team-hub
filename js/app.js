@@ -69,6 +69,7 @@ let store;
 let page = "home";
 let assetCat = "全部";
 let selectedCustomerId = null;
+let clientTab = "new";
 let coverageView = "gaps";
 let calView = "month";
 let calCursor = "";
@@ -105,9 +106,14 @@ function nameOf(id, profiles) {
   return profiles.find((item) => item.id === id)?.display_name || "—";
 }
 
+function isAdmin() {
+  return me()?.role === "admin";
+}
+
 function go(next) {
   next = PAGE_ALIAS[next] || next;
   if (!PAGE_NAMES[next]) next = "home";
+  if (next === "roster" && !isAdmin()) next = "home";
   if (next === "announcements" && !canManageTeam(me()?.role)) next = "home";
   page = next;
   const url = new URL(location.href);
@@ -141,7 +147,6 @@ function applyRoleChrome() {
   $("whoName").textContent = profile ? `${profile.display_name}・${ROLE_LABEL[profile.role]}` : "";
   $("avatarLetter").textContent = letter;
   $("adviceAvatar") && ($("adviceAvatar").textContent = letter);
-  $("sideFoot").textContent = "請勿輸入真實客戶個資";
   if (store.mode === "demo") $("previewRole").value = store.previewRole;
   $("crumb").textContent = PAGE_NAMES[page] || "總覽";
   document.querySelectorAll("[data-nav]").forEach((button) => {
@@ -162,13 +167,13 @@ function readForm(form) {
 async function renderPage() {
   page = PAGE_ALIAS[page] || page;
   if (!PAGE_NAMES[page]) page = "home";
+  if (page === "roster" && !isAdmin()) page = "home";
   if (page === "announcements" && !canManageTeam(me()?.role)) page = "home";
   applyRoleChrome();
   if (page === "home") await renderHome();
   if (page === "ai") await renderTools();
   if (page === "learn") {
-    await renderLearn();
-    await renderAssets();
+    /* 訓練頁先留白。 */
   }
   if (page === "tasks") await renderCalendar();
   if (page === "clients") await renderClients();
@@ -317,6 +322,7 @@ function renderRoster() {
 }
 
 async function loadRoster() {
+  if (!isAdmin()) return;
   rosterSource = TEAM_ROSTER;
   if (store?.mode === "cloud") {
     const rows = await store.listTeamRoster();
@@ -334,6 +340,7 @@ function renderTools() {
 }
 
 async function renderAssets() {
+  if (!$("assetList")) return;
   const assets = await store.listAssets();
   const cats = ["全部", ...new Set(assets.map((item) => item.category).filter(Boolean))];
   $("assetCats").innerHTML = cats.map((cat) =>
@@ -351,6 +358,7 @@ async function renderAssets() {
 }
 
 async function renderLearn() {
+  if (!$("learnSummary")) return;
   const profile = me();
   const [courses, progress, profiles] = await Promise.all([
     store.listCourses(),
@@ -976,11 +984,33 @@ async function renderClients() {
   clientCache = customers;
   renderSourceChips(customers);
   paintAnalysis();
+  syncClientPanes();
   if (!selectedCustomerId || !customers.some((item) => item.id === selectedCustomerId)) {
     $("clientDetail").innerHTML = "";
     return;
   }
   await renderClientDetail(customers, profiles);
+  syncClientPanes();
+}
+
+function syncClientPanes() {
+  const adding = clientTab === "new";
+  const list = $("clientListPane");
+  const form = $("customerForm");
+  if (list) list.hidden = adding;
+  if (form) form.hidden = !adding && !selectedCustomerId;
+  document.querySelectorAll("#clientTabs [data-client-tab]").forEach((button) => {
+    button.classList.toggle("on", button.dataset.clientTab === clientTab);
+  });
+}
+
+function showClientTab(tab) {
+  clientTab = tab === "list" ? "list" : "new";
+  if (clientTab === "new") {
+    selectedCustomerId = null;
+    resetCustomerForm();
+  }
+  syncClientPanes();
 }
 
 async function renderClientDetail(customers, profiles) {
@@ -1138,6 +1168,7 @@ async function handleAction(event) {
       await renderClients();
     }
     if (target.dataset.action === "open-birthday") {
+      clientTab = "list";
       selectedCustomerId = id;
       page = "clients";
       const url = new URL(location.href);
@@ -1147,16 +1178,18 @@ async function handleAction(event) {
       const customer = customers.find((item) => item.id === id);
       await renderPage();
       if (customer) fillCustomerForm(customer);
-      $("clientDetail").scrollIntoView({ behavior: "smooth", block: "start" });
+      syncClientPanes();
+      $("customerForm").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (target.dataset.action === "open-client") {
       coverageView = "gaps";
+      clientTab = "list";
       selectedCustomerId = id;
       const customers = await store.listCustomers();
       const customer = customers.find((item) => item.id === id);
       if (customer) fillCustomerForm(customer);
       await renderClients();
-      $("clientDetail").scrollIntoView({ behavior: "smooth", block: "start" });
+      $("customerForm").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (target.dataset.action === "jump-analysis") {
       $("analysisBlock").scrollIntoView({ behavior: "smooth", block: "start" });
@@ -1168,7 +1201,10 @@ async function handleAction(event) {
       const customers = await store.listCustomers();
       const customer = customers.find((item) => item.id === id);
       if (!customer) return;
+      clientTab = "list";
+      selectedCustomerId = id;
       fillCustomerForm(customer);
+      syncClientPanes();
       $("customerForm").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (target.dataset.action === "archive-client") {
@@ -1216,6 +1252,11 @@ function bind() {
       go(nav.dataset.nav);
       return;
     }
+    const clientTabButton = event.target.closest("[data-client-tab]");
+    if (clientTabButton) {
+      showClientTab(clientTabButton.dataset.clientTab);
+      return;
+    }
     const cat = event.target.closest("[data-cat]");
     if (cat) {
       assetCat = cat.dataset.cat;
@@ -1245,7 +1286,7 @@ function bind() {
   });
   $("secretaryBtn").onclick = () => { $("secretary").hidden = false; };
   $("secretaryClose").onclick = () => { $("secretary").hidden = true; };
-  $("assetSearch").addEventListener("input", () => renderAssets());
+  if ($("assetSearch")) $("assetSearch").addEventListener("input", () => renderAssets());
   $("clientSearch").addEventListener("input", () => renderClients());
   $("rosterSearch").addEventListener("input", () => {
     rosterQuery = $("rosterSearch").value;
@@ -1264,6 +1305,7 @@ function bind() {
     calOwner = "";
     calView = "month";
     resetCustomerForm();
+    if (page === "roster" && !isAdmin()) page = "home";
     if (page === "announcements" && !canManageTeam(me().role)) page = "home";
     await renderPage();
   });
@@ -1271,7 +1313,7 @@ function bind() {
     await store.signOut();
     show("loginView");
   };
-  $("customerCancel").onclick = () => resetCustomerForm();
+  $("customerCancel").onclick = () => showClientTab("new");
   $("resetDemo").onclick = async () => {
     store.resetDemo();
     selectedCustomerId = null;
@@ -1364,8 +1406,8 @@ function bind() {
   };
   $("passwordForm").addEventListener("submit", onPassword);
 
-  $("assetForm").addEventListener("submit", onAsset);
-  $("courseForm").addEventListener("submit", onCourse);
+  if ($("assetForm")) $("assetForm").addEventListener("submit", onAsset);
+  if ($("courseForm")) $("courseForm").addEventListener("submit", onCourse);
   $("customerForm").addEventListener("submit", onCustomer);
   $("contactChips").addEventListener("click", (event) => {
     const button = event.target.closest("[data-contact]");
@@ -1540,10 +1582,11 @@ async function onCustomer(event) {
   event.preventDefault();
   const data = readForm(event.target);
   try {
-    const existing = data.id ? (await store.listCustomers()).find((item) => item.id === data.id) : null;
+    const adding = clientTab === "new";
+    const existing = !adding && data.id ? (await store.listCustomers()).find((item) => item.id === data.id) : null;
     const saved = await store.saveCustomer({
       ...data,
-      id: data.id || null,
+      id: adding ? null : (data.id || null),
       is_archived: Boolean(existing?.is_archived),
       owner_id: canManageTeam(me().role) ? data.owner_id : me().id,
       email: existing?.email || "",
@@ -1552,9 +1595,18 @@ async function onCustomer(event) {
       birth_date: null,
       birthday_md: String(data.birth_roc || "").trim() ? null : (data.birthday_md_keep || null),
     });
+    const message = saved.strategy_pending ? "名單已儲存。策略分析圖要等資料欄位加上後才會留在雲端。" : "名單已儲存";
+    if (adding) {
+      selectedCustomerId = null;
+      resetCustomerForm();
+      toast(message);
+      await renderClients();
+      return;
+    }
     selectedCustomerId = saved.id;
+    clientTab = "list";
     fillCustomerForm(saved);
-    toast(saved.strategy_pending ? "名單已儲存。策略分析圖要等資料欄位加上後才會留在雲端。" : "名單已儲存");
+    toast(message);
     await renderClients();
   } catch (error) { toast(error.message); }
 }

@@ -65,6 +65,18 @@ export function createCloudStore(url, anonKey) {
     return error.code === "PGRST204" || error.code === "42703" || /schema cache|does not exist|column/i.test(message);
   }
 
+  async function assignRefCode(id) {
+    const compact = String(id || "").replace(/-/g, "").toUpperCase();
+    const base = compact.slice(0, 8) || "NEW";
+    for (let attempt = 0; attempt < 4; attempt += 1) {
+      const ref = `TH-${base}${attempt ? attempt.toString(36).toUpperCase() : ""}`.slice(0, 24);
+      const { error } = await sb.from("customers").update({ ref_code: ref }).eq("id", id).is("ref_code", null);
+      if (!error) return ref;
+      if (error.code !== "23505") return null;
+    }
+    return null;
+  }
+
   async function writeCustomer(payload, id) {
     const send = (body) => (id
       ? sb.from("customers").update(body).eq("id", id).select().single()
@@ -310,11 +322,7 @@ export function createCloudStore(url, anonKey) {
       fail(written.error, input.id ? "客戶沒有更新" : "客戶沒有新增");
       const data = written.data;
       if (input.id) return data;
-      if (data && !data.ref_code) {
-        const ref = `TH-${data.id.slice(0, 4).toUpperCase()}`;
-        await sb.from("customers").update({ ref_code: ref }).eq("id", data.id);
-        data.ref_code = ref;
-      }
+      if (data && !data.ref_code) data.ref_code = await assignRefCode(data.id);
       return data;
     },
 
