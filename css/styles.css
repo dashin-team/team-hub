@@ -124,6 +124,19 @@ textarea { min-height: 110px; resize: vertical; }
   background: #d15b4a; border: 2px solid var(--bg);
 }
 .content { padding: 8px 16px 96px; max-width: 880px; }
+.content:has(#page-learn.active) {
+  padding: 0;
+  max-width: none;
+  height: calc(100dvh - 58px);
+  overflow: hidden;
+}
+#page-learn.active { height: 100%; }
+.learn-frame { display: block; width: 100%; height: 100%; border: 0; background: #fff; }
+.learn-pop {
+  display: none; margin-left: auto; width: 32px; height: 32px; border-radius: 50%;
+  place-items: center; text-decoration: none; color: var(--muted); font-size: 16px;
+}
+body[data-page="learn"] .learn-pop { display: grid; }
 .page { display: none; }
 .page.active { display: block; }
 .date-line { color: var(--muted); font-size: 13px; margin: 8px 0 6px; letter-spacing: 0.04em; }
