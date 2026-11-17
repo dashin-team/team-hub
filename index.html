@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117u 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117v 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon-32.png?v=20261117u" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117u">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117u">
+  <link rel="icon" href="./favicon-32.png?v=20261117v" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117v">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117v">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117u",
-      "@hub/guides": "./js/guides.js?v=20261117u",
-      "@hub/store": "./js/store.js?v=20261117u",
-      "@hub/metrics": "./js/metrics.js?v=20261117u",
-      "@hub/config": "./js/config.js?v=20261117u",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117u",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117u",
-      "@hub/safe": "./js/safe-browser.js?v=20261117u",
-      "@hub/contest": "./js/contest.js?v=20261117u",
-      "@hub/profile": "./js/client-profile.js?v=20261117u",
-      "@hub/calendar": "./js/calendar.js?v=20261117u",
-      "@hub/team": "./js/team-schedule.js?v=20261117u",
-      "@hub/roster": "./js/team-roster.js?v=20261117u",
-      "@hub/account": "./js/account.js?v=20261117u"
+      "@hub/app": "./js/app.js?v=20261117v",
+      "@hub/guides": "./js/guides.js?v=20261117v",
+      "@hub/store": "./js/store.js?v=20261117v",
+      "@hub/metrics": "./js/metrics.js?v=20261117v",
+      "@hub/config": "./js/config.js?v=20261117v",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117v",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117v",
+      "@hub/safe": "./js/safe-browser.js?v=20261117v",
+      "@hub/contest": "./js/contest.js?v=20261117v",
+      "@hub/profile": "./js/client-profile.js?v=20261117v",
+      "@hub/calendar": "./js/calendar.js?v=20261117v",
+      "@hub/team": "./js/team-schedule.js?v=20261117v",
+      "@hub/roster": "./js/team-roster.js?v=20261117v",
+      "@hub/account": "./js/account.js?v=20261117v"
     }
   }
   </script>
@@ -35,7 +35,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117u" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117v" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -54,7 +54,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117u" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117v" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -92,7 +92,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117u" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117v" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -415,7 +415,37 @@
             <label class="checkline"><input name="publish" type="checkbox" checked> 立即發布</label>
             <button class="btn" type="submit">儲存公告</button>
           </form>
-          <div class="section-head"><h2>成員</h2></div>
+          <div class="section-head">
+            <h2>成員</h2>
+            <button class="btn secondary small admin-only" id="memberAddToggle" type="button">新增夥伴</button>
+          </div>
+          <form id="memberCreateForm" class="panel admin-only" hidden>
+            <h3>新增夥伴</h3>
+            <div class="form-grid cols-2">
+              <label class="field">姓名<input name="display_name" required maxlength="80"></label>
+              <label class="field">帳號<input name="account" required maxlength="40" autocomplete="off"></label>
+              <label class="field">職級
+                <select name="grade" id="memberGrade">
+                  <option value="UM">UM</option>
+                  <option value="SP">SP</option>
+                  <option value="CA">CA</option>
+                </select>
+              </label>
+              <label class="field">角色
+                <select name="role" id="memberRole">
+                  <option value="manager">主管 (manager)</option>
+                  <option value="member">一般夥伴 (member)</option>
+                  <option value="admin">管理員 (admin)</option>
+                </select>
+              </label>
+            </div>
+            <label class="field">區
+              <select name="zone" id="memberZone"></select>
+            </label>
+            <input name="zone_custom" id="memberZoneCustom" hidden maxlength="40" placeholder="輸入區名" aria-label="新的區">
+            <button class="btn" type="submit">建立帳號</button>
+          </form>
+          <label class="checkline admin-only"><input id="showRemovedMembers" type="checkbox"> 顯示已刪除</label>
           <div id="memberList"></div>
           <form id="inviteForm" class="panel admin-only cloud-only">
             <h3>邀請夥伴</h3>
@@ -548,6 +578,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117u"></script>
+  <script type="module" src="./js/app.js?v=20261117v"></script>
 </body>
 </html>

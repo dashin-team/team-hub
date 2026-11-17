@@ -104,17 +104,93 @@ exception
     null;
 end $$;
 
+reset role;
+select set_config('request.jwt.claim.role', '', true);
+select set_config('request.jwt.claim.sub', '', true);
+update public.profiles set zone = '示範一區', grade = 'SP' where id = '20000000-0000-4000-8000-000000000002';
+update public.profiles set zone = '示範一區', grade = 'CA', must_change_password = false where id = '20000000-0000-4000-8000-000000000003';
+update public.profiles set zone = '示範二區', grade = 'CA' where id = '20000000-0000-4000-8000-000000000004';
+insert into private.app_settings (key, value) values ('default_password', 'test-default-pass');
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+
 select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000002', true);
 
 do $$
 declare n int;
 begin
   select count(*) into n from public.customers;
-  if n <> 2 then raise exception '主管應看到同團隊 2 位客戶，實際 %', n; end if;
+  if n <> 1 then raise exception '主管應只看到自己區的 1 位客戶，實際 %', n; end if;
+  select count(*) into n from public.customers where display_name = '陳媽媽（示範）';
+  if n <> 0 then raise exception '主管不該看到其他區的客戶'; end if;
   select count(*) into n from public.customers where display_name = '外人客戶';
   if n <> 0 then raise exception '主管不該看到其他團隊'; end if;
   select count(*) into n from public.social_accounts;
   if n <> 2 then raise exception '主管應看到同團隊 2 個 IG，實際 %', n; end if;
+end $$;
+
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);
+
+do $$
+declare
+  flag boolean;
+  new_id uuid;
+begin
+  perform public.admin_reset_password('20000000-0000-4000-8000-000000000003');
+  select must_change_password into flag from public.profiles where id = '20000000-0000-4000-8000-000000000003';
+  if flag is distinct from true then raise exception '重設後應要求改密碼'; end if;
+  new_id := public.admin_create_member('測試夥伴', 'ceshi', 'CA', '示範一區', 'member');
+  if not exists (
+    select 1 from public.profiles
+    where id = new_id and account = 'ceshi' and must_change_password and is_active
+  ) then
+    raise exception '新夥伴沒有建立';
+  end if;
+  perform public.admin_remove_member(new_id);
+  if not exists (
+    select 1 from public.profiles where id = new_id and is_active = false
+  ) then
+    raise exception '刪除後應停用而不是清掉資料';
+  end if;
+end $$;
+
+do $$
+begin
+  perform public.admin_remove_member('20000000-0000-4000-8000-000000000001');
+  raise exception '不該刪除自己';
+exception
+  when others then
+    if sqlerrm not like '%不能刪除自己%' then raise; end if;
+end $$;
+
+reset role;
+do $$
+begin
+  if not exists (
+    select 1 from auth.users
+    where id = '20000000-0000-4000-8000-000000000003' and encrypted_password is not null
+  ) then
+    raise exception '重設後登入密碼沒有寫入';
+  end if;
+  if not exists (
+    select 1 from auth.users u
+    join public.profiles p on p.id = u.id
+    where p.account = 'ceshi' and u.banned_until is not null and p.is_active = false
+  ) then
+    raise exception '刪除後應禁止登入並保留資料';
+  end if;
+end $$;
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000003', true);
+
+do $$
+begin
+  perform public.admin_reset_password('20000000-0000-4000-8000-000000000004');
+  raise exception '夥伴不該重設別人的密碼';
+exception
+  when others then
+    if sqlerrm not like '%只有管理員%' then raise; end if;
 end $$;
 
 select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000005', true);

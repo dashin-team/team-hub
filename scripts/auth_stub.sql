@@ -4,6 +4,39 @@ create schema if not exists auth;
 
 create table if not exists auth.users (
   id uuid primary key,
+  instance_id uuid,
+  aud text,
+  role text,
+  email text,
+  encrypted_password text,
+  email_confirmed_at timestamptz,
+  raw_app_meta_data jsonb,
+  raw_user_meta_data jsonb,
+  created_at timestamptz,
+  updated_at timestamptz,
+  confirmation_token text,
+  recovery_token text,
+  email_change_token_new text,
+  email_change text,
+  email_change_token_current text,
+  phone text,
+  phone_change text,
+  phone_change_token text,
+  reauthentication_token text,
+  is_sso_user boolean not null default false,
+  is_anonymous boolean not null default false,
+  banned_until timestamptz
+);
+
+create table if not exists auth.identities (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid not null,
+  identity_data jsonb not null default '{}'::jsonb,
+  provider text not null,
+  provider_id text not null,
+  last_sign_in_at timestamptz,
+  created_at timestamptz,
+  updated_at timestamptz,
   email text
 );
 
