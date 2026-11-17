@@ -126,6 +126,9 @@ try {
   listen(ws);
   await cdp(ws, "Page.enable");
   await cdp(ws, "Runtime.enable");
+  await cdp(ws, "Page.addScriptToEvaluateOnNewDocument", {
+    source: "sessionStorage.setItem('naneun-team-hub-force-demo','1')",
+  });
   await cdp(ws, "Page.navigate", { url: `${base}?page=home` });
   await waitFor(async () => {
     const ready = await evalJson(ws, "document.getElementById('app') && !document.getElementById('app').hidden && document.body.dataset.mode === 'demo'");

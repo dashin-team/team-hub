@@ -425,8 +425,12 @@ export function createDemoStore() {
       throw new Error("示範模式沒有寄信功能");
     },
 
-    async updatePassword() {
-      throw new Error("示範模式沒有密碼");
+    async updatePassword() {},
+
+    async markPasswordChanged() {},
+
+    async listTeamRoster() {
+      return [];
     },
 
     async listProfiles() {

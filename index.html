@@ -5,27 +5,28 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117o 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117p 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117o">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117p">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117o",
-      "@hub/guides": "./js/guides.js?v=20261117o",
-      "@hub/store": "./js/store.js?v=20261117o",
-      "@hub/metrics": "./js/metrics.js?v=20261117o",
-      "@hub/config": "./js/config.js?v=20261117o",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117o",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117o",
-      "@hub/safe": "./js/safe-browser.js?v=20261117o",
-      "@hub/contest": "./js/contest.js?v=20261117o",
-      "@hub/profile": "./js/client-profile.js?v=20261117o",
-      "@hub/calendar": "./js/calendar.js?v=20261117o",
-      "@hub/team": "./js/team-schedule.js?v=20261117o",
-      "@hub/roster": "./js/team-roster.js?v=20261117o"
+      "@hub/app": "./js/app.js?v=20261117p",
+      "@hub/guides": "./js/guides.js?v=20261117p",
+      "@hub/store": "./js/store.js?v=20261117p",
+      "@hub/metrics": "./js/metrics.js?v=20261117p",
+      "@hub/config": "./js/config.js?v=20261117p",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117p",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117p",
+      "@hub/safe": "./js/safe-browser.js?v=20261117p",
+      "@hub/contest": "./js/contest.js?v=20261117p",
+      "@hub/profile": "./js/client-profile.js?v=20261117p",
+      "@hub/calendar": "./js/calendar.js?v=20261117p",
+      "@hub/team": "./js/team-schedule.js?v=20261117p",
+      "@hub/roster": "./js/team-roster.js?v=20261117p",
+      "@hub/account": "./js/account.js?v=20261117p"
     }
   }
   </script>
@@ -92,24 +93,39 @@
     <div class="gate-card">
       <div class="brand-mark"><span>南</span> TEAM HUB</div>
       <h1>南恩團隊登入</h1>
-      <p class="sub">帳號由管理員邀請。這裡沒有自行註冊。</p>
+      <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
-        <label class="field">電子郵件
-          <input id="loginEmail" name="email" type="email" autocomplete="username" required>
+        <label class="field">帳號
+          <input id="loginAccount" name="account" autocomplete="username" required>
         </label>
         <label class="field">密碼
-          <input id="loginPassword" name="password" type="password" autocomplete="current-password" required minlength="6">
+          <input id="loginPassword" name="password" type="password" autocomplete="current-password" required>
         </label>
         <p id="loginError" class="error"></p>
         <button class="btn" type="submit">登入</button>
       </form>
-      <p><button class="linkish" id="showForgot" type="button">忘記密碼</button></p>
-      <form id="forgotForm" hidden>
-        <label class="field">把重設信寄到
-          <input id="forgotEmail" type="email" autocomplete="username" required>
+      <p class="muted">忘記密碼請找管理者</p>
+    </div>
+  </div>
+
+  <div id="passwordView" class="gate" hidden>
+    <div class="gate-card">
+      <div class="brand-mark"><span>南</span> TEAM HUB</div>
+      <h1 id="passwordTitle">第一次登入，請設定新密碼</h1>
+      <p class="sub" id="passwordHint">新密碼至少 8 個字元，而且要和現在的不一樣。</p>
+      <form id="passwordForm">
+        <label class="field">目前密碼
+          <input id="currentPassword" type="password" autocomplete="current-password" required>
         </label>
-        <p id="forgotMsg" class="ok"></p>
-        <button class="btn secondary" type="submit">寄出重設信</button>
+        <label class="field">新密碼
+          <input id="nextPassword" type="password" autocomplete="new-password" required minlength="8">
+        </label>
+        <label class="field">確認新密碼
+          <input id="confirmPassword" type="password" autocomplete="new-password" required minlength="8">
+        </label>
+        <p id="passwordError" class="error"></p>
+        <button class="btn" type="submit">儲存新密碼</button>
+        <button class="btn secondary" id="passwordCancel" type="button" hidden>返回</button>
       </form>
     </div>
   </div>
@@ -157,6 +173,7 @@
           </select>
         </label>
         <button class="btn secondary small demo-only" id="resetDemo" type="button">還原示範資料</button>
+        <button class="btn secondary small" id="changePasswordBtn" type="button">修改密碼</button>
         <button class="btn secondary small cloud-only" id="signOutBtn" type="button">登出</button>
       </div>
     </aside>
@@ -487,6 +504,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117o"></script>
+  <script type="module" src="./js/app.js?v=20261117p"></script>
 </body>
 </html>

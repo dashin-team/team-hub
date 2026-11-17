@@ -3,5 +3,5 @@
 // 接上 Supabase 時，只填 Project URL 與 anon / publishable key。
 // 絕對不要填 service_role、Secret key 或資料庫密碼。
 
-export const SUPABASE_URL = "";
-export const SUPABASE_ANON_KEY = "";
+export const SUPABASE_URL = "https://qnyhgmmyoietartdfxlj.supabase.co";
+export const SUPABASE_ANON_KEY = "sb_publishable_ZB_C_PZahzAUtxlyehyOiA_dchdwKjj";

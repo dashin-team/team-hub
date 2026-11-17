@@ -19,7 +19,7 @@ import {
   weekdayIndex,
 } from "@hub/calendar";
 import { teamDay } from "@hub/team";
-import { ROSTER_RANKS, TEAM_ROSTER, countRanks, filterRoster, rosterMembers } from "@hub/roster";
+import { ROSTER_RANKS, TEAM_ROSTER, countRanks, filterRoster, groupRoster, rosterMembers } from "@hub/roster";
 import { CURRENT_CONTEST } from "@hub/contest";
 import {
   ANALYSIS_SECTIONS,
@@ -72,6 +72,9 @@ let calFocus = "";
 let calOwner = "";
 let rosterQuery = "";
 let rosterRank = "";
+let rosterSource = TEAM_ROSTER;
+let passwordFirst = false;
+let signedInPassword = "";
 let calItems = [];
 let toastTimer = 0;
 
@@ -85,7 +88,7 @@ function toast(message) {
 
 function show(id) {
   if (id !== "boot") document.body.dataset.booted = "1";
-  for (const view of ["boot", "blockedView", "loginView", "recoveryView", "app"]) {
+  for (const view of ["boot", "blockedView", "loginView", "recoveryView", "passwordView", "app"]) {
     $(view).hidden = view !== id;
   }
 }
@@ -166,7 +169,7 @@ async function renderPage() {
   if (page === "tasks") await renderCalendar();
   if (page === "clients") await renderClients();
   if (page === "social") renderContest();
-  if (page === "roster") renderRoster();
+  if (page === "roster") await loadRoster();
   if (page === "announcements") {
     await renderAnnouncements();
     await renderMembers();
@@ -276,7 +279,7 @@ async function refreshDot() {
 }
 
 function renderRoster() {
-  const everyone = rosterMembers(TEAM_ROSTER);
+  const everyone = rosterMembers(rosterSource);
   const totals = countRanks(everyone);
   $("rosterStats").innerHTML = [
     ["全部", totals.total],
@@ -289,14 +292,23 @@ function renderRoster() {
     const on = rosterRank === rank ? " active" : "";
     return `<button class="tag-outline${on}" type="button" data-roster-rank="${rank}">${label}</button>`;
   }).join("");
-  const groups = filterRoster(TEAM_ROSTER, { query: rosterQuery, rank: rosterRank });
+  const groups = filterRoster(rosterSource, { query: rosterQuery, rank: rosterRank });
   const shown = groups.reduce((sum, group) => sum + group.members.length, 0);
   $("rosterMatch").textContent = rosterQuery || rosterRank ? `目前顯示 ${shown} 人` : "";
   $("rosterList").innerHTML = groups.map((group) => `
     <article class="panel roster-card">
       <h2>${esc(group.district)} · ${group.members.length}人</h2>
-      ${group.members.map((member) => `<div class="roster-row"><b>${esc(member.name)}</b><span class="rank ${member.rank.toLowerCase()}">${esc(member.rank)}</span></div>`).join("")}
+      ${group.members.map((member) => `<div class="roster-row"><b>${esc(member.name)}</b><span class="rank ${esc(String(member.rank || "").toLowerCase())}">${esc(member.rank)}</span></div>`).join("")}
     </article>`).join("") || `<div class="empty">沒有符合的同仁。</div>`;
+}
+
+async function loadRoster() {
+  rosterSource = TEAM_ROSTER;
+  if (store?.mode === "cloud") {
+    const rows = await store.listTeamRoster();
+    rosterSource = groupRoster(rows);
+  }
+  renderRoster();
 }
 
 function renderTools() {
@@ -1180,39 +1192,24 @@ function bind() {
     forceDemoMode();
     location.reload();
   };
-  $("showForgot").onclick = () => { $("forgotForm").hidden = !$("forgotForm").hidden; };
   $("loginForm").addEventListener("submit", async (event) => {
     event.preventDefault();
     $("loginError").textContent = "";
+    const password = $("loginPassword").value;
     try {
-      await store.signIn($("loginEmail").value, $("loginPassword").value);
-      show("app");
-      await renderPage();
+      await store.signIn($("loginAccount").value, password);
+      signedInPassword = password;
+      await afterLogin();
     } catch (error) {
-      $("loginError").textContent = error.message || "登入沒有成功";
+      $("loginError").textContent = error.message || "帳號或密碼錯誤";
     }
   });
-  $("forgotForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    try {
-      await store.requestPasswordReset($("forgotEmail").value);
-      $("forgotMsg").textContent = "如果這個信箱有帳號，你會收到重設信。";
-    } catch (error) {
-      $("forgotMsg").textContent = error.message;
-    }
-  });
-  $("recoveryForm").addEventListener("submit", async (event) => {
-    event.preventDefault();
-    try {
-      await store.updatePassword($("newPassword").value);
-      toast("密碼已更新");
-      history.replaceState({}, "", location.pathname + location.search);
-      show("app");
-      await renderPage();
-    } catch (error) {
-      $("recoveryError").textContent = error.message;
-    }
-  });
+  $("changePasswordBtn").onclick = () => openPassword(false);
+  $("passwordCancel").onclick = () => {
+    if (passwordFirst) return;
+    show("app");
+  };
+  $("passwordForm").addEventListener("submit", onPassword);
 
   $("assetForm").addEventListener("submit", onAsset);
   $("courseForm").addEventListener("submit", onCourse);
@@ -1455,6 +1452,58 @@ function enterApp() {
   renderPage();
 }
 
+function openPassword(first) {
+  passwordFirst = Boolean(first);
+  $("passwordTitle").textContent = first ? "第一次登入，請設定新密碼" : "修改密碼";
+  $("passwordHint").textContent = first
+    ? "新密碼至少 8 個字元，而且要和現在的不一樣。"
+    : "輸入目前密碼，再設定一組至少 8 個字元的新密碼。";
+  $("passwordCancel").hidden = Boolean(first);
+  $("passwordError").textContent = "";
+  $("passwordForm").reset();
+  show("passwordView");
+}
+
+async function afterLogin() {
+  if (store.profile?.must_change_password) {
+    openPassword(true);
+    return;
+  }
+  enterApp();
+}
+
+function passwordProblem(current, next, confirm) {
+  if (next.length < 8) return "新密碼至少 8 個字元。";
+  if (next !== confirm) return "兩次輸入的新密碼不相同。";
+  const previous = current || signedInPassword;
+  if (previous && next === previous) return "新密碼不能和現在的相同。";
+  return "";
+}
+
+async function onPassword(event) {
+  event.preventDefault();
+  const current = $("currentPassword").value;
+  const next = $("nextPassword").value;
+  const confirm = $("confirmPassword").value;
+  const problem = passwordProblem(current, next, confirm);
+  $("passwordError").textContent = problem;
+  if (problem) return;
+  try {
+    if (store.mode === "demo") {
+      toast("示範模式不會更改密碼");
+      show("app");
+      return;
+    }
+    await store.updatePassword(next);
+    if (passwordFirst) await store.markPasswordChanged();
+    signedInPassword = next;
+    toast("密碼已更新");
+    enterApp();
+  } catch (error) {
+    $("passwordError").textContent = error.message;
+  }
+}
+
 async function main() {
   bind();
   try {
@@ -1468,12 +1517,12 @@ async function main() {
     show("blockedView");
     return;
   }
-  if (store.mode === "cloud" && location.hash.includes("type=recovery")) {
-    show("recoveryView");
-    return;
-  }
   if (store.mode === "cloud" && !store.profile) {
     show("loginView");
+    return;
+  }
+  if (store.mode === "cloud" && store.profile.must_change_password) {
+    openPassword(true);
     return;
   }
   enterApp();
