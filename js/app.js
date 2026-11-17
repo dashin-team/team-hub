@@ -1,0 +1,982 @@
+import { openStore, forceDemoMode } from "./store.js";
+import {
+  CONNECTION_LABEL,
+  KIND_LABEL,
+  POLICY_CATEGORIES,
+  POLICY_STATUS,
+  ROLE_LABEL,
+  SERVICE_TYPES,
+  SOURCE_LABEL,
+  addDays,
+  canManageTeam,
+  esc,
+  formatDate,
+  formatNet,
+  formatRate,
+  growth,
+  isBirthdayMd,
+  isHttpsUrl,
+  isLast4,
+  isoDate,
+  normalizeFollowers,
+  normalizeStory,
+  weekStart,
+} from "./metrics.js";
+
+const PAGE_NAMES = {
+  home: "首頁總覽",
+  ai: "AI 工具箱",
+  assets: "素材庫",
+  learn: "教育訓練",
+  tasks: "工作任務",
+  clients: "客戶管理",
+  social: "社群追蹤",
+  announcements: "團隊公告",
+  members: "團隊成員",
+};
+
+const $ = (id) => document.getElementById(id);
+let store;
+let page = "home";
+let assetCat = "全部";
+let selectedCustomerId = null;
+let modalOriginal = "";
+let toastTimer = 0;
+
+function toast(message) {
+  const el = $("toast");
+  el.textContent = message;
+  el.classList.add("show");
+  clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => el.classList.remove("show"), 2800);
+}
+
+function show(id) {
+  for (const view of ["boot", "blockedView", "loginView", "recoveryView", "app"]) {
+    $(view).hidden = view !== id;
+  }
+}
+
+function me() {
+  return store.profile;
+}
+
+function nameOf(id, profiles) {
+  return profiles.find((item) => item.id === id)?.display_name || "—";
+}
+
+function go(next) {
+  if (!PAGE_NAMES[next]) next = "home";
+  if (next === "members" && !canManageTeam(me()?.role)) next = "home";
+  page = next;
+  const url = new URL(location.href);
+  url.searchParams.set("page", page);
+  history.pushState({}, "", url);
+  closeMenu();
+  renderPage();
+  window.scrollTo(0, 0);
+}
+
+function closeMenu() {
+  $("sidebar").classList.remove("open");
+  $("backdrop").classList.remove("show");
+}
+
+function applyRoleChrome() {
+  const profile = me();
+  document.body.dataset.mode = store.mode;
+  document.body.dataset.role = profile?.role || "member";
+  $("modeBadge").textContent = store.mode === "demo" ? "示範資料" : "雲端資料";
+  $("modeBadge").classList.toggle("cloud", store.mode === "cloud");
+  $("whoName").textContent = profile ? `${profile.display_name}・${ROLE_LABEL[profile.role]}` : "";
+  $("sideFoot").textContent = profile
+    ? `${profile.display_name}\n${ROLE_LABEL[profile.role]}\n請勿輸入真實客戶個資`
+    : "請勿輸入真實客戶個資";
+  if (store.mode === "demo") $("previewRole").value = store.previewRole;
+  $("crumb").textContent = PAGE_NAMES[page] || "首頁總覽";
+  document.querySelectorAll("[data-nav]").forEach((button) => {
+    const active = button.dataset.nav === page;
+    button.classList.toggle("active", active);
+    if (active) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+  document.querySelectorAll(".page").forEach((section) => {
+    section.classList.toggle("active", section.id === `page-${page}`);
+  });
+}
+
+async function copyText(text) {
+  try {
+    await navigator.clipboard.writeText(text);
+    return true;
+  } catch {
+    const area = document.createElement("textarea");
+    area.value = text;
+    document.body.appendChild(area);
+    area.select();
+    const ok = document.execCommand("copy");
+    area.remove();
+    return ok;
+  }
+}
+
+function openModal(title, text) {
+  modalOriginal = text;
+  $("modalTitle").textContent = title;
+  $("modalText").value = text;
+  $("modal").classList.add("show");
+}
+
+function readForm(form) {
+  return Object.fromEntries(new FormData(form).entries());
+}
+
+function tagsFrom(value) {
+  return String(value || "").split(/[、,，]/).map((item) => item.trim()).filter(Boolean);
+}
+
+async function renderPage() {
+  applyRoleChrome();
+  if (page === "home") await renderHome();
+  if (page === "ai") await renderTools();
+  if (page === "assets") await renderAssets();
+  if (page === "learn") await renderLearn();
+  if (page === "tasks") await renderTasks();
+  if (page === "clients") await renderClients();
+  if (page === "social") await renderSocial();
+  if (page === "announcements") await renderAnnouncements();
+  if (page === "members") await renderMembers();
+}
+
+async function renderHome() {
+  const profile = me();
+  const [tasks, reminders, announcements, customers, accounts, stories, posts, snapshots] = await Promise.all([
+    store.listTasks(),
+    store.listReminders(),
+    store.listAnnouncements(),
+    store.listCustomers(),
+    store.listSocialAccounts(),
+    store.listStories(),
+    store.listPosts(),
+    store.listSnapshots(),
+  ]);
+  const mineTasks = tasks.filter((item) => item.owner_id === profile.id);
+  const openTasks = mineTasks.filter((item) => !item.is_done);
+  const today = isoDate();
+  const soon = reminders
+    .filter((item) => item.status === "open" && item.owner_id === profile.id)
+    .filter((item) => String(item.due_at).slice(0, 10) <= addDays(today, 30))
+    .sort((a, b) => String(a.due_at).localeCompare(String(b.due_at)));
+  const activeCustomers = customers.filter((item) => !item.is_archived);
+  const weekNet = weekNetTotal(accounts, snapshots, today);
+  $("welcomeText").textContent = `${profile.display_name}，歡迎回到南恩團隊。今天也把專業服務做好。`;
+  const cards = [
+    ["我的待辦", openTasks.length, "今天看得到的下一步"],
+    ["已完成任務", mineTasks.filter((item) => item.is_done).length, "累積下來的行動"],
+    ["即將提醒", soon.length, "生日、到期、續保"],
+    ["負責客戶", activeCustomers.filter((item) => item.owner_id === profile.id).length, "不含已封存"],
+  ];
+  if (canManageTeam(profile.role)) {
+    cards[3] = ["團隊客戶", activeCustomers.length, "同團隊、未封存"];
+  }
+  $("homeStats").innerHTML = cards.map(([label, value, hint]) =>
+    `<div class="stat"><small>${esc(label)}</small><strong>${esc(value)}</strong><em>${esc(hint)}</em></div>`).join("");
+  if (canManageTeam(profile.role)) {
+    const start = weekStart(today);
+    const reported = new Set(stories.filter((item) => item.story_date >= start && item.story_date <= today).map((item) => item.owner_id));
+    const weekPosts = posts.filter((item) => String(item.published_at).slice(0, 10) >= start && String(item.published_at).slice(0, 10) <= today);
+    $("homeSocial").className = "note";
+    $("homeSocial").textContent = `本週社群：限動回報 ${reported.size}/${accounts.length} 人，貼文與 Reels ${weekPosts.length} 則，粉絲淨增 ${formatNet(weekNet)}。未回報不等於沒有發。`;
+  } else {
+    $("homeSocial").className = "";
+    $("homeSocial").textContent = "";
+  }
+  $("homeQuick").innerHTML = [
+    ["ai", "✦", "AI 工具箱", "複製工作指令"],
+    ["assets", "▤", "素材庫", "找團隊素材"],
+    ["learn", "▣", "教育訓練", "學完就打勾"],
+    ["tasks", "☑", "工作任務", "寫下今天要做的"],
+    ["clients", "☺", "客戶管理", "服務紀錄與提醒"],
+    ["social", "◎", "社群追蹤", "限動與粉絲數"],
+  ].map(([id, icon, title, desc]) =>
+    `<button class="tile" type="button" data-nav="${id}"><span class="symbol">${icon}</span><span><b>${title}</b><small>${desc}</small></span></button>`).join("");
+  $("homeTasks").innerHTML = openTasks.slice(0, 4).map((item) =>
+    `<div class="list-item"><span>${esc(item.title)}</span><small class="muted">${formatDate(item.due_date)}</small></div>`).join("")
+    || `<div class="empty">今天還沒有待辦。到工作任務加一項吧。</div>`;
+  $("homeReminders").innerHTML = soon.slice(0, 5).map((item) =>
+    `<div class="list-item"><span><b>${esc(KIND_LABEL[item.kind] || "提醒")}</b> ${esc(item.title)}</span><small class="muted">${formatDate(item.due_at)}</small></div>`).join("")
+    || `<div class="empty">30 天內沒有未完成的提醒。</div>`;
+  const visibleNews = announcements.filter((item) => item.published_at).slice(0, 3);
+  $("homeNotices").innerHTML = visibleNews.map((item) =>
+    `<div class="notice"><span class="dot"></span><div><b>${esc(item.title)}</b><small class="muted">${esc(item.body)}</small></div></div>`).join("")
+    || `<div class="empty">目前沒有公告。</div>`;
+}
+
+function weekNetTotal(accounts, snapshots, today) {
+  const start = weekStart(today);
+  let total = 0;
+  let any = false;
+  for (const account of accounts) {
+    const rows = snapshots.filter((item) => item.account_id === account.id).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
+    const latest = [...rows].reverse().find((item) => item.snapshot_date >= start && item.snapshot_date <= today);
+    if (!latest) continue;
+    const prev = [...rows].reverse().find((item) => item.snapshot_date < latest.snapshot_date);
+    if (!prev) continue;
+    total += latest.follower_count - prev.follower_count;
+    any = true;
+  }
+  return any ? total : null;
+}
+
+async function renderTools() {
+  const q = $("toolSearch").value.trim().toLowerCase();
+  const tools = (await store.listTools()).filter((item) =>
+    `${item.title} ${item.category || ""} ${item.prompt}`.toLowerCase().includes(q));
+  $("toolList").innerHTML = tools.map((item) =>
+    `<article class="tool-card"><h3>✦ ${esc(item.title)}</h3><p class="sub">${esc(item.prompt.slice(0, 78))}${item.prompt.length > 78 ? "…" : ""}</p><button class="btn" type="button" data-action="open-tool" data-id="${esc(item.id)}">使用這個指令</button></article>`).join("")
+    || `<div class="empty">找不到符合的工具。</div>`;
+  $("toolList").dataset.tools = JSON.stringify(tools.map((item) => ({ id: item.id, title: item.title, prompt: item.prompt })));
+}
+
+async function renderAssets() {
+  const assets = await store.listAssets();
+  const cats = ["全部", ...new Set(assets.map((item) => item.category).filter(Boolean))];
+  $("assetCats").innerHTML = cats.map((cat) =>
+    `<button class="chip ${cat === assetCat ? "active" : ""}" type="button" data-cat="${esc(cat)}">${esc(cat)}</button>`).join("");
+  const q = $("assetSearch").value.trim().toLowerCase();
+  const list = assets.filter((item) =>
+    (assetCat === "全部" || item.category === assetCat)
+    && `${item.title} ${item.category} ${item.description || ""}`.toLowerCase().includes(q));
+  $("assetList").innerHTML = list.map((item) => {
+    const link = item.external_url && isHttpsUrl(item.external_url)
+      ? `<a class="btn secondary" href="${esc(item.external_url)}" target="_blank" rel="noopener">開啟連結</a>`
+      : `<button class="btn secondary" type="button" data-action="asset-demo">查看說明</button>`;
+    return `<article class="asset card"><div class="thumb">${esc(item.symbol || "▤")}</div><b>${esc(item.title)}</b><small class="muted">${esc(item.category)} · ${esc(item.description || "團隊素材")}</small><div style="margin-top:10px">${link}</div></article>`;
+  }).join("") || `<div class="empty">沒有符合的素材。</div>`;
+}
+
+async function renderLearn() {
+  const profile = me();
+  const [courses, progress, profiles] = await Promise.all([
+    store.listCourses(),
+    store.listProgress(),
+    store.listProfiles(),
+  ]);
+  const mine = new Set(progress.filter((item) => item.member_id === profile.id && item.completed_at).map((item) => item.course_id));
+  const published = courses.filter((item) => item.is_published);
+  const pct = published.length ? Math.round((mine.size / published.length) * 100) : 0;
+  $("learnSummary").innerHTML = `<h3>我的學習進度</h3><div class="row spread"><span>${mine.size} / ${published.length} 個單元</span><b>${pct}%</b></div><div class="progress"><i style="width:${pct}%"></i></div>`;
+  $("courseList").innerHTML = courses.map((item) => {
+    const done = mine.has(item.id);
+    const link = item.content_url && isHttpsUrl(item.content_url)
+      ? `<a href="${esc(item.content_url)}" target="_blank" rel="noopener">開啟教材</a>`
+      : "";
+    return `<div class="panel" style="margin-bottom:10px"><div class="client-top"><div><b>${esc(item.title)}</b><div class="muted">${esc(item.description || "")} ${link}</div></div>${item.is_published ? `<button class="btn ${done ? "green" : "secondary"}" type="button" data-action="toggle-course" data-id="${esc(item.id)}" data-done="${done ? "1" : "0"}">${done ? "已完成 ✓" : "標記完成"}</button>` : `<span class="badge">草稿</span>`}</div></div>`;
+  }).join("") || `<div class="empty">還沒有教材。</div>`;
+  if (!canManageTeam(profile.role)) {
+    $("teamLearn").innerHTML = "";
+    return;
+  }
+  const lines = profiles.map((person) => {
+    const done = progress.filter((item) => item.member_id === person.id && item.completed_at && published.some((course) => course.id === item.course_id)).length;
+    return `<div class="list-item"><span>${esc(person.display_name)}</span><b>${done}/${published.length}</b></div>`;
+  }).join("");
+  $("teamLearn").innerHTML = `<div class="section-head"><h2>團隊學習</h2><span>已完成的單元</span></div><div class="panel">${lines || `<div class="empty">還沒有成員。</div>`}</div>`;
+}
+
+async function renderTasks() {
+  const profile = me();
+  const tasks = await store.listTasks();
+  const visible = profile.role === "admin" ? tasks : tasks.filter((item) => item.owner_id === profile.id);
+  const profiles = profile.role === "admin" ? await store.listProfiles() : [profile];
+  const pending = visible.filter((item) => !item.is_done).length;
+  $("taskSummary").textContent = `共 ${visible.length} 項，待完成 ${pending} 項，已完成 ${visible.length - pending} 項`;
+  $("taskList").innerHTML = visible.map((item) =>
+    `<div class="list-item ${item.is_done ? "done" : ""}"><label class="task-line"><input type="checkbox" data-action="toggle-task" data-id="${esc(item.id)}" ${item.is_done ? "checked" : ""}><span>${esc(item.title)}${profile.role === "admin" && item.owner_id !== profile.id ? `（${esc(nameOf(item.owner_id, profiles))}）` : ""}</span></label><span class="muted">${formatDate(item.due_date)}</span><button class="btn secondary small" type="button" data-action="delete-task" data-id="${esc(item.id)}">刪除</button></div>`).join("")
+    || `<div class="empty">目前沒有任務。先加一件今天想完成的事。</div>`;
+}
+
+async function renderClients() {
+  const profile = me();
+  const [customers, profiles, reminders] = await Promise.all([
+    store.listCustomers(),
+    store.listProfiles(),
+    store.listReminders(),
+  ]);
+  const q = $("clientSearch").value.trim().toLowerCase();
+  const showArchived = $("showArchived").checked;
+    const list = customers.filter((item) => {
+    if (!showArchived && item.is_archived) return false;
+    const blob = `${item.display_name} ${item.ref_code || ""} ${(item.service_tags || []).join(" ")} ${item.notes || ""}`.toLowerCase();
+    return blob.includes(q);
+  });
+  const keepOwner = $("customerForm").elements.id.value ? $("customerOwner").value : profile.id;
+  $("customerOwner").innerHTML = profiles.map((item) =>
+    `<option value="${esc(item.id)}">${esc(item.display_name)}</option>`).join("");
+  $("customerOwner").value = keepOwner || profile.id;
+  const clientRows = list.map((item) => {
+    const next = reminders.filter((reminder) => reminder.customer_id === item.id && reminder.status === "open").sort((a, b) => String(a.due_at).localeCompare(String(b.due_at)))[0];
+    const tags = (item.service_tags || []).map((tag) => `<span class="tag">${esc(tag)}</span>`).join("") || "—";
+    const owner = esc(nameOf(item.owner_id, profiles));
+    const code = `${esc(item.ref_code || "")}${item.is_archived ? " · 已封存" : ""}`;
+    const follow = next ? `<div class="muted">下次${esc(KIND_LABEL[next.kind])} ${formatDate(next.due_at)}</div>` : "";
+    return { item, tags, owner, code, follow };
+  });
+  const emptyClients = `<div class="empty">沒有符合的客戶。</div>`;
+  $("clientList").innerHTML = clientRows.length ? `<div class="stack cards-only" style="margin-top:12px">${clientRows.map(({ item, tags, owner, code, follow }) =>
+    `<article class="card client-card"><div class="client-top"><div><b>${esc(item.display_name)}</b><div class="muted">${code} · ${owner}</div></div><button class="btn secondary small" type="button" data-action="open-client" data-id="${esc(item.id)}">查看</button></div><div>${tags}</div>${follow}</article>`).join("")}</div>
+    <div class="panel table-only" style="margin:12px 0"><div class="table-wrap"><table><thead><tr><th>客戶</th><th>負責人</th><th>標籤</th><th></th></tr></thead><tbody>${clientRows.map(({ item, tags, owner, code, follow }) =>
+      `<tr><td><b>${esc(item.display_name)}</b><div class="muted">${code}</div></td><td>${owner}</td><td>${tags}${follow}</td><td><button class="btn secondary small" type="button" data-action="open-client" data-id="${esc(item.id)}">查看</button></td></tr>`).join("")}</tbody></table></div></div>` : emptyClients;
+  if (!selectedCustomerId || !customers.some((item) => item.id === selectedCustomerId)) {
+    $("clientDetail").innerHTML = "";
+    return;
+  }
+  await renderClientDetail(customers, profiles);
+}
+
+async function renderClientDetail(customers, profiles) {
+  const customer = customers.find((item) => item.id === selectedCustomerId);
+  if (!customer) {
+    $("clientDetail").innerHTML = "";
+    return;
+  }
+  const [policies, records, reminders] = await Promise.all([
+    store.listPolicies(customer.id),
+    store.listServiceRecords(customer.id),
+    store.listReminders(customer.id),
+  ]);
+  const canEdit = canManageTeam(me().role) || customer.owner_id === me().id;
+  $("clientDetail").innerHTML = `<div class="panel" style="margin-top:12px">
+    <div class="client-top"><div><h3>${esc(customer.display_name)}</h3><p class="sub">${esc(customer.ref_code || "")} · 負責人 ${esc(nameOf(customer.owner_id, profiles))} · ${esc(customer.preferred_contact || "未填聯絡偏好")}</p></div>
+    <div class="row">${canEdit ? `<button class="btn secondary small" type="button" data-action="edit-client" data-id="${esc(customer.id)}">編輯</button>` : ""}${canEdit ? `<button class="btn danger small" type="button" data-action="archive-client" data-id="${esc(customer.id)}" data-archived="${customer.is_archived ? "1" : "0"}">${customer.is_archived ? "取消封存" : "封存"}</button>` : ""}</div></div>
+    <p>${esc(customer.notes || "還沒有備註。")}</p>
+    ${customer.birthday_md ? `<p class="muted">生日月日 ${esc(customer.birthday_md)}（不含年份）</p>` : ""}
+    <h3>保單摘要</h3>
+    ${policies.map((item) => `<div class="list-item"><div><b>${esc(item.policy_category)}</b> ${esc(item.insurer_name || "")}<div class="muted">${esc(POLICY_STATUS[item.status] || item.status)} · 到期 ${formatDate(item.expiry_date)} · 續保提醒 ${formatDate(item.renewal_reminder_date)}${item.reference_last4 ? ` · 末四碼 ${esc(item.reference_last4)}` : ""}</div></div><button class="btn secondary small" type="button" data-action="delete-policy" data-id="${esc(item.id)}">刪除</button></div>`).join("") || `<div class="empty">還沒有保單摘要。</div>`}
+    ${canEdit ? `<form id="policyForm" data-customer="${esc(customer.id)}" class="form-grid cols-2" style="margin-top:10px">
+      <label class="field">種類<select name="policy_category">${POLICY_CATEGORIES.map((item) => `<option>${esc(item)}</option>`).join("")}</select></label>
+      <label class="field">保險公司<input name="insurer_name" maxlength="80"></label>
+      <label class="field">生效日<input name="effective_date" type="date"></label>
+      <label class="field">到期日<input name="expiry_date" type="date"></label>
+      <label class="field">續保提醒日<input name="renewal_reminder_date" type="date"></label>
+      <label class="field">末四碼（選填）<input name="reference_last4" maxlength="4" inputmode="numeric"></label>
+      <label class="field">狀態<select name="status"><option value="active">有效</option><option value="expired">已到期</option><option value="lapsed">已停效</option></select></label>
+      <label class="field">備註<input name="notes" maxlength="500"></label>
+      <button class="btn" type="submit">新增保單摘要</button>
+    </form>` : ""}
+    <h3 style="margin-top:18px">服務紀錄</h3>
+    ${records.map((item) => `<div class="list-item"><div><b>${formatDate(item.service_date)} · ${esc(item.service_type)}</b><div>${esc(item.summary)}</div><div class="muted">${esc(item.next_action || "")}${item.next_contact_date ? ` · 下次 ${formatDate(item.next_contact_date)}` : ""}</div></div><button class="btn secondary small" type="button" data-action="delete-service" data-id="${esc(item.id)}">刪除</button></div>`).join("") || `<div class="empty">還沒有服務紀錄。</div>`}
+    ${canEdit ? `<form id="serviceForm" data-customer="${esc(customer.id)}" style="margin-top:10px">
+      <div class="form-grid cols-2">
+        <label class="field">日期<input name="service_date" type="date" value="${isoDate()}" required></label>
+        <label class="field">類型<select name="service_type">${SERVICE_TYPES.map((item) => `<option>${esc(item)}</option>`).join("")}</select></label>
+      </div>
+      <label class="field">摘要<textarea name="summary" required maxlength="4000"></textarea></label>
+      <div class="form-grid cols-2">
+        <label class="field">後續行動<input name="next_action" maxlength="200"></label>
+        <label class="field">下次聯絡<input name="next_contact_date" type="date"></label>
+      </div>
+      <button class="btn" type="submit">新增服務紀錄</button>
+    </form>` : ""}
+    <h3 style="margin-top:18px">提醒</h3>
+    ${reminders.map((item) => `<div class="list-item"><div><b>${esc(KIND_LABEL[item.kind] || "提醒")}</b> ${esc(item.title)}<div class="muted">${formatDate(item.due_at)} · ${item.status === "open" ? "未完成" : item.status === "done" ? "已完成" : "已取消"}</div></div>${item.status === "open" ? `<button class="btn secondary small" type="button" data-action="done-reminder" data-id="${esc(item.id)}">完成</button>` : ""}</div>`).join("") || `<div class="empty">這位客戶還沒有提醒。</div>`}
+    ${(me().role === "admin" || customer.owner_id === me().id) ? `<form id="reminderForm" data-customer="${esc(customer.id)}" data-owner="${esc(customer.owner_id)}" class="form-grid cols-3" style="margin-top:10px">
+      <label class="field">種類<select name="kind"><option value="birthday">生日</option><option value="policy_expiry">保單到期</option><option value="renewal">續保</option><option value="follow_up">追蹤</option><option value="other">其他</option></select></label>
+      <label class="field">標題<input name="title" required maxlength="120"></label>
+      <label class="field">日期<input name="due_at" type="date" required></label>
+      <button class="btn" type="submit">新增提醒</button>
+    </form>` : `<p class="muted">提醒屬於負責夥伴。主管可以查看客戶與服務，個人提醒預設不互相瀏覽。</p>`}
+  </div>`;
+}
+
+function storyLabel(log) {
+  if (!log) return { text: "未回報", cls: "miss" };
+  if (log.posted) return { text: "已發布", cls: "yes" };
+  return { text: "未發布", cls: "no" };
+}
+
+async function renderSocial() {
+  const profile = me();
+  const today = isoDate();
+  const start = weekStart(today);
+  const [accounts, snapshots, stories, posts, profiles] = await Promise.all([
+    store.listSocialAccounts(),
+    store.listSnapshots(),
+    store.listStories(),
+    store.listPosts(),
+    store.listProfiles(),
+  ]);
+  const mine = accounts.find((item) => item.owner_id === profile.id);
+  const weekPosts = posts.filter((item) => {
+    const day = String(item.published_at).slice(0, 10);
+    return day >= start && day <= today;
+  });
+  const reportedOwners = new Set(stories.filter((item) => item.story_date >= start && item.story_date <= today).map((item) => item.owner_id));
+  const myStoryDays = new Set(stories.filter((item) => item.owner_id === profile.id && item.posted && item.story_date >= start && item.story_date <= today).map((item) => item.story_date)).size;
+  const weekNet = weekNetTotal(accounts, snapshots, today);
+  const cards = canManageTeam(profile.role)
+    ? [
+      ["追蹤帳號", accounts.length, "同團隊"],
+      ["本週限動回報", `${reportedOwners.size}/${accounts.length || 0}`, "未回報≠未發布"],
+      ["本週貼文／Reels", weekPosts.length, `貼文 ${weekPosts.filter((item) => item.content_type === "post").length}・Reels ${weekPosts.filter((item) => item.content_type === "reel").length}`],
+      ["本週粉絲淨增", formatNet(weekNet), "有本週快照才計入"],
+    ]
+    : [
+      ["我的粉絲", mine ? (snapshots.filter((item) => item.account_id === mine.id).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date)).at(-1)?.follower_count ?? "—") : "—", mine ? `@${mine.instagram_username}` : "尚未建立帳號"],
+      ["本週限動天數", myStoryDays, "有發布的日子"],
+      ["本週貼文／Reels", weekPosts.filter((item) => item.owner_id === profile.id).length, "只算自己的紀錄"],
+      ["粉絲淨增", formatNet(accountGrowth(snapshots, mine?.id).net), "相較前一筆"],
+    ];
+  $("socialStats").innerHTML = cards.map(([label, value, hint]) =>
+    `<div class="card"><small>${esc(label)}</small><strong>${esc(value)}</strong><em>${esc(hint)}</em></div>`).join("");
+
+  const ranks = accounts.map((account) => {
+    const g = accountGrowth(snapshots, account.id);
+    return { account, ...g, name: nameOf(account.owner_id, profiles) };
+  }).sort((a, b) => (b.net ?? -999999) - (a.net ?? -999999));
+  const rankRows = ranks.map((item) => {
+    const cls = item.net > 0 ? "growth" : item.net < 0 ? "down" : "";
+    const status = item.account.connection_status === "expired" ? "需重新授權" : (CONNECTION_LABEL[item.account.connection_status] || "手動回報");
+    const count = item.latest == null ? "—" : Number(item.latest).toLocaleString("zh-TW");
+    return { item, cls, status, count };
+  });
+  $("socialRank").innerHTML = rankRows.length ? `<div class="stack cards-only">${rankRows.map(({ item, cls, status, count }) =>
+    `<article class="card"><div class="client-top"><div><b>${esc(item.name)}</b><div class="muted">@${esc(item.account.instagram_username)}</div></div><strong>${count}</strong></div><div class="${cls}">${formatNet(item.net)} · ${formatRate(item.rate)}</div><div class="muted">${esc(SOURCE_LABEL[item.source] || "—")} · ${esc(status)}</div></article>`).join("")}</div>
+    <div class="table-only"><table><thead><tr><th>夥伴</th><th>帳號</th><th>粉絲</th><th>增減</th><th>成長率</th><th>來源</th><th>授權</th></tr></thead><tbody>${rankRows.map(({ item, cls, status, count }) =>
+      `<tr><td><b>${esc(item.name)}</b></td><td>@${esc(item.account.instagram_username)}</td><td>${count}</td><td class="${cls}">${formatNet(item.net)}</td><td>${formatRate(item.rate)}</td><td>${esc(SOURCE_LABEL[item.source] || "—")}</td><td>${esc(status)}</td></tr>`).join("")}</tbody></table></div>`
+    : `<div class="empty">還沒有 IG 帳號。</div>`;
+
+  const days = ["一", "二", "三", "四", "五", "六", "日"];
+  $("storyWeek").innerHTML = days.map((label, index) => {
+    const date = addDays(start, index);
+    if (date > today) return `<div class="day">${label}<b>·</b></div>`;
+    const log = stories.find((item) => item.owner_id === profile.id && item.story_date === date);
+    const state = storyLabel(log);
+    return `<div class="day ${state.cls}">${label}<b>${esc(state.text === "已發布" ? "✓" : state.text === "未發布" ? "○" : "—")}</b></div>`;
+  }).join("");
+
+  if (mine) {
+    $("accountForm").elements.instagram_username.value = mine.instagram_username;
+    $("accountForm").elements.account_type.value = mine.account_type;
+    $("accountForm").elements.profile_url.value = mine.profile_url || "";
+    const status = mine.connection_status === "expired"
+      ? "這個帳號顯示為需重新授權。手動回報仍可使用，不用把密碼交給任何人。"
+      : `目前以${CONNECTION_LABEL[mine.connection_status] || "手動回報"}記錄。官方自動同步還沒有開啟。`;
+    $("accountStatus").textContent = status;
+  } else {
+    $("accountStatus").textContent = "先留下帳號名稱即可開始回報。不要填密碼。";
+  }
+
+  if (canManageTeam(profile.role)) {
+    const rows = accounts.map((account) => {
+      const todayLog = stories.find((item) => item.account_id === account.id && item.story_date === today);
+      const state = storyLabel(todayLog);
+      const active = new Set(stories.filter((item) => item.account_id === account.id && item.posted && item.story_date >= start && item.story_date <= today).map((item) => item.story_date)).size;
+      return `<tr><td>${esc(nameOf(account.owner_id, profiles))}</td><td class="${state.cls === "yes" ? "growth" : ""}">${esc(state.text)}</td><td>${active} 天</td></tr>`;
+    }).join("");
+    $("teamStories").innerHTML = `<h3>本週團隊限動</h3><p class="sub">分開看「未回報」、「已回報但沒發」、「已發布」。</p><div class="table-wrap"><table><thead><tr><th>夥伴</th><th>今天</th><th>本週有發的天數</th></tr></thead><tbody>${rows}</tbody></table></div>`;
+  } else {
+    $("teamStories").innerHTML = "";
+  }
+
+  const visiblePosts = posts.filter((item) => canManageTeam(profile.role) || item.owner_id === profile.id).slice(0, 30);
+  $("postList").innerHTML = `<table><thead><tr><th>日期</th><th>夥伴</th><th>類型</th><th>連結</th><th></th></tr></thead><tbody>${
+    visiblePosts.map((item) => {
+      const link = item.permalink && isHttpsUrl(item.permalink) ? `<a href="${esc(item.permalink)}" target="_blank" rel="noopener">開啟</a>` : "—";
+      const del = item.owner_id === profile.id ? `<button class="btn secondary small" type="button" data-action="delete-post" data-id="${esc(item.id)}">刪除</button>` : "";
+      return `<tr><td>${formatDate(item.published_at)}</td><td>${esc(nameOf(item.owner_id, profiles))}</td><td>${item.content_type === "reel" ? "Reels" : "一般貼文"}</td><td>${link}</td><td>${del}</td></tr>`;
+    }).join("") || `<tr><td colspan="5" class="empty">還沒有發布紀錄。</td></tr>`
+  }</tbody></table>`;
+
+  const scopePosts = canManageTeam(profile.role) ? weekPosts : weekPosts.filter((item) => item.owner_id === profile.id);
+  const postCount = scopePosts.filter((item) => item.content_type === "post").length;
+  const reelCount = scopePosts.filter((item) => item.content_type === "reel").length;
+  const people = canManageTeam(profile.role) ? Math.max(accounts.length, 1) : 1;
+  $("socialGoals").textContent = `建議起步（不是業績標準）：每週貼文 2、Reels 1、限動 5 天。${canManageTeam(profile.role) ? "團隊目前" : "你目前"}貼文 ${postCount}/${people * 2}、Reels ${reelCount}/${people}、你的限動 ${myStoryDays}/5。內容有沒有幫助客戶，比粉絲數更重要。`;
+}
+
+function accountGrowth(snapshots, accountId) {
+  if (!accountId) return { latest: null, net: null, rate: null, source: null };
+  const rows = snapshots.filter((item) => item.account_id === accountId).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
+  const latestRow = rows.at(-1);
+  const prevRow = rows.length > 1 ? rows.at(-2) : null;
+  const result = growth(latestRow?.follower_count ?? null, prevRow?.follower_count ?? null);
+  return { latest: latestRow?.follower_count ?? null, source: latestRow?.source || null, ...result };
+}
+
+async function renderAnnouncements() {
+  const items = await store.listAnnouncements();
+  $("announcementList").innerHTML = items.map((item) =>
+    `<div class="notice"><span class="dot"></span><div><b>${esc(item.title)}</b>${item.published_at ? "" : ` <span class="badge">草稿</span>`}<small class="muted">${esc(item.body)}</small></div></div>`).join("")
+    || `<div class="empty">還沒有公告。</div>`;
+}
+
+async function renderMembers() {
+  const profile = me();
+  const profiles = await store.listProfiles();
+  $("memberList").innerHTML = profiles.map((item) => {
+    const controls = profile.role === "admin" && store.mode === "cloud" && item.id !== profile.id
+      ? `<div class="row"><select data-role-for="${esc(item.id)}">${["member", "manager", "admin"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${ROLE_LABEL[role]}</option>`).join("")}</select><button class="btn secondary small" type="button" data-action="save-member" data-id="${esc(item.id)}">更新</button><button class="btn danger small" type="button" data-action="toggle-member" data-id="${esc(item.id)}" data-active="${item.is_active ? "1" : "0"}">${item.is_active ? "停用" : "重新啟用"}</button></div>`
+      : "";
+    return `<div class="list-item"><div><b>${esc(item.display_name)}</b><div class="muted">${esc(ROLE_LABEL[item.role])}${item.is_active ? "" : " · 已停用"} · ${esc(item.email || "")}</div></div>${controls}</div>`;
+  }).join("");
+}
+
+function resetCustomerForm() {
+  $("customerForm").reset();
+  $("customerForm").elements.id.value = "";
+  $("customerFormTitle").textContent = "新增客戶";
+  $("customerCancel").hidden = true;
+  if (me()) $("customerOwner").value = me().id;
+}
+
+async function handleAction(event) {
+  const target = event.target.closest("[data-action]");
+  if (!target) return;
+  const id = target.dataset.id;
+  try {
+    if (target.dataset.action === "open-tool") {
+      const tools = JSON.parse($("toolList").dataset.tools || "[]");
+      const tool = tools.find((item) => item.id === id);
+      if (tool) openModal(tool.title, tool.prompt);
+    }
+    if (target.dataset.action === "asset-demo") toast("這是素材入口示範。正式版請貼上團隊核准的 https 連結。");
+    if (target.dataset.action === "toggle-course") {
+      await store.setCourseComplete(id, target.dataset.done !== "1");
+      await renderLearn();
+    }
+    if (target.dataset.action === "toggle-task") {
+      const tasks = await store.listTasks();
+      const task = tasks.find((item) => item.id === id);
+      if (task) await store.saveTask({ id, title: task.title, is_done: target.checked });
+      await renderTasks();
+    }
+    if (target.dataset.action === "delete-task") {
+      await store.deleteTask(id);
+      await renderTasks();
+    }
+    if (target.dataset.action === "open-client") {
+      selectedCustomerId = id;
+      await renderClients();
+      $("clientDetail").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (target.dataset.action === "edit-client") {
+      const customers = await store.listCustomers();
+      const customer = customers.find((item) => item.id === id);
+      if (!customer) return;
+      const form = $("customerForm");
+      form.elements.id.value = customer.id;
+      form.elements.display_name.value = customer.display_name;
+      form.elements.phone.value = customer.phone || "";
+      form.elements.email.value = customer.email || "";
+      form.elements.preferred_contact.value = customer.preferred_contact || "LINE";
+      form.elements.birthday_md.value = customer.birthday_md || "";
+      form.elements.service_tags.value = (customer.service_tags || []).join("、");
+      form.elements.notes.value = customer.notes || "";
+      $("customerOwner").value = customer.owner_id;
+      $("customerFormTitle").textContent = "編輯客戶";
+      $("customerCancel").hidden = false;
+      form.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (target.dataset.action === "archive-client") {
+      const customers = await store.listCustomers();
+      const customer = customers.find((item) => item.id === id);
+      if (!customer) return;
+      await store.saveCustomer({ ...customer, is_archived: target.dataset.archived !== "1", service_tags: customer.service_tags || [] });
+      toast(target.dataset.archived === "1" ? "已取消封存" : "已封存這位客戶");
+      await renderClients();
+    }
+    if (target.dataset.action === "delete-policy") {
+      await store.deletePolicy(id);
+      await renderClients();
+    }
+    if (target.dataset.action === "delete-service") {
+      await store.deleteServiceRecord(id);
+      await renderClients();
+    }
+    if (target.dataset.action === "done-reminder") {
+      await store.setReminderStatus(id, "done");
+      await renderClients();
+    }
+    if (target.dataset.action === "delete-post") {
+      await store.deletePost(id);
+      await renderSocial();
+    }
+    if (target.dataset.action === "save-member") {
+      const role = document.querySelector(`[data-role-for="${CSS.escape(id)}"]`).value;
+      await store.updateMember({ user_id: id, role });
+      toast("已更新角色");
+      await renderMembers();
+    }
+    if (target.dataset.action === "toggle-member") {
+      await store.updateMember({ user_id: id, is_active: target.dataset.active !== "1" });
+      toast(target.dataset.active === "1" ? "已停用" : "已重新啟用");
+      await renderMembers();
+    }
+  } catch (error) {
+    toast(error.message || "沒有完成");
+  }
+}
+
+function bind() {
+  document.body.addEventListener("click", (event) => {
+    const nav = event.target.closest("[data-nav]");
+    if (nav) {
+      event.preventDefault();
+      go(nav.dataset.nav);
+      return;
+    }
+    const cat = event.target.closest("[data-cat]");
+    if (cat) {
+      assetCat = cat.dataset.cat;
+      renderAssets();
+    }
+  });
+  document.body.addEventListener("click", (event) => {
+    if (event.target.closest("[data-action='toggle-task']")) return;
+    handleAction(event);
+  });
+  document.body.addEventListener("change", (event) => {
+    if (event.target.matches("[data-action='toggle-task']")) handleAction(event);
+  });
+  $("menuBtn").onclick = () => {
+    $("sidebar").classList.toggle("open");
+    $("backdrop").classList.toggle("show");
+  };
+  $("backdrop").onclick = closeMenu;
+  $("toolSearch").addEventListener("input", () => renderTools());
+  $("assetSearch").addEventListener("input", () => renderAssets());
+  $("clientSearch").addEventListener("input", () => renderClients());
+  $("showArchived").addEventListener("change", () => renderClients());
+  $("previewRole").addEventListener("change", async () => {
+    store.setPreviewRole($("previewRole").value);
+    selectedCustomerId = null;
+    resetCustomerForm();
+    if (page === "members" && !canManageTeam(me().role)) page = "home";
+    await renderPage();
+  });
+  $("signOutBtn").onclick = async () => {
+    await store.signOut();
+    show("loginView");
+  };
+  $("customerCancel").onclick = () => resetCustomerForm();
+  $("resetDemo").onclick = async () => {
+    store.resetDemo();
+    selectedCustomerId = null;
+    resetCustomerForm();
+    toast("已回到最初的示範資料");
+    await renderPage();
+  };
+  $("clearDone").onclick = async () => {
+    const tasks = await store.listTasks();
+    for (const task of tasks) {
+      if (task.is_done && task.owner_id === me().id) await store.deleteTask(task.id);
+    }
+    await renderTasks();
+  };
+  $("modalClose").onclick = () => $("modal").classList.remove("show");
+  $("modal").onclick = (event) => { if (event.target === $("modal")) $("modal").classList.remove("show"); };
+  $("modalReset").onclick = () => { $("modalText").value = modalOriginal; };
+  $("modalCopy").onclick = async () => {
+    const ok = await copyText($("modalText").value);
+    toast(ok ? "已複製" : "請手動選取文字複製");
+  };
+  $("forceDemoFromBlock").onclick = () => {
+    forceDemoMode();
+    location.reload();
+  };
+  $("showForgot").onclick = () => { $("forgotForm").hidden = !$("forgotForm").hidden; };
+  $("loginForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    $("loginError").textContent = "";
+    try {
+      await store.signIn($("loginEmail").value, $("loginPassword").value);
+      show("app");
+      await renderPage();
+    } catch (error) {
+      $("loginError").textContent = error.message || "登入沒有成功";
+    }
+  });
+  $("forgotForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await store.requestPasswordReset($("forgotEmail").value);
+      $("forgotMsg").textContent = "如果這個信箱有帳號，你會收到重設信。";
+    } catch (error) {
+      $("forgotMsg").textContent = error.message;
+    }
+  });
+  $("recoveryForm").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    try {
+      await store.updatePassword($("newPassword").value);
+      toast("密碼已更新");
+      history.replaceState({}, "", location.pathname + location.search);
+      show("app");
+      await renderPage();
+    } catch (error) {
+      $("recoveryError").textContent = error.message;
+    }
+  });
+
+  $("taskForm").addEventListener("submit", onTask);
+  $("toolForm").addEventListener("submit", onTool);
+  $("assetForm").addEventListener("submit", onAsset);
+  $("courseForm").addEventListener("submit", onCourse);
+  $("customerForm").addEventListener("submit", onCustomer);
+  $("announcementForm").addEventListener("submit", onAnnouncement);
+  $("storyForm").addEventListener("submit", onStory);
+  $("followerForm").addEventListener("submit", onFollower);
+  $("postForm").addEventListener("submit", onPost);
+  $("accountForm").addEventListener("submit", onAccount);
+  $("inviteForm").addEventListener("submit", onInvite);
+  document.body.addEventListener("submit", async (event) => {
+    const form = event.target;
+    if (form.id === "policyForm") return onPolicy(event);
+    if (form.id === "serviceForm") return onService(event);
+    if (form.id === "reminderForm") return onReminder(event);
+  });
+
+  for (const id of ["story_date", "snapshot_date", "published_on"]) {
+    const input = document.querySelector(`[name="${id}"]`);
+    if (input && !input.value) input.value = isoDate();
+  }
+  window.addEventListener("popstate", () => {
+    page = new URLSearchParams(location.search).get("page") || "home";
+    if (!PAGE_NAMES[page]) page = "home";
+    renderPage();
+  });
+}
+
+async function onTask(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  if (!data.title.trim()) return;
+  try {
+    await store.saveTask({ title: data.title, due_date: data.due_date || null });
+    event.target.reset();
+    toast("已新增任務");
+    await renderTasks();
+  } catch (error) { toast(error.message); }
+}
+
+async function onTool(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  try {
+    await store.saveTool(data);
+    event.target.reset();
+    toast("已加入工具箱");
+    await renderTools();
+  } catch (error) { toast(error.message); }
+}
+
+async function onAsset(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  if (data.external_url && !isHttpsUrl(data.external_url)) return toast("素材連結請使用 https");
+  try {
+    await store.saveAsset(data);
+    event.target.reset();
+    toast("已加入素材庫");
+    await renderAssets();
+  } catch (error) { toast(error.message); }
+}
+
+async function onCourse(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  if (data.content_url && !isHttpsUrl(data.content_url)) return toast("教材連結請使用 https");
+  try {
+    await store.saveCourse(data);
+    event.target.reset();
+    toast("已發布教材");
+    await renderLearn();
+  } catch (error) { toast(error.message); }
+}
+
+async function onCustomer(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  if (!isBirthdayMd(data.birthday_md)) return toast("生日請只填月日，例如 03-18。");
+  try {
+    let archived = false;
+    if (data.id) {
+      const existing = (await store.listCustomers()).find((item) => item.id === data.id);
+      archived = Boolean(existing?.is_archived);
+    }
+    const saved = await store.saveCustomer({
+      id: data.id || null,
+      is_archived: archived,
+      owner_id: canManageTeam(me().role) ? data.owner_id : me().id,
+      display_name: data.display_name,
+      phone: data.phone,
+      email: data.email,
+      preferred_contact: data.preferred_contact,
+      birthday_md: data.birthday_md.trim() || null,
+      service_tags: tagsFrom(data.service_tags),
+      notes: data.notes,
+    });
+    selectedCustomerId = saved.id;
+    resetCustomerForm();
+    toast("客戶已儲存");
+    await renderClients();
+  } catch (error) { toast(error.message); }
+}
+
+async function onPolicy(event) {
+  event.preventDefault();
+  const form = event.target;
+  const data = readForm(form);
+  if (!isLast4(data.reference_last4)) return toast("保單只留末四碼，或先留空。");
+  try {
+    await store.savePolicy({ ...data, customer_id: form.dataset.customer, reference_last4: data.reference_last4.trim() || null });
+    toast("已新增保單摘要");
+    await renderClients();
+  } catch (error) { toast(error.message); }
+}
+
+async function onService(event) {
+  event.preventDefault();
+  const form = event.target;
+  const data = readForm(form);
+  if (!data.summary.trim()) return;
+  try {
+    await store.saveServiceRecord({
+      ...data,
+      customer_id: form.dataset.customer,
+      service_date: `${data.service_date}T09:00:00`,
+    });
+    toast("已新增服務紀錄");
+    await renderClients();
+  } catch (error) { toast(error.message); }
+}
+
+async function onReminder(event) {
+  event.preventDefault();
+  const form = event.target;
+  const data = readForm(form);
+  try {
+    await store.saveReminder({
+      customer_id: form.dataset.customer,
+      owner_id: form.dataset.owner,
+      kind: data.kind,
+      title: data.title,
+      due_at: `${data.due_at}T09:00:00`,
+    });
+    toast("已新增提醒");
+    await renderClients();
+  } catch (error) { toast(error.message); }
+}
+
+async function onAnnouncement(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  try {
+    await store.saveAnnouncement({ ...data, publish: Boolean(data.publish) });
+    event.target.reset();
+    event.target.elements.publish.checked = true;
+    toast("公告已儲存");
+    await renderAnnouncements();
+  } catch (error) { toast(error.message); }
+}
+
+async function onStory(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  const normalized = normalizeStory(Boolean(data.posted), data.story_count);
+  if (normalized.error) return toast(normalized.error);
+  try {
+    await store.upsertStory({ story_date: data.story_date, ...normalized });
+    toast("每日限動回報已儲存");
+    await renderSocial();
+  } catch (error) { toast(error.message); }
+}
+
+async function onFollower(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  const normalized = normalizeFollowers(data.follower_count);
+  if (normalized.error) return toast(normalized.error);
+  try {
+    await store.upsertSnapshot({
+      snapshot_date: data.snapshot_date,
+      follower_count: normalized.follower_count,
+      verified: Boolean(data.verified),
+    });
+    toast("粉絲數已儲存");
+    await renderSocial();
+  } catch (error) { toast(error.message); }
+}
+
+async function onPost(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  const link = data.permalink.trim();
+  if (link && !isHttpsUrl(link)) return toast("請輸入有效的 https 網址");
+  try {
+    await store.savePost({
+      published_on: data.published_on,
+      content_type: data.content_type,
+      permalink: link || null,
+    });
+    event.target.elements.permalink.value = "";
+    toast("發布紀錄已新增");
+    await renderSocial();
+  } catch (error) { toast(error.message); }
+}
+
+async function onAccount(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  if (data.profile_url && !isHttpsUrl(data.profile_url)) return toast("主頁連結請使用 https");
+  try {
+    await store.saveSocialAccount(data);
+    toast("IG 帳號已儲存");
+    await renderSocial();
+  } catch (error) { toast(error.message); }
+}
+
+async function onInvite(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  try {
+    await store.inviteMember(data);
+    event.target.reset();
+    toast("邀請信已送出");
+    await renderMembers();
+  } catch (error) { toast(error.message); }
+}
+
+function enterApp() {
+  show("app");
+  const requested = new URLSearchParams(location.search).get("page") || "home";
+  page = PAGE_NAMES[requested] ? requested : "home";
+  renderPage();
+}
+
+async function main() {
+  bind();
+  try {
+    store = await openStore();
+  } catch {
+    show("loginView");
+    $("loginError").textContent = "現在連不上雲端。請稍後再試，或先把 config.js 留空使用示範資料。";
+    return;
+  }
+  if (store.mode === "blocked") {
+    show("blockedView");
+    return;
+  }
+  if (store.mode === "cloud" && location.hash.includes("type=recovery")) {
+    show("recoveryView");
+    return;
+  }
+  if (store.mode === "cloud" && !store.profile) {
+    show("loginView");
+    return;
+  }
+  enterApp();
+}
+
+main();
