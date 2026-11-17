@@ -29,10 +29,12 @@ import {
   relationLabel,
   upcomingBirthdays,
   renderAnalysisPng,
+  dailyClientPick,
   renderStrategyPng,
   rocLabel,
   STRATEGY_SLOTS,
   strategyFrom,
+  taipeiDay,
 } from "@hub/profile";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
@@ -69,7 +71,7 @@ let store;
 let page = "home";
 let assetCat = "全部";
 let selectedCustomerId = null;
-let clientTab = "new";
+let clientTab = "list";
 let coverageView = "gaps";
 let calView = "month";
 let calCursor = "";
@@ -908,6 +910,83 @@ function openCellSheet(key) {
 }
 
 let pngUrl = "";
+const EXPORT_COLUMNS = [
+  ["display_name", "姓名"],
+  ["ref_code", "編號"],
+  ["phone", "手機"],
+  ["email", "電子信箱"],
+  ["nickname", "暱稱"],
+  ["gender", "性別"],
+  ["birth_date", "生日"],
+  ["birthday_md", "生日月日"],
+  ["referrer", "介紹人"],
+  ["contact_method", "聯絡方式"],
+  ["preferred_contact", "偏好聯絡"],
+  ["hobbies", "興趣/嗜好"],
+  ["lead_source", "客戶來源"],
+  ["relation_social", "社交關係"],
+  ["relation_business", "商業關係"],
+  ["service_tags", "服務標籤"],
+  ["notes", "備註"],
+  ["is_archived", "已封存"],
+];
+
+function exportValue(customer, key) {
+  if (key === "service_tags") return (customer.service_tags || []).join("、");
+  if (key === "is_archived") return customer.is_archived ? "是" : "否";
+  if (key === "birth_date") return customer.birth_date ? String(customer.birth_date).slice(0, 10) : "";
+  const value = customer[key];
+  return value === null || value === undefined ? "" : String(value);
+}
+
+function clientWorkbookRows(customers, userId) {
+  return (customers || []).filter((item) => item.owner_id === userId).map((customer) => {
+    const strategy = strategyFrom(customer);
+    const row = {};
+    for (const [key, label] of EXPORT_COLUMNS) row[label] = exportValue(customer, key);
+    for (const section of ANALYSIS_SECTIONS) {
+      if (section.field) row[section.title] = customer[section.field] || "";
+      for (const sub of section.subs || []) row[sub.label] = customer[sub.field] || "";
+    }
+    for (const slot of STRATEGY_SLOTS) row[slot.label] = strategy[slot.key] || "";
+    return row;
+  });
+}
+
+function loadSheetJs() {
+  if (window.XLSX?.writeFile) return Promise.resolve(window.XLSX);
+  return new Promise((resolve, reject) => {
+    const script = document.createElement("script");
+    script.src = "https://cdn.jsdelivr.net/npm/xlsx@0.18.5/dist/xlsx.full.min.js";
+    script.onload = () => (window.XLSX?.writeFile ? resolve(window.XLSX) : reject(new Error("Excel 沒有載入")));
+    script.onerror = () => reject(new Error("Excel 沒有載入"));
+    document.head.appendChild(script);
+  });
+}
+
+function exportHeaders() {
+  const headers = EXPORT_COLUMNS.map(([, label]) => label);
+  for (const section of ANALYSIS_SECTIONS) {
+    if (section.field) headers.push(section.title);
+    for (const sub of section.subs || []) headers.push(sub.label);
+  }
+  for (const slot of STRATEGY_SLOTS) headers.push(slot.label);
+  return headers;
+}
+
+async function exportClients() {
+  const XLSX = await loadSheetJs();
+  const headers = exportHeaders();
+  const rows = clientWorkbookRows(await store.listCustomers(), me().id);
+  const sheet = XLSX.utils.aoa_to_sheet([
+    headers,
+    ...rows.map((row) => headers.map((header) => row[header] ?? "")),
+  ]);
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, "名單總覽");
+  XLSX.writeFile(book, `名單總覽_${taipeiDay().replace(/-/g, "")}.xlsx`);
+}
+
 function showPng(blob, title, filename) {
   if (pngUrl) URL.revokeObjectURL(pngUrl);
   pngUrl = URL.createObjectURL(blob);
@@ -951,36 +1030,35 @@ async function downloadStrategy() {
   showPng(blob, "客戶策略分析圖", "客戶策略分析圖.png");
 }
 
+function nameButton(item) {
+  return `<button class="name-line" type="button" data-action="open-client" data-id="${esc(item.id)}">${esc(item.display_name)}</button>`;
+}
+
 async function renderClients() {
   const profile = me();
-  const [customers, profiles, reminders] = await Promise.all([
+  const [customers, profiles] = await Promise.all([
     store.listCustomers(),
     store.listProfiles(),
-    store.listReminders(),
   ]);
   const q = $("clientSearch").value.trim().toLowerCase();
   const showArchived = $("showArchived").checked;
-    const list = customers.filter((item) => {
+  const list = customers.filter((item) => {
     if (!showArchived && item.is_archived) return false;
     const blob = `${item.display_name} ${item.nickname || ""} ${item.ref_code || ""} ${(item.service_tags || []).join(" ")} ${item.notes || ""} ${item.hobbies || ""} ${item.lead_source || ""} ${item.contact_method || ""}`.toLowerCase();
     return blob.includes(q);
-  });
+  }).sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
   mountAnalysisFields();
   const keepOwner = $("customerForm").elements.id.value ? $("customerOwner").value : profile.id;
   $("customerOwner").innerHTML = profiles.map((item) =>
     `<option value="${esc(item.id)}">${esc(item.display_name)}</option>`).join("");
   $("customerOwner").value = keepOwner || profile.id;
-  const clientRows = list.map((item) => {
-    const next = reminders.filter((reminder) => reminder.customer_id === item.id && reminder.status === "open").sort((a, b) => String(a.due_at).localeCompare(String(b.due_at)))[0];
-    const tags = (item.service_tags || []).map((tag) => `<span class="tag">${esc(tag)}</span>`).join("") || "—";
-    const owner = esc(nameOf(item.owner_id, profiles));
-    const code = `${esc(item.ref_code || "")}${item.is_archived ? " · 已封存" : ""}`;
-    const follow = next ? `<div class="muted">下次${esc(KIND_LABEL[next.kind])} ${formatDate(next.due_at)}</div>` : "";
-    return { item, tags, owner, code, follow };
-  });
-  const emptyClients = `<div class="empty">沒有符合的客戶。</div>`;
-  $("clientList").innerHTML = clientRows.length ? clientRows.map(({ item, tags, owner, code, follow }) =>
-    `<button class="person" type="button" data-action="open-client" data-id="${esc(item.id)}"><span class="ava">${esc(item.display_name.slice(0, 1))}</span><span><b>${esc(item.display_name)}</b><small class="muted">${code} · ${owner}</small><div>${tags}</div>${follow}</span></button>`).join("") : emptyClients;
+  $("clientList").innerHTML = list.length
+    ? list.map(nameButton).join("")
+    : `<div class="empty">沒有符合的客戶。</div>`;
+  const picks = dailyClientPick(customers, profile.id, taipeiDay(), 30);
+  $("clientPicks").innerHTML = picks.length
+    ? picks.map(nameButton).join("")
+    : `<div class="empty">目前沒有客戶</div>`;
   clientCache = customers;
   renderSourceChips(customers);
   paintAnalysis();
@@ -995,21 +1073,24 @@ async function renderClients() {
 
 function syncClientPanes() {
   const adding = clientTab === "new";
-  const list = $("clientListPane");
-  const form = $("customerForm");
-  if (list) list.hidden = adding;
-  if (form) form.hidden = !adding && !selectedCustomerId;
+  const browsing = clientTab !== "new" && Boolean(selectedCustomerId);
+  if ($("clientListPane")) $("clientListPane").hidden = clientTab !== "list";
+  if ($("clientPickPane")) $("clientPickPane").hidden = clientTab !== "today";
+  if ($("clientDetail")) $("clientDetail").hidden = !browsing;
+  if ($("customerForm")) $("customerForm").hidden = !adding && !browsing;
   document.querySelectorAll("#clientTabs [data-client-tab]").forEach((button) => {
     button.classList.toggle("on", button.dataset.clientTab === clientTab);
   });
 }
 
 function showClientTab(tab) {
-  clientTab = tab === "list" ? "list" : "new";
-  if (clientTab === "new") {
+  const next = tab === "today" ? "today" : tab === "new" ? "new" : "list";
+  if (next !== clientTab) {
     selectedCustomerId = null;
-    resetCustomerForm();
+    if ($("clientDetail")) $("clientDetail").innerHTML = "";
   }
+  clientTab = next;
+  if (clientTab === "new") resetCustomerForm();
   syncClientPanes();
 }
 
@@ -1183,7 +1264,7 @@ async function handleAction(event) {
     }
     if (target.dataset.action === "open-client") {
       coverageView = "gaps";
-      clientTab = "list";
+      if (clientTab === "new") clientTab = "list";
       selectedCustomerId = id;
       const customers = await store.listCustomers();
       const customer = customers.find((item) => item.id === id);
@@ -1409,6 +1490,7 @@ function bind() {
   if ($("assetForm")) $("assetForm").addEventListener("submit", onAsset);
   if ($("courseForm")) $("courseForm").addEventListener("submit", onCourse);
   $("customerForm").addEventListener("submit", onCustomer);
+  $("exportClients").onclick = () => exportClients().catch((error) => toast(error.message || "Excel 沒有下載"));
   $("contactChips").addEventListener("click", (event) => {
     const button = event.target.closest("[data-contact]");
     if (!button) return;
