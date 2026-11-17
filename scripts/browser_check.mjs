@@ -237,16 +237,12 @@ try {
   await evalJson(ws, "document.getElementById('previewRole').value = 'admin'; document.getElementById('previewRole').dispatchEvent(new Event('change'))");
   await evalJson(ws, "document.querySelector('[data-nav=ai]').click()");
   await waitFor(async () => {
-    const ok = await evalJson(ws, "document.getElementById('page-ai').classList.contains('active') && !!document.querySelector('[data-action=open-tool]')");
-    if (!ok) throw new Error("工具箱沒出現");
-    return ok;
+    const count = await evalJson(ws, "document.querySelectorAll('#toolList a.guide-card').length");
+    if (count !== 9) throw new Error("指南應有 9 張，實際 " + count);
+    const first = await evalJson(ws, "const a = document.querySelector('#toolList a.guide-card'); a.textContent.includes('意外險指南') && a.target === '_blank' && a.rel.includes('noopener') && a.href.endsWith('/accident-insurance-guide/')");
+    if (!first) throw new Error("第一張指南不正確");
+    return count;
   }, "tools");
-  await evalJson(ws, "document.querySelector('[data-action=open-tool]').click()");
-  await waitFor(async () => {
-    const open = await evalJson(ws, "document.getElementById('modal').classList.contains('show')");
-    if (!open) throw new Error("指令視窗沒打開");
-    return open;
-  }, "modal");
 
   await evalJson(ws, "document.querySelector('[data-nav=tasks]').click()");
   await evalJson(ws, `
@@ -260,7 +256,7 @@ try {
     return text;
   }, "task");
 
-  await evalJson(ws, "document.getElementById('modalClose').click(); document.getElementById('resetDemo').click();");
+  await evalJson(ws, "document.getElementById('resetDemo').click();");
   await waitFor(async () => {
     const text = await evalJson(ws, "document.getElementById('toast').textContent");
     if (!text.includes("示範資料")) throw new Error(text);
@@ -277,7 +273,7 @@ try {
   await evalJson(ws, "document.querySelector('[data-nav=ai]').click()");
   await waitFor(async () => {
     const text = await evalJson(ws, "document.getElementById('page-ai').classList.contains('active') ? document.getElementById('toolList').innerText : ''");
-    if (!text.includes("客戶關心訊息")) throw new Error(text.slice(0, 80));
+    if (!text.includes("意外險指南") || !text.includes("南恩車險理賠指南") || text.includes("客戶關心訊息")) throw new Error(text.slice(0, 80));
     return text;
   }, "tools shot");
   await evalJson(ws, "window.scrollTo(0,0)");

@@ -1,3 +1,4 @@
+import { GUIDE_LINKS } from "./guides.js";
 import { openStore, forceDemoMode } from "./store.js";
 import {
   COVERAGE_AREAS,
@@ -41,7 +42,6 @@ let page = "home";
 let assetCat = "全部";
 let selectedCustomerId = null;
 let coverageView = "gaps";
-let modalOriginal = "";
 let toastTimer = 0;
 
 function toast(message) {
@@ -114,28 +114,6 @@ function applyRoleChrome() {
   document.querySelectorAll(".page").forEach((section) => {
     section.classList.toggle("active", section.id === `page-${page}`);
   });
-}
-
-async function copyText(text) {
-  try {
-    await navigator.clipboard.writeText(text);
-    return true;
-  } catch {
-    const area = document.createElement("textarea");
-    area.value = text;
-    document.body.appendChild(area);
-    area.select();
-    const ok = document.execCommand("copy");
-    area.remove();
-    return ok;
-  }
-}
-
-function openModal(title, text) {
-  modalOriginal = text;
-  $("modalTitle").textContent = title;
-  $("modalText").value = text;
-  $("modal").classList.add("show");
 }
 
 function readForm(form) {
@@ -280,7 +258,7 @@ async function renderHome() {
   $("homeNotices").innerHTML = visibleNews.map((item) =>
     `<div class="notice"><b>${esc(item.title)}</b><small>${esc(item.body)}</small></div>`).join("")
     || `<div class="empty">目前沒有公告。</div>`;
-  $("secretaryBody").innerHTML = `<p>${esc(advice)}</p><div class="row"><button class="btn secondary small" type="button" data-nav="tasks">看行程</button><button class="btn secondary small" type="button" data-nav="social">去回報</button><button class="btn secondary small" type="button" data-nav="ai">找工作指令</button></div>`;
+  $("secretaryBody").innerHTML = `<p>${esc(advice)}</p><div class="row"><button class="btn secondary small" type="button" data-nav="tasks">看行程</button><button class="btn secondary small" type="button" data-nav="social">去回報</button><button class="btn secondary small" type="button" data-nav="ai">看投保指南</button></div>`;
   void posts;
 }
 
@@ -307,14 +285,12 @@ function weekNetTotal(accounts, snapshots, today) {
   return any ? total : null;
 }
 
-async function renderTools() {
-  const q = $("toolSearch").value.trim().toLowerCase();
-  const tools = (await store.listTools()).filter((item) =>
-    `${item.title} ${item.category || ""} ${item.prompt}`.toLowerCase().includes(q));
-  $("toolList").innerHTML = tools.map((item) =>
-    `<article class="tool-card"><h3>${esc(item.title)}</h3><p>${esc(item.prompt)}</p><div class="tag-row"><button class="tag-outline" type="button" data-action="open-tool" data-id="${esc(item.id)}">${esc(item.category || "一般")}</button></div></article>`).join("")
-    || `<div class="empty">找不到符合的工具。</div>`;
-  $("toolList").dataset.tools = JSON.stringify(tools.map((item) => ({ id: item.id, title: item.title, prompt: item.prompt })));
+function renderTools() {
+  $("toolList").innerHTML = GUIDE_LINKS.map((item) => {
+    if (!isHttpsUrl(item.href)) return "";
+    const subtitle = item.subtitle ? `<small>${esc(item.subtitle)}</small>` : "";
+    return `<a class="guide-card" href="${esc(item.href)}" target="_blank" rel="noopener"><span class="guide-icon" aria-hidden="true">${item.icon}</span><b>${esc(item.title)}</b>${subtitle}</a>`;
+  }).join("");
 }
 
 async function renderAssets() {
@@ -446,7 +422,7 @@ async function renderClientDetail(customers, profiles) {
         <div class="pills">
           <button type="button" data-action="coverage-tab" data-tab="policies">紀錄</button>
           <button type="button" data-action="coverage-tab" data-tab="gaps">缺口</button>
-          <button type="button" data-nav="ai">指令</button>
+          <button type="button" data-nav="ai">指南</button>
         </div>
       </div>
     </div>
@@ -645,11 +621,6 @@ async function handleAction(event) {
   if (!target) return;
   const id = target.dataset.id;
   try {
-    if (target.dataset.action === "open-tool") {
-      const tools = JSON.parse($("toolList").dataset.tools || "[]");
-      const tool = tools.find((item) => item.id === id);
-      if (tool) openModal(tool.title, tool.prompt);
-    }
     if (target.dataset.action === "asset-demo") toast("這是素材入口示範。正式版請貼上團隊核准的 https 連結。");
     if (target.dataset.action === "toggle-course") {
       await store.setCourseComplete(id, target.dataset.done !== "1");
@@ -766,12 +737,10 @@ function bind() {
     if (event.key === "Escape") {
       closeMenu();
       $("secretary").hidden = true;
-      $("modal").classList.remove("show");
     }
   });
   $("secretaryBtn").onclick = () => { $("secretary").hidden = false; };
   $("secretaryClose").onclick = () => { $("secretary").hidden = true; };
-  $("toolSearch").addEventListener("input", () => renderTools());
   $("assetSearch").addEventListener("input", () => renderAssets());
   $("clientSearch").addEventListener("input", () => renderClients());
   $("showArchived").addEventListener("change", () => renderClients());
@@ -800,13 +769,6 @@ function bind() {
       if (task.is_done && task.owner_id === me().id) await store.deleteTask(task.id);
     }
     await renderTasks();
-  };
-  $("modalClose").onclick = () => $("modal").classList.remove("show");
-  $("modal").onclick = (event) => { if (event.target === $("modal")) $("modal").classList.remove("show"); };
-  $("modalReset").onclick = () => { $("modalText").value = modalOriginal; };
-  $("modalCopy").onclick = async () => {
-    const ok = await copyText($("modalText").value);
-    toast(ok ? "已複製" : "請手動選取文字複製");
   };
   $("forceDemoFromBlock").onclick = () => {
     forceDemoMode();
@@ -847,7 +809,6 @@ function bind() {
   });
 
   $("taskForm").addEventListener("submit", onTask);
-  $("toolForm").addEventListener("submit", onTool);
   $("assetForm").addEventListener("submit", onAsset);
   $("courseForm").addEventListener("submit", onCourse);
   $("customerForm").addEventListener("submit", onCustomer);
@@ -884,17 +845,6 @@ async function onTask(event) {
     event.target.reset();
     toast("已新增任務");
     await renderTasks();
-  } catch (error) { toast(error.message); }
-}
-
-async function onTool(event) {
-  event.preventDefault();
-  const data = readForm(event.target);
-  try {
-    await store.saveTool(data);
-    event.target.reset();
-    toast("已加入工具箱");
-    await renderTools();
   } catch (error) { toast(error.message); }
 }
 

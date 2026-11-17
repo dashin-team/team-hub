@@ -289,18 +289,8 @@
 
         <section class="page" id="page-ai">
           <h1 class="page-title">工具</h1>
-          <p class="sub">選一個工作指令，改成你的情境再複製。請勿貼上可識別的客戶資料。</p>
-          <input class="search" id="toolSearch" placeholder="搜尋，例如：生日、保單檢視、邀約">
-          <div id="toolList"></div>
-          <form id="toolForm" class="panel manager-only">
-            <h3>新增團隊指令</h3>
-            <div class="form-grid cols-2">
-              <label class="field">名稱<input name="title" required maxlength="80"></label>
-              <label class="field">分類<input name="category" placeholder="客戶服務、社群" maxlength="40"></label>
-            </div>
-            <label class="field">指令內容<textarea name="prompt" required maxlength="8000"></textarea></label>
-            <button class="btn" type="submit">加入工具</button>
-          </form>
+          <p class="sub">投保與理賠指南。點一下就會另開頁面。</p>
+          <div id="toolList" class="guide-grid"></div>
         </section>
 
         <section class="page" id="page-announcements">
@@ -357,20 +347,6 @@
     <div id="secretaryBody"></div>
   </div>
 
-  <div id="modal" class="modal-bg">
-    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="modalTitle">
-      <div class="row spread">
-        <h3 id="modalTitle">工作指令</h3>
-        <button class="icon-btn" id="modalClose" type="button" aria-label="關閉">✕</button>
-      </div>
-      <p class="sub">可以先改成你的情境，再複製到公司允許的工具。</p>
-      <textarea id="modalText"></textarea>
-      <div class="row end">
-        <button class="btn secondary" id="modalReset" type="button">還原</button>
-        <button class="btn" id="modalCopy" type="button">複製</button>
-      </div>
-    </div>
-  </div>
   <div id="toast" class="toast" role="status"></div>
   <script type="module" src="./js/app.js"></script>
 </body>
