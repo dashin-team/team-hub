@@ -1,4 +1,5 @@
-import { addDays, isoDate, weekStart } from "./metrics.js";
+import { addDays, isoDate, weekStart } from "@hub/metrics";
+import { randomId, safeLocal, safeSession } from "@hub/safe";
 
 const STORAGE_KEY = "naneun-team-hub-demo-v1";
 const ROLE_KEY = "naneun-team-hub-preview-role";
@@ -16,7 +17,7 @@ const PEOPLE = {
 const ROLE_USER = { admin: PEOPLE.admin, manager: PEOPLE.manager, member: PEOPLE.lin };
 
 function uid() {
-  return crypto.randomUUID();
+  return randomId();
 }
 
 function nowIso() {
@@ -370,7 +371,7 @@ function seed() {
 
 function loadState() {
   try {
-    const raw = localStorage.getItem(STORAGE_KEY);
+    const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
     if (parsed?.version !== 2 || !Array.isArray(parsed.profiles)) return seed();
@@ -382,11 +383,11 @@ function loadState() {
 
 export function createDemoStore() {
   let state = loadState();
-  let preview = sessionStorage.getItem(ROLE_KEY) || "admin";
+  let preview = safeSession.getItem(ROLE_KEY) || "admin";
   if (!ROLE_USER[preview]) preview = "admin";
 
   function persist() {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(state));
+    safeLocal.setItem(STORAGE_KEY, JSON.stringify(state));
   }
   persist();
 
@@ -435,11 +436,11 @@ export function createDemoStore() {
     setPreviewRole(role) {
       if (!ROLE_USER[role]) return;
       preview = role;
-      sessionStorage.setItem(ROLE_KEY, role);
+      safeSession.setItem(ROLE_KEY, role);
     },
 
     resetDemo() {
-      localStorage.removeItem(STORAGE_KEY);
+      safeLocal.removeItem(STORAGE_KEY);
       state = seed();
       persist();
     },

@@ -27,3 +27,7 @@ python3 -m http.server 4173
 `https://dashin-team.github.io/team-hub/`
 
 推上 `main` 後，由 `.github/workflows/pages.yml` 發布。倉庫的 Pages 來源要選 **GitHub Actions**。
+
+## 更新前端快取版本
+
+改了 `js/` 或 `css/` 之後，請把 `index.html` 裡所有的 `v=20261117g` 換成新的短碼（樣式、進入點、import map 要同一版）。手機裡的舊模組如果和新程式對不上，頁面會停在開啟畫面。版本號不一致時，用頁面上的「重新載入」會帶一個新的網址參數再抓一次。

@@ -1,5 +1,5 @@
-import { GUIDE_LINKS } from "./guides.js";
-import { openStore, forceDemoMode } from "./store.js";
+import { GUIDE_LINKS } from "@hub/guides";
+import { openStore, forceDemoMode } from "@hub/store";
 import {
   COVERAGE_AREAS,
   CONNECTION_LABEL,
@@ -23,7 +23,7 @@ import {
   normalizeFollowers,
   normalizeStory,
   weekStart,
-} from "./metrics.js";
+} from "@hub/metrics";
 
 const PAGE_ALIAS = { assets: "learn", members: "announcements" };
 const PAGE_NAMES = {
@@ -53,6 +53,7 @@ function toast(message) {
 }
 
 function show(id) {
+  if (id !== "boot") document.body.dataset.booted = "1";
   for (const view of ["boot", "blockedView", "loginView", "recoveryView", "app"]) {
     $(view).hidden = view !== id;
   }

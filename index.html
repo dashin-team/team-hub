@@ -5,18 +5,74 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117g 一起換成新版本。說明在 README。 -->
+  <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117g">
+  <script type="importmap">
+  {
+    "imports": {
+      "@hub/app": "./js/app.js?v=20261117g",
+      "@hub/guides": "./js/guides.js?v=20261117g",
+      "@hub/store": "./js/store.js?v=20261117g",
+      "@hub/metrics": "./js/metrics.js?v=20261117g",
+      "@hub/config": "./js/config.js?v=20261117g",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117g",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117g",
+      "@hub/safe": "./js/safe-browser.js?v=20261117g"
+    }
+  }
+  </script>
 </head>
 <body>
   <div id="boot" class="boot">
-    <div class="boot-card">
+    <div class="boot-card" id="bootCard">
       <div class="brand-mark"><span>南</span> TEAM HUB</div>
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">南恩團隊</p>
     </div>
   </div>
+  <script>
+    (function () {
+      var shown = false;
+      function escapeText(value) {
+        return String(value || "發生未預期的問題").replace(/[&<>]/g, function (ch) {
+          return { "&": "&amp;", "<": "&lt;", ">": "&gt;" }[ch];
+        });
+      }
+      function showBootError(message) {
+        if (shown || (document.body && document.body.dataset.booted === "1")) return;
+        shown = true;
+        var card = document.getElementById("bootCard");
+        if (!card) return;
+        card.innerHTML =
+          '<div class="brand-mark"><span>南</span> TEAM HUB</div>' +
+          "<h1>沒有打開</h1>" +
+          '<p class="sub">' + escapeText(message) + "</p>" +
+          '<button class="btn" type="button" id="bootReload">重新載入</button>';
+        var button = document.getElementById("bootReload");
+        if (button) {
+          button.onclick = function () {
+            var url = new URL(location.href);
+            url.searchParams.set("r", String(Date.now()));
+            location.replace(url.toString());
+          };
+        }
+      }
+      window.addEventListener("error", function (event) {
+        showBootError(event && event.message ? event.message : "頁面程式沒有載入");
+      });
+      window.addEventListener("unhandledrejection", function (event) {
+        var reason = event && event.reason;
+        var text = reason && (reason.message || String(reason));
+        showBootError(text || "頁面程式沒有載入");
+      });
+      setTimeout(function () {
+        showBootError("開太久了。可能是網路不穩，或手機留著舊的程式檔。");
+      }, 8000);
+    })();
+  </script>
 
   <div id="blockedView" class="gate" hidden>
     <div class="gate-card">
@@ -348,6 +404,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js"></script>
+  <script type="module" src="./js/app.js?v=20261117g"></script>
 </body>
 </html>
