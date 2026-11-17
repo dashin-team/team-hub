@@ -2,32 +2,40 @@
 <html lang="zh-Hant">
 <head>
   <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#f6f1e7">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <meta name="theme-color" content="#1B2A4A">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261118a 一起換成新版本。說明在 README。 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="大心團隊">
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261118c 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
-  <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon-32.png?v=20261118a" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118a">
-  <link rel="stylesheet" href="./css/styles.css?v=20261118a">
+  <title>大心團隊</title>
+  <link rel="manifest" href="./manifest.webmanifest">
+  <link rel="icon" href="./favicon.ico?v=20261118c" sizes="any">
+  <link rel="icon" href="./favicon.svg?v=20261118c" type="image/svg+xml">
+  <link rel="icon" href="./favicon-32.png?v=20261118c" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118c">
+  <link rel="stylesheet" href="./css/styles.css?v=20261118c">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261118a",
-      "@hub/guides": "./js/guides.js?v=20261118a",
-      "@hub/store": "./js/store.js?v=20261118a",
-      "@hub/metrics": "./js/metrics.js?v=20261118a",
-      "@hub/config": "./js/config.js?v=20261118a",
-      "@hub/demo-store": "./js/demo-store.js?v=20261118a",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261118a",
-      "@hub/safe": "./js/safe-browser.js?v=20261118a",
-      "@hub/contest": "./js/contest.js?v=20261118a",
-      "@hub/profile": "./js/client-profile.js?v=20261118a",
-      "@hub/calendar": "./js/calendar.js?v=20261118a",
-      "@hub/team": "./js/team-schedule.js?v=20261118a",
-      "@hub/roster": "./js/team-roster.js?v=20261118a",
-      "@hub/account": "./js/account.js?v=20261118a"
+      "@hub/app": "./js/app.js?v=20261118c",
+      "@hub/guides": "./js/guides.js?v=20261118c",
+      "@hub/store": "./js/store.js?v=20261118c",
+      "@hub/metrics": "./js/metrics.js?v=20261118c",
+      "@hub/config": "./js/config.js?v=20261118c",
+      "@hub/demo-store": "./js/demo-store.js?v=20261118c",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261118c",
+      "@hub/safe": "./js/safe-browser.js?v=20261118c",
+      "@hub/contest": "./js/contest.js?v=20261118c",
+      "@hub/profile": "./js/client-profile.js?v=20261118c",
+      "@hub/calendar": "./js/calendar.js?v=20261118c",
+      "@hub/team": "./js/team-schedule.js?v=20261118c",
+      "@hub/roster": "./js/team-roster.js?v=20261118c",
+      "@hub/account": "./js/account.js?v=20261118c",
+      "@hub/contact": "./js/contact-log.js?v=20261118c"
     }
   }
   </script>
@@ -35,7 +43,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118a" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118c" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -54,7 +62,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118a" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118c" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -92,7 +100,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118a" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118c" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -186,6 +194,7 @@
     <div class="main">
       <header class="topbar">
         <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
+        <img class="top-logo" src="./favicon.svg?v=20261118c" alt="" width="28" height="28">
         <div class="top-title" id="crumb">總覽</div>
         <a id="learnPop" class="learn-pop" href="https://dashin-team.github.io/nanen-newbie-training/" target="_blank" rel="noopener" aria-label="新視窗開啟" title="新視窗開啟">↗</a>
       </header>
@@ -201,6 +210,10 @@
               <p id="dailyAdvice"></p>
             </div>
           </article>
+          <button class="video-tile" id="videoTile" type="button">
+            <span class="video-play" aria-hidden="true">▶</span>
+            <span>南恩影片</span>
+          </button>
           <div class="metric-grid" id="homeStats"></div>
           <div class="section-head not-admin"><h2>客戶生日</h2></div>
           <div id="homeBirthdays" class="not-admin"></div>
@@ -505,6 +518,33 @@
     </div>
   </div>
 
+  <div id="fbfliSheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="fbfliTitle" data-fbfli-root>
+    <div class="row spread">
+      <h3 id="fbfliTitle">今日做了什麼</h3>
+      <button class="icon-btn" id="fbfliClose" type="button" aria-label="關閉">✕</button>
+    </div>
+    <p id="fbfliWho" class="sub"></p>
+    <p id="fbfliDate" class="fbfli-date"></p>
+    <div class="fbfli-chips">
+      <button class="fbfli-chip" type="button" data-fbfli-action="訊息定聯" aria-pressed="false">訊息定聯</button>
+      <button class="fbfli-chip" type="button" data-fbfli-action="貼圖回覆" aria-pressed="false">貼圖回覆</button>
+      <button class="fbfli-chip" type="button" data-fbfli-action="回覆限動" aria-pressed="false">回覆限動</button>
+    </div>
+    <label class="field">備註
+      <div class="fbfli-note">
+        <textarea id="fbfliNote" data-fbfli-note maxlength="4000" placeholder="今天聊了什麼"></textarea>
+        <button class="btn secondary fbfli-mic" type="button" data-fbfli-mic aria-label="語音輸入">🎤</button>
+      </div>
+    </label>
+    <p class="sub" data-fbfli-hint hidden>這台裝置沒有語音輸入，可以用鍵盤的聽寫。</p>
+    <button class="btn secondary" type="button" data-fbfli-sum>✨ 整理成重點</button>
+    <div data-fbfli-sumbox hidden>
+      <div class="row spread"><span>重點</span><span class="badge" data-fbfli-demo hidden>示範模式</span></div>
+      <textarea data-fbfli-summary maxlength="2000"></textarea>
+    </div>
+    <button class="btn" type="button" data-fbfli-save>儲存</button>
+  </div>
+
   <div id="secretary" class="sheet" hidden>
     <div class="row spread">
       <h3>秘書</h3>
@@ -606,6 +646,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261118a"></script>
+  <script type="module" src="./js/app.js?v=20261118c"></script>
 </body>
 </html>

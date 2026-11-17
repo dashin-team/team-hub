@@ -16,5 +16,6 @@ sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/
 sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/202411170009_avatars.sql
 sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/202411170010_last_sign_in.sql
 sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/202411170011_client_readonly.sql
+sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/202411170012_contact_logs.sql
 sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f scripts/rls_checks.sql
 echo "RLS checks passed"
