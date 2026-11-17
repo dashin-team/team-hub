@@ -47,6 +47,7 @@ import {
   SERVICE_TYPES,
   addDays,
   canManageTeam,
+  canViewPerson,
   esc,
   formatDate,
   isHttpsUrl,
@@ -663,12 +664,13 @@ async function renderCalendar() {
   ]);
   calCustomers = customers;
   calTeammates = teammates;
+  const visibleProfiles = profiles.filter((person) => person.is_active !== false && canViewPerson(profile, person));
   const ownerId = viewedOwnerId();
-  if (!profiles.some((person) => person.id === ownerId)) calOwner = "";
+  if (!visibleProfiles.some((person) => person.id === ownerId)) calOwner = "";
   const activeOwner = viewedOwnerId();
   calItems = calendarItems(events, tasks, reminders, activeOwner);
-  const owner = profiles.find((person) => person.id === activeOwner) || profile;
-  $("calMember").innerHTML = [`<option value="">我的行事曆</option>`].concat(profiles.filter((person) => person.id !== profile.id).map((person) =>
+  const owner = visibleProfiles.find((person) => person.id === activeOwner) || profile;
+  $("calMember").innerHTML = [`<option value="">我的行事曆</option>`].concat(visibleProfiles.filter((person) => person.id !== profile.id).map((person) =>
     `<option value="${esc(person.id)}">${esc(person.display_name)}</option>`)).join("");
   $("calMember").value = calOwner && calOwner !== profile.id ? calOwner : "";
   $("calScope").textContent = canEditCalendar() ? "點一天看時間表，右下角 ＋ 可新增。" : `正在看${owner.display_name}的行事曆，不能改對方的活動。`;
@@ -700,7 +702,7 @@ async function renderCalendar() {
   }
   const tally = stocktake(calItems, today);
   $("calStock").innerHTML = `<div class="cal-stock"><h2>盤點</h2>${stockBlock(`本週 ${formatDate(tally.weekStart)} – ${formatDate(tally.weekEnd)}`, tally.week)}${stockBlock(`${today.slice(0, 4)}年${Number(today.slice(5, 7))}月`, tally.month)}</div>`;
-  $("calTeam").innerHTML = canManageTeam(profile.role) ? teamTable(profiles, events, today) : "";
+  $("calTeam").innerHTML = canManageTeam(profile.role) ? teamTable(visibleProfiles, events, today) : "";
 }
 
 function applyAllDay(on) {
@@ -1048,10 +1050,11 @@ async function renderClients() {
     return blob.includes(q);
   }).sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
   mountAnalysisFields();
+  const owners = profiles.filter((person) => person.is_active !== false && canViewPerson(profile, person));
   const keepOwner = $("customerForm").elements.id.value ? $("customerOwner").value : profile.id;
-  $("customerOwner").innerHTML = profiles.map((item) =>
+  $("customerOwner").innerHTML = owners.map((item) =>
     `<option value="${esc(item.id)}">${esc(item.display_name)}</option>`).join("");
-  $("customerOwner").value = keepOwner || profile.id;
+  $("customerOwner").value = owners.some((item) => item.id === keepOwner) ? keepOwner : profile.id;
   $("clientList").innerHTML = list.length
     ? list.map(nameButton).join("")
     : `<div class="empty">沒有符合的客戶。</div>`;
@@ -1184,15 +1187,40 @@ async function renderAnnouncements() {
     || `<div class="empty">還沒有公告。</div>`;
 }
 
+function fillMemberZones(profiles) {
+  const select = $("memberZone");
+  if (!select) return;
+  const current = select.value;
+  const zones = [...new Set(profiles.map((item) => String(item.zone || "").trim()).filter(Boolean))]
+    .sort((a, b) => a.localeCompare(b, "zh-Hant"));
+  select.innerHTML = `${zones.map((zone) => `<option value="${esc(zone)}">${esc(zone)}</option>`).join("")}<option value="__new">＋輸入新區</option>`;
+  if ([...select.options].some((option) => option.value === current)) select.value = current;
+  const custom = $("memberZoneCustom");
+  if (custom) custom.hidden = select.value !== "__new";
+}
+
+function roleForGrade(grade) {
+  return grade === "CA" ? "member" : "manager";
+}
+
 async function renderMembers() {
   const profile = me();
   const profiles = await store.listProfiles();
-  $("memberList").innerHTML = profiles.map((item) => {
-    const controls = profile.role === "admin" && store.mode === "cloud" && item.id !== profile.id
-      ? `<div class="row"><select data-role-for="${esc(item.id)}">${["member", "manager", "admin"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${ROLE_LABEL[role]}</option>`).join("")}</select><button class="btn secondary small" type="button" data-action="save-member" data-id="${esc(item.id)}">更新</button><button class="btn danger small" type="button" data-action="toggle-member" data-id="${esc(item.id)}" data-active="${item.is_active ? "1" : "0"}">${item.is_active ? "停用" : "重新啟用"}</button></div>`
+  const shown = profiles.filter((item) => item.is_active !== false || $("showRemovedMembers")?.checked);
+  const changed = shown.filter((item) => item.must_change_password === false).length;
+  const summary = `<p class="member-summary">已改 ${changed} / 未改 ${shown.length - changed}</p>`;
+  const cards = shown.map((item) => {
+    const changedPw = item.must_change_password === false;
+    const account = item.account ? `帳號 ${item.account}` : "帳號 —";
+    const grade = item.grade ? ` · ${item.grade}` : "";
+    const email = item.email ? `<div class="muted">${esc(item.email)}</div>` : "";
+    const controls = profile.role === "admin" && item.id !== profile.id && item.role !== "admin" && item.is_active !== false
+      ? `<div class="member-actions"><select data-role-for="${esc(item.id)}">${["member", "manager", "admin"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${esc(ROLE_LABEL[role])} (${role})</option>`).join("")}</select><button class="btn secondary small" type="button" data-action="save-member" data-id="${esc(item.id)}">更新</button><button class="btn danger small" type="button" data-action="reset-password" data-id="${esc(item.id)}" data-name="${esc(item.display_name)}">重設密碼</button><button class="btn danger small" type="button" data-action="remove-member" data-id="${esc(item.id)}" data-name="${esc(item.display_name)}">刪除夥伴</button></div>`
       : "";
-    return `<div class="list-item"><div><b>${esc(item.display_name)}</b><div class="muted">${esc(ROLE_LABEL[item.role])}${item.is_active ? "" : " · 已停用"} · ${esc(item.email || "")}</div></div>${controls}</div>`;
+    return `<div class="list-item member-card"><div><b>${esc(item.display_name)}</b><div class="muted">${esc(account)}${esc(grade)} · ${esc(ROLE_LABEL[item.role] || item.role)}${item.is_active === false ? " · 已刪除" : ""}</div>${email}<span class="pw-badge ${changedPw ? "ok" : "wait"}">${changedPw ? "已改密碼" : "未改密碼"}</span></div>${controls}</div>`;
   }).join("");
+  $("memberList").innerHTML = summary + (cards || `<div class="empty">還沒有成員。</div>`);
+  fillMemberZones(profiles);
 }
 
 function resetCustomerForm() {
@@ -1317,6 +1345,20 @@ async function handleAction(event) {
     if (target.dataset.action === "toggle-member") {
       await store.updateMember({ user_id: id, is_active: target.dataset.active !== "1" });
       toast(target.dataset.active === "1" ? "已停用" : "已重新啟用");
+      await renderMembers();
+    }
+    if (target.dataset.action === "reset-password") {
+      const name = target.dataset.name || "這位夥伴";
+      if (!window.confirm(`要把${name}的密碼重設成團隊預設密碼嗎？對方下次登入必須再改一次。`)) return;
+      await store.resetMemberPassword(id);
+      toast("已重設密碼，對方下次登入要再改一次");
+      await renderMembers();
+    }
+    if (target.dataset.action === "remove-member") {
+      const name = target.dataset.name || "這位夥伴";
+      if (!window.confirm(`確定要刪除${name}嗎？這位夥伴會從名單消失，也不能再登入。客戶資料會留下。`)) return;
+      await store.removeMember(id);
+      toast("已刪除夥伴");
       await renderMembers();
     }
   } catch (error) {
@@ -1580,6 +1622,19 @@ function bind() {
   $("pngClose").onclick = () => $("pngSheet").classList.remove("show");
   $("announcementForm").addEventListener("submit", onAnnouncement);
   $("inviteForm").addEventListener("submit", onInvite);
+  $("memberAddToggle").onclick = () => {
+    $("memberCreateForm").hidden = !$("memberCreateForm").hidden;
+  };
+  $("memberGrade").addEventListener("change", () => {
+    $("memberRole").value = roleForGrade($("memberGrade").value);
+  });
+  $("memberZone").addEventListener("change", () => {
+    const custom = $("memberZoneCustom");
+    custom.hidden = $("memberZone").value !== "__new";
+    custom.required = !custom.hidden;
+  });
+  $("showRemovedMembers").addEventListener("change", () => renderMembers());
+  $("memberCreateForm").addEventListener("submit", onCreateMember);
   document.body.addEventListener("submit", async (event) => {
     const form = event.target;
     if (form.id === "policyForm") return onPolicy(event);
@@ -1747,6 +1802,26 @@ async function onAnnouncement(event) {
     event.target.elements.publish.checked = true;
     toast("公告已儲存");
     await renderAnnouncements();
+  } catch (error) { toast(error.message); }
+}
+
+async function onCreateMember(event) {
+  event.preventDefault();
+  const data = readForm(event.target);
+  const zone = data.zone === "__new" ? String(data.zone_custom || "").trim() : String(data.zone || "").trim();
+  if (!zone) return toast("請填區");
+  try {
+    await store.createMember({
+      display_name: data.display_name,
+      account: data.account,
+      grade: data.grade,
+      zone,
+      role: data.role || roleForGrade(data.grade),
+    });
+    event.target.reset();
+    $("memberRole").value = roleForGrade($("memberGrade").value);
+    toast("已新增夥伴");
+    await renderMembers();
   } catch (error) { toast(error.message); }
 }
 

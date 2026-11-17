@@ -1,5 +1,6 @@
 import { accountEmail } from "@hub/account";
 import { normalizeEvent } from "@hub/calendar";
+import { canViewPerson } from "@hub/metrics";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/+esm";
 import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
 
@@ -153,7 +154,44 @@ export function createCloudStore(url, anonKey) {
     },
 
     async listProfiles() {
-      return rows(sb.from("profiles").select("*").order("display_name"), "讀取成員時發生問題");
+      const data = await rows(sb.from("profiles").select("*").order("display_name"), "讀取成員時發生問題");
+      if (profile?.role !== "manager") return data;
+      return data.filter((item) => canViewPerson(profile, item));
+    },
+
+    async createMember(input) {
+      const { data, error } = await sb.rpc("admin_create_member", {
+        p_display_name: input.display_name,
+        p_account: input.account,
+        p_grade: input.grade,
+        p_zone: input.zone,
+        p_role: input.role,
+      });
+      if (!error) return data;
+      const message = String(error.message || "");
+      if (message.includes("預設密碼")) throw new Error("還沒設定團隊預設密碼。");
+      if (message.includes("已經有人使用")) throw new Error("這個帳號已經有人使用。");
+      if (message.includes("管理員")) throw new Error("只有管理員可以新增夥伴。");
+      throw new Error(message || "夥伴沒有建立。");
+    },
+
+    async removeMember(userId) {
+      const { error } = await sb.rpc("admin_remove_member", { target: userId });
+      if (!error) return;
+      const message = String(error.message || "");
+      if (message.includes("自己")) throw new Error("不能刪除自己。");
+      if (message.includes("管理員")) throw new Error("不能刪除管理員。");
+      throw new Error("夥伴沒有刪除。");
+    },
+
+    async resetMemberPassword(userId) {
+      const { error } = await sb.rpc("admin_reset_password", { target: userId });
+      if (!error) return;
+      const message = String(error.message || "");
+      if (message.includes("預設密碼")) throw new Error("還沒設定團隊預設密碼。");
+      if (message.includes("管理員")) throw new Error("只有管理員可以重設密碼。");
+      if (message.includes("自己的密碼")) throw new Error("請用修改密碼來改自己的密碼。");
+      throw new Error("密碼沒有重設。");
     },
 
     async listAnnouncements() {
@@ -267,7 +305,10 @@ export function createCloudStore(url, anonKey) {
     },
 
     async listCalendarEvents() {
-      return rows(sb.from("calendar_events").select("*").order("event_date"), "讀取行事曆時發生問題");
+      const data = await rows(sb.from("calendar_events").select("*").order("event_date"), "讀取行事曆時發生問題");
+      if (profile?.role !== "manager") return data;
+      const people = await this.listProfiles();
+      return data.filter((item) => item.owner_id === profile.id || canViewPerson(profile, people.find((person) => person.id === item.owner_id)));
     },
 
     async saveCalendarEvent(input) {
@@ -294,7 +335,10 @@ export function createCloudStore(url, anonKey) {
     },
 
     async listCustomers() {
-      return rows(sb.from("customers").select("*").order("display_name"), "讀取客戶時發生問題");
+      const data = await rows(sb.from("customers").select("*").order("display_name"), "讀取客戶時發生問題");
+      if (profile?.role !== "manager") return data;
+      const people = await this.listProfiles();
+      return data.filter((item) => item.owner_id === profile.id || canViewPerson(profile, people.find((person) => person.id === item.owner_id)));
     },
 
     async saveCustomer(input) {

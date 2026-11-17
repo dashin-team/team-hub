@@ -1,5 +1,5 @@
 import { normalizeEvent } from "@hub/calendar";
-import { addDays, isoDate } from "@hub/metrics";
+import { addDays, canViewPerson, isoDate } from "@hub/metrics";
 import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
 import { randomId, safeLocal, safeSession } from "@hub/safe";
 
@@ -30,17 +30,21 @@ function seed() {
   const today = isoDate();
   const soonDay = addDays(today, 12);
   const profiles = [
-    ["admin", "梁仕翰", "admin", "han@example.com"],
-    ["manager", "陳可恩", "manager", "keen@example.com"],
-    ["lin", "林子安", "member", "zian@example.com"],
-    ["huang", "黃詩涵", "member", "shihan@example.com"],
-    ["zhang", "張柏宇", "member", "boyu@example.com"],
-    ["wu", "吳心怡", "member", "xinyi@example.com"],
-  ].map(([key, name, role, email]) => ({
+    ["admin", "梁仕翰", "admin", "han@example.com", "南恩", "ADMIN", "", false],
+    ["manager", "陳可恩", "manager", "keen@example.com", "可恩", "SP", "示範一區", true],
+    ["lin", "林子安", "member", "zian@example.com", "子安", "CA", "示範一區", false],
+    ["huang", "黃詩涵", "member", "shihan@example.com", "詩涵", "CA", "示範二區", true],
+    ["zhang", "張柏宇", "member", "boyu@example.com", "柏宇", "UM", "示範二區", false],
+    ["wu", "吳心怡", "member", "xinyi@example.com", "心怡", "CA", "示範一區", true],
+  ].map(([key, name, role, email, account, grade, zone, mustChange]) => ({
     id: PEOPLE[key],
     team_id: DEMO_TEAM_ID,
     display_name: name,
     email,
+    account,
+    grade,
+    zone: zone || null,
+    must_change_password: mustChange,
     role,
     is_active: true,
     created_at: nowIso(),
@@ -215,7 +219,7 @@ function seed() {
   ];
 
   return {
-    version: 8,
+    version: 9,
     profiles,
     customers,
     policies,
@@ -357,7 +361,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 8 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 9 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -381,6 +385,13 @@ export function createDemoStore() {
   function manager() {
     const role = profile()?.role;
     return role === "admin" || role === "manager";
+  }
+
+  function ownerVisible(ownerId) {
+    const me = profile();
+    if (!me) return false;
+    if (ownerId === me.id) return true;
+    return canViewPerson(me, state.profiles.find((item) => item.id === ownerId));
   }
 
   function requireProfile() {
@@ -444,8 +455,61 @@ export function createDemoStore() {
 
     async listProfiles() {
       const me = requireProfile();
-      if (!manager()) return state.profiles.filter((item) => item.id === me.id);
-      return state.profiles.filter((item) => item.team_id === me.team_id);
+      return state.profiles.filter((item) => item.team_id === me.team_id && canViewPerson(me, item));
+    },
+
+    async createMember(input) {
+      const me = requireProfile();
+      if (me.role !== "admin") throw new Error("只有管理員可以新增夥伴");
+      const account = String(input.account || "").trim().toLowerCase();
+      const name = String(input.display_name || "").trim();
+      const zone = String(input.zone || "").trim();
+      const grade = String(input.grade || "").trim().toUpperCase();
+      if (!name) throw new Error("請填姓名");
+      if (!account || /\s|@/.test(account)) throw new Error("帳號請不要空白或 @");
+      if (!["UM", "SP", "CA"].includes(grade)) throw new Error("職級請選 UM、SP 或 CA");
+      if (!zone) throw new Error("請填區");
+      if (state.profiles.some((item) => String(item.account || "").toLowerCase() === account)) {
+        throw new Error("這個帳號已經有人使用");
+      }
+      const role = input.role || (grade === "CA" ? "member" : "manager");
+      state.profiles.push({
+        id: uid(),
+        team_id: me.team_id,
+        display_name: name,
+        email: `${account}@nanen-team.app`,
+        account,
+        grade,
+        zone,
+        role,
+        must_change_password: true,
+        is_active: true,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      });
+      persist();
+    },
+
+    async removeMember(userId) {
+      const me = requireProfile();
+      if (me.role !== "admin") throw new Error("只有管理員可以刪除夥伴");
+      if (userId === me.id) throw new Error("不能刪除自己");
+      const row = state.profiles.find((item) => item.id === userId && item.team_id === me.team_id);
+      if (!row) throw new Error("找不到這位夥伴");
+      if (row.role === "admin") throw new Error("不能刪除管理員");
+      row.is_active = false;
+      row.updated_at = nowIso();
+      persist();
+    },
+
+    async resetMemberPassword(userId) {
+      const me = requireProfile();
+      if (me.role !== "admin") throw new Error("只有管理員可以重設密碼");
+      if (userId === me.id) throw new Error("請用修改密碼來改自己的密碼");
+      const row = state.profiles.find((item) => item.id === userId && item.team_id === me.team_id);
+      if (!row) throw new Error("找不到這位夥伴");
+      row.must_change_password = true;
+      persist();
     },
 
     async listAnnouncements() {
@@ -622,7 +686,7 @@ export function createDemoStore() {
     async listTeammates() {
       const me = requireProfile();
       return state.profiles
-        .filter((item) => item.team_id === me.team_id)
+        .filter((item) => item.team_id === me.team_id && canViewPerson(me, item))
         .map((item) => ({ id: item.id, display_name: item.display_name }));
     },
 
@@ -630,7 +694,7 @@ export function createDemoStore() {
       const me = requireProfile();
       return (state.calendar_events || []).filter((item) => {
         if (item.team_id !== me.team_id) return false;
-        return manager() || item.owner_id === me.id;
+        return ownerVisible(item.owner_id);
       });
     },
 
@@ -640,7 +704,7 @@ export function createDemoStore() {
       if (norm.error) throw new Error(norm.error);
       if (norm.fields.customer_id) {
         const customer = state.customers.find((item) => item.id === norm.fields.customer_id && item.team_id === me.team_id);
-        if (!customer || (!manager() && customer.owner_id !== me.id)) throw new Error("找不到這位客戶");
+        if (!customer || !ownerVisible(customer.owner_id)) throw new Error("找不到這位客戶");
       }
       if (norm.fields.companion_id && !state.profiles.some((item) => item.id === norm.fields.companion_id && item.team_id === me.team_id)) {
         throw new Error("陪同必須是同團隊的夥伴");
@@ -678,14 +742,14 @@ export function createDemoStore() {
       const me = requireProfile();
       return state.customers.filter((item) => {
         if (item.team_id !== me.team_id) return false;
-        return manager() || item.owner_id === me.id;
+        return ownerVisible(item.owner_id);
       });
     },
 
     async saveCustomer(input) {
       const me = requireProfile();
       const ownerId = input.owner_id || me.id;
-      if (!manager() && ownerId !== me.id) throw new Error("只能維護自己負責的客戶");
+      if (!ownerVisible(ownerId)) throw new Error("只能維護自己區的客戶");
       if (!state.profiles.some((item) => item.id === ownerId && item.team_id === me.team_id)) {
         throw new Error("負責人必須是同團隊的夥伴");
       }
@@ -693,7 +757,7 @@ export function createDemoStore() {
       if (norm.error) throw new Error(norm.error);
       if (input.id) {
         const row = state.customers.find((item) => item.id === input.id && item.team_id === me.team_id);
-        if (!row || (!manager() && row.owner_id !== me.id)) throw new Error("找不到客戶");
+        if (!row || !ownerVisible(row.owner_id)) throw new Error("找不到客戶");
         const previousOwner = row.owner_id;
         Object.assign(row, norm.fields, {
           owner_id: ownerId,
@@ -742,7 +806,7 @@ export function createDemoStore() {
     async savePolicy(input) {
       const me = requireProfile();
       const customer = state.customers.find((item) => item.id === input.customer_id && item.team_id === me.team_id);
-      if (!customer || (!manager() && customer.owner_id !== me.id)) throw new Error("找不到客戶");
+      if (!customer || !ownerVisible(customer.owner_id)) throw new Error("找不到客戶");
       const row = {
         id: uid(),
         team_id: me.team_id,
@@ -767,7 +831,7 @@ export function createDemoStore() {
     async deletePolicy(id) {
       const me = requireProfile();
       const row = state.policies.find((item) => item.id === id);
-      if (!row || (!manager() && row.owner_id !== me.id)) throw new Error("找不到保單摘要");
+      if (!row || !ownerVisible(row.owner_id)) throw new Error("找不到保單摘要");
       state.policies = state.policies.filter((item) => item.id !== id);
       persist();
     },
@@ -783,7 +847,7 @@ export function createDemoStore() {
     async saveServiceRecord(input) {
       const me = requireProfile();
       const customer = state.customers.find((item) => item.id === input.customer_id && item.team_id === me.team_id);
-      if (!customer || (!manager() && customer.owner_id !== me.id)) throw new Error("找不到客戶");
+      if (!customer || !ownerVisible(customer.owner_id)) throw new Error("找不到客戶");
       const row = {
         id: uid(),
         team_id: me.team_id,
@@ -805,7 +869,7 @@ export function createDemoStore() {
     async deleteServiceRecord(id) {
       const me = requireProfile();
       const row = state.service_records.find((item) => item.id === id);
-      if (!row || (!manager() && row.owner_id !== me.id)) throw new Error("找不到服務紀錄");
+      if (!row || !ownerVisible(row.owner_id)) throw new Error("找不到服務紀錄");
       state.service_records = state.service_records.filter((item) => item.id !== id);
       persist();
     },

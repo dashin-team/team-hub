@@ -156,3 +156,12 @@ export const COVERAGE_AREAS = [
 export function canManageTeam(role) {
   return role === "admin" || role === "manager";
 }
+
+export function canViewPerson(me, person) {
+  if (!me || !person) return false;
+  if (me.team_id && person.team_id && me.team_id !== person.team_id) return false;
+  if (person.id === me.id) return true;
+  if (me.role === "admin") return true;
+  if (me.role === "manager") return Boolean(me.zone) && person.zone === me.zone;
+  return false;
+}
