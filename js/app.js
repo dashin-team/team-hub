@@ -1,29 +1,22 @@
-import { GUIDE_LINKS } from "./guides.js";
-import { openStore, forceDemoMode } from "./store.js";
+import { CURRENT_CONTEST } from "@hub/contest";
+import { GUIDE_LINKS } from "@hub/guides";
+import { openStore, forceDemoMode } from "@hub/store";
 import {
   COVERAGE_AREAS,
-  CONNECTION_LABEL,
   KIND_LABEL,
   POLICY_CATEGORIES,
   POLICY_STATUS,
   ROLE_LABEL,
   SERVICE_TYPES,
-  SOURCE_LABEL,
   addDays,
   canManageTeam,
   esc,
   formatDate,
-  formatNet,
-  formatRate,
-  growth,
   isBirthdayMd,
   isHttpsUrl,
   isLast4,
   isoDate,
-  normalizeFollowers,
-  normalizeStory,
-  weekStart,
-} from "./metrics.js";
+} from "@hub/metrics";
 
 const PAGE_ALIAS = { assets: "learn", members: "announcements" };
 const PAGE_NAMES = {
@@ -53,6 +46,7 @@ function toast(message) {
 }
 
 function show(id) {
+  if (id !== "boot") document.body.dataset.booted = "1";
   for (const view of ["boot", "blockedView", "loginView", "recoveryView", "app"]) {
     $(view).hidden = view !== id;
   }
@@ -137,7 +131,7 @@ async function renderPage() {
   }
   if (page === "tasks") await renderTasks();
   if (page === "clients") await renderClients();
-  if (page === "social") await renderSocial();
+  if (page === "social") renderContest();
   if (page === "announcements") {
     await renderAnnouncements();
     await renderMembers();
@@ -183,46 +177,34 @@ function upcomingItems(tasks, reminders, profile, today, days) {
   return rows.filter((item) => item.date >= today && item.date <= end).sort((a, b) => a.date.localeCompare(b.date) || a.title.localeCompare(b.title, "zh-Hant"));
 }
 
-function podiumHtml(title, note, ranked) {
-  const slots = [
-    { place: "第二", person: ranked[1] },
-    { place: "領先", person: ranked[0] },
-    { place: "第三", person: ranked[2] },
-  ];
-  return `<section class="slide"><div class="slide-head"><b>${esc(title)}</b><span>${esc(note)}</span></div><div class="podium">${slots.map(({ place, person }) => `
-    <div class="podium-col ${place === "領先" ? "first" : ""}">
-      <div class="rank-label">${place}</div>
-      <div class="ava">${esc(person ? person.name.slice(0, 1) : "—")}</div>
-      <b>${esc(person?.name || "—")}</b>
-      <strong>${esc(person?.score || "—")}</strong>
-      <small>${esc(person?.sub || "")}</small>
-    </div>`).join("")}</div></section>`;
+function renderContest() {
+  const href = CURRENT_CONTEST.href;
+  const title = CURRENT_CONTEST.title;
+  if (!isHttpsUrl(href)) return;
+  const link = $("contestLink");
+  link.href = href;
+  $("contestTitle").textContent = title;
+  const frame = $("contestFrame");
+  frame.title = title;
+  if (frame.src !== href) frame.src = href;
 }
 
 async function renderHome() {
   const profile = me();
-  const [tasks, reminders, announcements, customers, accounts, stories, posts, snapshots, profiles, records] = await Promise.all([
+  const [tasks, reminders, announcements, customers, records] = await Promise.all([
     store.listTasks(),
     store.listReminders(),
     store.listAnnouncements(),
     store.listCustomers(),
-    store.listSocialAccounts(),
-    store.listStories(),
-    store.listPosts(),
-    store.listSnapshots(),
-    store.listProfiles(),
     store.listServiceRecords(),
   ]);
   const today = isoDate();
-  const start = weekStart(today);
   const since = addDays(today, -7);
-  const mine = accounts.find((item) => item.owner_id === profile.id);
-  const reportedToday = stories.some((item) => item.owner_id === profile.id && item.story_date === today);
   const agenda = upcomingItems(tasks, reminders, profile, today, 14);
   const nearest = agenda[0];
-  let advice = "這幾天沒有到期的提醒。按自己的拜訪節奏進行即可。";
-  if (nearest) advice = `近期有一件事：${nearest.title}，${formatDate(nearest.date)} 前處理即可。`;
-  else if (mine && !reportedToday) advice = "今天的限動還沒回報。記一筆就好，未回報不會被看成沒有發。";
+  const advice = nearest
+    ? `近期有一件事：${nearest.title}，${formatDate(nearest.date)} 前處理即可。`
+    : "這幾天沒有到期的提醒。按自己的拜訪節奏進行即可。";
   $("greetDate").textContent = weekdayLabel(today);
   $("greetLine").textContent = `${greeting(new Date())}，${profile.display_name}。`;
   $("dailyAdvice").textContent = advice;
@@ -240,26 +222,11 @@ async function renderHome() {
   $("homeSchedule").innerHTML = agenda.slice(0, 2).map((item) =>
     `<div class="schedule-item"><span>${esc(item.title)}</span><small class="muted">${esc(item.kind)} ${formatDate(item.date)}</small></div>`).join("")
     || `<div class="schedule-empty">（此區間沒有行程）</div>`;
-  const growthRank = accounts.map((account) => {
-    const result = accountGrowth(snapshots, account.id);
-    return { name: nameOf(account.owner_id, profiles), score: formatNet(result.net), sub: "粉絲淨增", net: result.net ?? -999999 };
-  }).sort((a, b) => b.net - a.net);
-  const storyRank = accounts.map((account) => {
-    const days = new Set(stories.filter((item) => item.account_id === account.id && item.posted && item.story_date >= start && item.story_date <= today).map((item) => item.story_date)).size;
-    return { name: nameOf(account.owner_id, profiles), score: `${days} 天`, sub: "本週有發限動", net: days };
-  }).sort((a, b) => b.net - a.net);
-  $("podium").innerHTML = `<div class="carousel-track" id="podiumTrack">${podiumHtml("粉絲成長", "相較前一筆快照", growthRank)}${podiumHtml("限動回報", "本週有發布的天數", storyRank)}</div><div class="dots" id="podiumDots"><button type="button" class="on" data-slide="0" aria-label="粉絲成長"></button><button type="button" data-slide="1" aria-label="限動回報"></button></div>`;
-  const track = $("podiumTrack");
-  track.onscroll = () => {
-    const index = Math.round(track.scrollLeft / Math.max(track.clientWidth, 1));
-    document.querySelectorAll("#podiumDots button").forEach((dot, i) => dot.classList.toggle("on", i === index));
-  };
   const visibleNews = announcements.filter((item) => item.published_at).slice(0, 3);
   $("homeNotices").innerHTML = visibleNews.map((item) =>
     `<div class="notice"><b>${esc(item.title)}</b><small>${esc(item.body)}</small></div>`).join("")
     || `<div class="empty">目前沒有公告。</div>`;
-  $("secretaryBody").innerHTML = `<p>${esc(advice)}</p><div class="row"><button class="btn secondary small" type="button" data-nav="tasks">看行程</button><button class="btn secondary small" type="button" data-nav="social">去回報</button><button class="btn secondary small" type="button" data-nav="ai">看投保指南</button></div>`;
-  void posts;
+  $("secretaryBody").innerHTML = `<p>${esc(advice)}</p><div class="row"><button class="btn secondary small" type="button" data-nav="tasks">看行程</button><button class="btn secondary small" type="button" data-nav="social">看本季競賽</button><button class="btn secondary small" type="button" data-nav="ai">看投保指南</button></div>`;
 }
 
 async function refreshDot() {
@@ -267,22 +234,6 @@ async function refreshDot() {
   const today = isoDate();
   const soon = reminders.some((item) => item.status === "open" && item.owner_id === me()?.id && String(item.due_at).slice(0, 10) <= addDays(today, 7));
   $("avatarDot").hidden = !soon;
-}
-
-function weekNetTotal(accounts, snapshots, today) {
-  const start = weekStart(today);
-  let total = 0;
-  let any = false;
-  for (const account of accounts) {
-    const rows = snapshots.filter((item) => item.account_id === account.id).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
-    const latest = [...rows].reverse().find((item) => item.snapshot_date >= start && item.snapshot_date <= today);
-    if (!latest) continue;
-    const prev = [...rows].reverse().find((item) => item.snapshot_date < latest.snapshot_date);
-    if (!prev) continue;
-    total += latest.follower_count - prev.follower_count;
-    any = true;
-  }
-  return any ? total : null;
 }
 
 function renderTools() {
@@ -475,121 +426,6 @@ async function renderClientDetail(customers, profiles) {
   </div>`;
 }
 
-function storyLabel(log) {
-  if (!log) return { text: "未回報", cls: "miss" };
-  if (log.posted) return { text: "已發布", cls: "yes" };
-  return { text: "未發布", cls: "no" };
-}
-
-async function renderSocial() {
-  const profile = me();
-  const today = isoDate();
-  const start = weekStart(today);
-  const [accounts, snapshots, stories, posts, profiles] = await Promise.all([
-    store.listSocialAccounts(),
-    store.listSnapshots(),
-    store.listStories(),
-    store.listPosts(),
-    store.listProfiles(),
-  ]);
-  const mine = accounts.find((item) => item.owner_id === profile.id);
-  const weekPosts = posts.filter((item) => {
-    const day = String(item.published_at).slice(0, 10);
-    return day >= start && day <= today;
-  });
-  const reportedOwners = new Set(stories.filter((item) => item.story_date >= start && item.story_date <= today).map((item) => item.owner_id));
-  const myStoryDays = new Set(stories.filter((item) => item.owner_id === profile.id && item.posted && item.story_date >= start && item.story_date <= today).map((item) => item.story_date)).size;
-  const weekNet = weekNetTotal(accounts, snapshots, today);
-  const cards = canManageTeam(profile.role)
-    ? [
-      ["追蹤帳號", accounts.length, "同團隊"],
-      ["本週限動回報", `${reportedOwners.size}/${accounts.length || 0}`, "未回報≠未發布"],
-      ["本週貼文／Reels", weekPosts.length, `貼文 ${weekPosts.filter((item) => item.content_type === "post").length}・Reels ${weekPosts.filter((item) => item.content_type === "reel").length}`],
-      ["本週粉絲淨增", formatNet(weekNet), "有本週快照才計入"],
-    ]
-    : [
-      ["我的粉絲", mine ? (snapshots.filter((item) => item.account_id === mine.id).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date)).at(-1)?.follower_count ?? "—") : "—", mine ? `@${mine.instagram_username}` : "尚未建立帳號"],
-      ["本週限動天數", myStoryDays, "有發布的日子"],
-      ["本週貼文／Reels", weekPosts.filter((item) => item.owner_id === profile.id).length, "只算自己的紀錄"],
-      ["粉絲淨增", formatNet(accountGrowth(snapshots, mine?.id).net), "相較前一筆"],
-    ];
-  $("socialStats").innerHTML = cards.map(([label, value, hint]) =>
-    `<div class="card"><small>${esc(label)}</small><strong>${esc(value)}</strong><em>${esc(hint)}</em></div>`).join("");
-
-  const ranks = accounts.map((account) => {
-    const g = accountGrowth(snapshots, account.id);
-    return { account, ...g, name: nameOf(account.owner_id, profiles) };
-  }).sort((a, b) => (b.net ?? -999999) - (a.net ?? -999999));
-  const rankRows = ranks.map((item) => {
-    const cls = item.net > 0 ? "growth" : item.net < 0 ? "down" : "";
-    const status = item.account.connection_status === "expired" ? "需重新授權" : (CONNECTION_LABEL[item.account.connection_status] || "手動回報");
-    const count = item.latest == null ? "—" : Number(item.latest).toLocaleString("zh-TW");
-    return { item, cls, status, count };
-  });
-  $("socialRank").innerHTML = rankRows.length ? `<div class="stack cards-only">${rankRows.map(({ item, cls, status, count }) =>
-    `<article class="card"><div class="client-top"><div><b>${esc(item.name)}</b><div class="muted">@${esc(item.account.instagram_username)}</div></div><strong>${count}</strong></div><div class="${cls}">${formatNet(item.net)} · ${formatRate(item.rate)}</div><div class="muted">${esc(SOURCE_LABEL[item.source] || "—")} · ${esc(status)}</div></article>`).join("")}</div>
-    <div class="table-only"><table><thead><tr><th>夥伴</th><th>帳號</th><th>粉絲</th><th>增減</th><th>成長率</th><th>來源</th><th>授權</th></tr></thead><tbody>${rankRows.map(({ item, cls, status, count }) =>
-      `<tr><td><b>${esc(item.name)}</b></td><td>@${esc(item.account.instagram_username)}</td><td>${count}</td><td class="${cls}">${formatNet(item.net)}</td><td>${formatRate(item.rate)}</td><td>${esc(SOURCE_LABEL[item.source] || "—")}</td><td>${esc(status)}</td></tr>`).join("")}</tbody></table></div>`
-    : `<div class="empty">還沒有 IG 帳號。</div>`;
-
-  const days = ["一", "二", "三", "四", "五", "六", "日"];
-  $("storyWeek").innerHTML = days.map((label, index) => {
-    const date = addDays(start, index);
-    if (date > today) return `<div class="day">${label}<b>·</b></div>`;
-    const log = stories.find((item) => item.owner_id === profile.id && item.story_date === date);
-    const state = storyLabel(log);
-    return `<div class="day ${state.cls}">${label}<b>${esc(state.text === "已發布" ? "✓" : state.text === "未發布" ? "○" : "—")}</b></div>`;
-  }).join("");
-
-  if (mine) {
-    $("accountForm").elements.instagram_username.value = mine.instagram_username;
-    $("accountForm").elements.account_type.value = mine.account_type;
-    $("accountForm").elements.profile_url.value = mine.profile_url || "";
-    const status = mine.connection_status === "expired"
-      ? "這個帳號顯示為需重新授權。手動回報仍可使用，不用把密碼交給任何人。"
-      : `目前以${CONNECTION_LABEL[mine.connection_status] || "手動回報"}記錄。官方自動同步還沒有開啟。`;
-    $("accountStatus").textContent = status;
-  } else {
-    $("accountStatus").textContent = "先留下帳號名稱即可開始回報。不要填密碼。";
-  }
-
-  if (canManageTeam(profile.role)) {
-    const rows = accounts.map((account) => {
-      const todayLog = stories.find((item) => item.account_id === account.id && item.story_date === today);
-      const state = storyLabel(todayLog);
-      const active = new Set(stories.filter((item) => item.account_id === account.id && item.posted && item.story_date >= start && item.story_date <= today).map((item) => item.story_date)).size;
-      return `<tr><td>${esc(nameOf(account.owner_id, profiles))}</td><td class="${state.cls === "yes" ? "growth" : ""}">${esc(state.text)}</td><td>${active} 天</td></tr>`;
-    }).join("");
-    $("teamStories").innerHTML = `<h3>本週團隊限動</h3><p class="sub">分開看「未回報」、「已回報但沒發」、「已發布」。</p><div class="table-wrap"><table><thead><tr><th>夥伴</th><th>今天</th><th>本週有發的天數</th></tr></thead><tbody>${rows}</tbody></table></div>`;
-  } else {
-    $("teamStories").innerHTML = "";
-  }
-
-  const visiblePosts = posts.filter((item) => canManageTeam(profile.role) || item.owner_id === profile.id).slice(0, 30);
-  $("postList").innerHTML = `<table><thead><tr><th>日期</th><th>夥伴</th><th>類型</th><th>連結</th><th></th></tr></thead><tbody>${
-    visiblePosts.map((item) => {
-      const link = item.permalink && isHttpsUrl(item.permalink) ? `<a href="${esc(item.permalink)}" target="_blank" rel="noopener">開啟</a>` : "—";
-      const del = item.owner_id === profile.id ? `<button class="btn secondary small" type="button" data-action="delete-post" data-id="${esc(item.id)}">刪除</button>` : "";
-      return `<tr><td>${formatDate(item.published_at)}</td><td>${esc(nameOf(item.owner_id, profiles))}</td><td>${item.content_type === "reel" ? "Reels" : "一般貼文"}</td><td>${link}</td><td>${del}</td></tr>`;
-    }).join("") || `<tr><td colspan="5" class="empty">還沒有發布紀錄。</td></tr>`
-  }</tbody></table>`;
-
-  const scopePosts = canManageTeam(profile.role) ? weekPosts : weekPosts.filter((item) => item.owner_id === profile.id);
-  const postCount = scopePosts.filter((item) => item.content_type === "post").length;
-  const reelCount = scopePosts.filter((item) => item.content_type === "reel").length;
-  const people = canManageTeam(profile.role) ? Math.max(accounts.length, 1) : 1;
-  $("socialGoals").textContent = `建議起步（不是業績標準）：每週貼文 2、Reels 1、限動 5 天。${canManageTeam(profile.role) ? "團隊目前" : "你目前"}貼文 ${postCount}/${people * 2}、Reels ${reelCount}/${people}、你的限動 ${myStoryDays}/5。內容有沒有幫助客戶，比粉絲數更重要。`;
-}
-
-function accountGrowth(snapshots, accountId) {
-  if (!accountId) return { latest: null, net: null, rate: null, source: null };
-  const rows = snapshots.filter((item) => item.account_id === accountId).sort((a, b) => a.snapshot_date.localeCompare(b.snapshot_date));
-  const latestRow = rows.at(-1);
-  const prevRow = rows.length > 1 ? rows.at(-2) : null;
-  const result = growth(latestRow?.follower_count ?? null, prevRow?.follower_count ?? null);
-  return { latest: latestRow?.follower_count ?? null, source: latestRow?.source || null, ...result };
-}
-
 async function renderAnnouncements() {
   const items = await store.listAnnouncements();
   $("announcementList").innerHTML = items.map((item) =>
@@ -684,10 +520,6 @@ async function handleAction(event) {
       await store.setReminderStatus(id, "done");
       await renderClients();
     }
-    if (target.dataset.action === "delete-post") {
-      await store.deletePost(id);
-      await renderSocial();
-    }
     if (target.dataset.action === "save-member") {
       const role = document.querySelector(`[data-role-for="${CSS.escape(id)}"]`).value;
       await store.updateMember({ user_id: id, role });
@@ -712,10 +544,6 @@ function bind() {
       $("secretary").hidden = true;
       go(nav.dataset.nav);
       return;
-    }
-    const slide = event.target.closest("[data-slide]");
-    if (slide && $("podiumTrack")) {
-      $("podiumTrack").scrollTo({ left: Number(slide.dataset.slide) * $("podiumTrack").clientWidth, behavior: "smooth" });
     }
     const cat = event.target.closest("[data-cat]");
     if (cat) {
@@ -813,10 +641,6 @@ function bind() {
   $("courseForm").addEventListener("submit", onCourse);
   $("customerForm").addEventListener("submit", onCustomer);
   $("announcementForm").addEventListener("submit", onAnnouncement);
-  $("storyForm").addEventListener("submit", onStory);
-  $("followerForm").addEventListener("submit", onFollower);
-  $("postForm").addEventListener("submit", onPost);
-  $("accountForm").addEventListener("submit", onAccount);
   $("inviteForm").addEventListener("submit", onInvite);
   document.body.addEventListener("submit", async (event) => {
     const form = event.target;
@@ -825,10 +649,6 @@ function bind() {
     if (form.id === "reminderForm") return onReminder(event);
   });
 
-  for (const id of ["story_date", "snapshot_date", "published_on"]) {
-    const input = document.querySelector(`[name="${id}"]`);
-    if (input && !input.value) input.value = isoDate();
-  }
   window.addEventListener("popstate", () => {
     page = new URLSearchParams(location.search).get("page") || "home";
     if (!PAGE_NAMES[page]) page = "home";
@@ -955,62 +775,6 @@ async function onAnnouncement(event) {
     event.target.elements.publish.checked = true;
     toast("公告已儲存");
     await renderAnnouncements();
-  } catch (error) { toast(error.message); }
-}
-
-async function onStory(event) {
-  event.preventDefault();
-  const data = readForm(event.target);
-  const normalized = normalizeStory(Boolean(data.posted), data.story_count);
-  if (normalized.error) return toast(normalized.error);
-  try {
-    await store.upsertStory({ story_date: data.story_date, ...normalized });
-    toast("每日限動回報已儲存");
-    await renderSocial();
-  } catch (error) { toast(error.message); }
-}
-
-async function onFollower(event) {
-  event.preventDefault();
-  const data = readForm(event.target);
-  const normalized = normalizeFollowers(data.follower_count);
-  if (normalized.error) return toast(normalized.error);
-  try {
-    await store.upsertSnapshot({
-      snapshot_date: data.snapshot_date,
-      follower_count: normalized.follower_count,
-      verified: Boolean(data.verified),
-    });
-    toast("粉絲數已儲存");
-    await renderSocial();
-  } catch (error) { toast(error.message); }
-}
-
-async function onPost(event) {
-  event.preventDefault();
-  const data = readForm(event.target);
-  const link = data.permalink.trim();
-  if (link && !isHttpsUrl(link)) return toast("請輸入有效的 https 網址");
-  try {
-    await store.savePost({
-      published_on: data.published_on,
-      content_type: data.content_type,
-      permalink: link || null,
-    });
-    event.target.elements.permalink.value = "";
-    toast("發布紀錄已新增");
-    await renderSocial();
-  } catch (error) { toast(error.message); }
-}
-
-async function onAccount(event) {
-  event.preventDefault();
-  const data = readForm(event.target);
-  if (data.profile_url && !isHttpsUrl(data.profile_url)) return toast("主頁連結請使用 https");
-  try {
-    await store.saveSocialAccount(data);
-    toast("IG 帳號已儲存");
-    await renderSocial();
   } catch (error) { toast(error.message); }
 }
 

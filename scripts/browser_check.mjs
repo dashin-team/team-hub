@@ -135,7 +135,8 @@ try {
   const homeText = await evalJson(ws, "document.body.innerText");
   if (!homeText.includes("南恩團隊")) throw new Error("沒有團隊名稱");
   if (!homeText.includes("示範資料")) throw new Error("沒有示範資料標示");
-  if (!homeText.includes("近7日新增名單") || !homeText.includes("粉絲成長")) throw new Error("總覽缺統計或排行");
+  if (!homeText.includes("近7日新增名單")) throw new Error("總覽缺統計");
+  if (homeText.includes("粉絲成長")) throw new Error("總覽不該再顯示競賽排行");
   if (homeText.includes("問卷")) throw new Error("不該出現問卷積分");
   await evalJson(ws, "document.getElementById('menuBtn').click()");
   await waitFor(async () => {
@@ -177,42 +178,18 @@ try {
 
   await evalJson(ws, "document.querySelector('[data-nav=social]').click()");
   await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('page-social').classList.contains('active') ? document.getElementById('socialRank').innerText : ''");
-    if (!text.includes("林子安") || !text.includes("需重新授權")) throw new Error(`社群排行不完整: ${text.slice(0, 180)}`);
-    return text;
-  }, "social");
-  await shot(ws, "mobile_social");
-
-  const badUrl = await evalJson(ws, `
-    document.querySelector('#postForm [name=permalink]').value = 'http://example.com/nope';
-    document.getElementById('postForm').requestSubmit();
-    document.getElementById('toast').textContent
-  `);
-  await wait(100);
-  const toast1 = await evalJson(ws, "document.getElementById('toast').textContent");
-  if (!toast1.includes("https")) throw new Error(`網址驗證失敗: ${badUrl} / ${toast1}`);
-
-  await evalJson(ws, `
-    document.querySelector('#postForm [name=permalink]').value = 'https://www.instagram.com/p/demo-new/';
-    document.getElementById('postForm').requestSubmit();
-    true
-  `);
-  await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('postList').innerText");
-    if (!text.includes("開啟")) throw new Error("新貼文沒出現");
-    return text;
-  }, "post");
-
-  await evalJson(ws, `
-    document.querySelector('#storyForm [name=story_count]').value = '4';
-    document.getElementById('storyForm').requestSubmit();
-    true
-  `);
-  await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('toast').textContent");
-    if (!text.includes("限動")) throw new Error("限動沒儲存");
-    return text;
-  }, "story");
+    const ok = await evalJson(ws, `(() => {
+      const link = document.getElementById('contestLink');
+      const frame = document.getElementById('contestFrame');
+      return document.getElementById('page-social').classList.contains('active')
+        && link && link.textContent.includes('富邦 Q4 競賽獎勵')
+        && link.target === '_blank' && link.rel.includes('noopener')
+        && link.href === 'https://dashin-team.github.io/fubon-q4-rewards/'
+        && frame && frame.src === 'https://dashin-team.github.io/fubon-q4-rewards/';
+    })()`);
+    if (!ok) throw new Error("競賽頁沒有接到本季獎勵");
+    return ok;
+  }, "contest");
 
   await evalJson(ws, "document.getElementById('previewRole').value = 'member'; document.getElementById('previewRole').dispatchEvent(new Event('change'))");
   await waitFor(async () => {
@@ -226,14 +203,6 @@ try {
     if (!text.includes("王先生") || text.includes("陳媽媽")) throw new Error(`夥伴看到不該看的客戶: ${text}`);
     return text;
   }, "member clients");
-  await evalJson(ws, "document.querySelector('[data-nav=social]').click()");
-  await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('socialRank').innerText");
-    if (text.includes("黃詩涵") || text.includes("張柏宇")) throw new Error(`夥伴看到別人的社群: ${text}`);
-    if (!text.includes("林子安")) throw new Error(text);
-    return text;
-  }, "member social");
-
   await evalJson(ws, "document.getElementById('previewRole').value = 'admin'; document.getElementById('previewRole').dispatchEvent(new Event('change'))");
   await evalJson(ws, "document.querySelector('[data-nav=ai]').click()");
   await waitFor(async () => {
