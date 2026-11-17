@@ -146,10 +146,11 @@ function applyRoleChrome() {
   document.body.dataset.page = page;
   $("modeBadge").textContent = store.mode === "demo" ? "示範資料" : "雲端資料";
   $("modeBadge").classList.toggle("cloud", store.mode === "cloud");
-  const letter = (profile?.display_name || "南").slice(0, 1);
-  $("whoName").textContent = profile ? `${profile.display_name}・${ROLE_LABEL[profile.role]}` : "";
-  $("avatarLetter").textContent = letter;
-  $("adviceAvatar") && ($("adviceAvatar").textContent = letter);
+  const name = shownName(profile);
+  $("drawerName").textContent = name;
+  $("whoName").textContent = profile ? ROLE_LABEL[profile.role] || "" : "";
+  paintAvatar(profile, name);
+  $("adviceAvatar") && ($("adviceAvatar").textContent = name.slice(0, 1) || "南");
   if (store.mode === "demo") $("previewRole").value = store.previewRole;
   $("crumb").textContent = PAGE_NAMES[page] || "總覽";
   document.querySelectorAll("[data-nav]").forEach((button) => {
@@ -161,6 +162,77 @@ function applyRoleChrome() {
   document.querySelectorAll(".page").forEach((section) => {
     section.classList.toggle("active", section.id === `page-${page}`);
   });
+}
+
+function shownName(profile) {
+  if (!profile) return "";
+  return profile.role === "admin" ? "南恩" : (profile.display_name || "");
+}
+
+function paintAvatar(profile, name) {
+  const label = name || shownName(profile);
+  const letter = $("avatarLetter");
+  const image = $("avatarImage");
+  if (letter) letter.textContent = label.slice(0, 1) || "南";
+  const url = profile?.avatar_url || "";
+  if (!image) return;
+  if (url) {
+    image.src = url;
+    image.hidden = false;
+    if (letter) letter.hidden = true;
+  } else {
+    image.removeAttribute("src");
+    image.hidden = true;
+    if (letter) letter.hidden = false;
+  }
+}
+
+function cropAvatar(file) {
+  return new Promise((resolve, reject) => {
+    const image = new Image();
+    const url = URL.createObjectURL(file);
+    image.onload = () => {
+      const side = Math.min(image.width, image.height);
+      const canvas = document.createElement("canvas");
+      canvas.width = 256;
+      canvas.height = 256;
+      canvas.getContext("2d").drawImage(
+        image,
+        (image.width - side) / 2,
+        (image.height - side) / 2,
+        side,
+        side,
+        0,
+        0,
+        256,
+        256,
+      );
+      URL.revokeObjectURL(url);
+      canvas.toBlob((blob) => {
+        if (blob) resolve(blob);
+        else reject(new Error("圖片沒有處理好"));
+      }, "image/jpeg", 0.86);
+    };
+    image.onerror = () => {
+      URL.revokeObjectURL(url);
+      reject(new Error("這張圖片打不開"));
+    };
+    image.src = url;
+  });
+}
+
+async function onAvatarFile(event) {
+  const file = event.target.files?.[0];
+  event.target.value = "";
+  if (!file) return;
+  try {
+    const blob = await cropAvatar(file);
+    await store.setAvatar(blob);
+    paintAvatar(me(), shownName(me()));
+    toast("頭像已更新");
+  } catch (error) {
+    toast(error.message || "頭像沒有更新");
+  }
 }
 
 function readForm(form) {
@@ -1414,7 +1486,12 @@ function bind() {
     if (event.target.matches("[data-action='toggle-task'], [data-action='toggle-event']")) handleAction(event);
   });
   $("menuBtn").onclick = () => ($("drawer").classList.contains("open") ? closeMenu() : openMenu());
-  $("avatarBtn").onclick = () => ($("drawer").classList.contains("open") ? closeMenu() : openMenu());
+  $("avatarBtn").onclick = () => $("avatarFile").click();
+  $("avatarFile").addEventListener("change", onAvatarFile);
+  $("avatarImage").addEventListener("error", () => {
+    $("avatarImage").hidden = true;
+    $("avatarLetter").hidden = false;
+  });
   $("backdrop").onclick = closeMenu;
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape") {
