@@ -360,9 +360,10 @@ export function createCloudStore(url, anonKey) {
     async saveCustomer(input) {
       const norm = normalizeCustomerInput(input);
       if (norm.error) throw new Error(norm.error);
+      if (input.owner_id && input.owner_id !== profile.id) throw new Error("只能維護自己的客戶");
       const payload = {
         team_id: profile.team_id,
-        owner_id: input.owner_id || profile.id,
+        owner_id: profile.id,
         display_name: norm.fields.display_name,
         phone: norm.fields.phone || null,
         email: (input.email || "").trim() || null,
@@ -398,7 +399,7 @@ export function createCloudStore(url, anonKey) {
         "找不到客戶",
       );
       const ownerId = customerRows[0]?.owner_id;
-      if (!ownerId) throw new Error("找不到客戶");
+      if (!ownerId || ownerId !== profile.id) throw new Error("只能維護自己的客戶");
       const { data, error } = await sb.from("policies").insert({
         team_id: profile.team_id,
         customer_id: input.customer_id,
@@ -433,7 +434,7 @@ export function createCloudStore(url, anonKey) {
         "找不到客戶",
       );
       const ownerId = customerRows[0]?.owner_id;
-      if (!ownerId) throw new Error("找不到客戶");
+      if (!ownerId || ownerId !== profile.id) throw new Error("只能維護自己的客戶");
       const { data, error } = await sb.from("service_records").insert({
         team_id: profile.team_id,
         customer_id: input.customer_id,
@@ -479,18 +480,10 @@ export function createCloudStore(url, anonKey) {
       fail(error, "提醒沒有更新");
     },
 
-    async inviteMember(input) {
-      const { data, error } = await sb.functions.invoke("admin-invite", { body: { action: "invite", ...input } });
-      if (error) {
-        let message = "邀請沒有送出。請確認「管理員邀請」功能已經部署。";
-        try {
-          const body = await error.context?.json?.();
-          if (body?.error) message = body.error;
-        } catch { /* 保留通用說明 */ }
-        throw new Error(message);
-      }
-      if (data?.error) throw new Error(data.error);
-      return data;
+    async listMemberActivity() {
+      const { data, error } = await sb.rpc("admin_member_activity");
+      if (error) return [];
+      return data || [];
     },
 
     async updateMember(input) {

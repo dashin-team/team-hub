@@ -50,7 +50,13 @@ export function groupRoster(rows) {
       seen.set(district, group);
       groups.push(group);
     }
-    seen.get(district).members.push({ name: row.display_name, rank: row.grade });
+    seen.get(district).members.push({
+      id: row.id || "",
+      name: row.display_name,
+      rank: row.grade,
+      role: row.role || "",
+      lastSignIn: row.last_sign_in_at ?? null,
+    });
   }
   return groups;
 }
