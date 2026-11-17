@@ -78,7 +78,9 @@ let calView = "month";
 let calCursor = "";
 let calFocus = "";
 let calOwner = "";
+let clientFocus = "";
 let rosterQuery = "";
+let activityById = new Map();
 let rosterRank = "";
 let rosterSource = TEAM_ROSTER;
 let passwordFirst = false;
@@ -116,6 +118,7 @@ function isAdmin() {
 function go(next) {
   next = PAGE_ALIAS[next] || next;
   if (!PAGE_NAMES[next]) next = "home";
+  if (next === "clients" && isAdmin()) next = "home";
   if (next === "roster" && !isAdmin()) next = "home";
   if (next === "announcements" && !canManageTeam(me()?.role)) next = "home";
   page = next;
@@ -242,6 +245,7 @@ function readForm(form) {
 async function renderPage() {
   page = PAGE_ALIAS[page] || page;
   if (!PAGE_NAMES[page]) page = "home";
+  if (page === "clients" && isAdmin()) page = "home";
   if (page === "roster" && !isAdmin()) page = "home";
   if (page === "announcements" && !canManageTeam(me()?.role)) page = "home";
   applyRoleChrome();
@@ -338,11 +342,11 @@ async function renderHome() {
   const activity = records.filter((item) => String(item.service_date).slice(0, 10) >= since).length;
   const visits = records.filter((item) => String(item.service_date).slice(0, 10) === today).length;
   const metrics = [
-    [newNames, "近7日新增名單", "clients"],
     [activity, "近7日活動量", "tasks"],
     [visits, "今日拜訪量", "tasks"],
     [agenda.filter((item) => item.date <= addDays(today, 7)).length, "近7日行程", "tasks"],
   ];
+  if (profile.role !== "admin") metrics.unshift([newNames, "近7日新增名單", "clients"]);
   $("homeStats").innerHTML = metrics.map(([value, label, dest]) =>
     `<button class="metric" type="button" data-nav="${dest}"><b>${esc(value)}</b><span>${esc(label)} →</span></button>`).join("");
   const birthdays = upcomingBirthdays(
@@ -372,7 +376,24 @@ async function refreshDot() {
   $("avatarDot").hidden = !soon;
 }
 
+function formatLastSignIn(value) {
+  if (!value) return "從未登入";
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) return "從未登入";
+  const parts = new Intl.DateTimeFormat("en-US", {
+    timeZone: "Asia/Taipei",
+    month: "numeric",
+    day: "numeric",
+    hour: "2-digit",
+    minute: "2-digit",
+    hourCycle: "h23",
+  }).formatToParts(date);
+  const part = (type) => parts.find((item) => item.type === type)?.value || "";
+  return `${Number(part("month"))}/${Number(part("day"))} ${part("hour").padStart(2, "0")}:${part("minute").padStart(2, "0")}`;
+}
+
 function renderRoster() {
+  const meId = me()?.id;
   const everyone = rosterMembers(rosterSource);
   const totals = countRanks(everyone);
   $("rosterStats").innerHTML = [
@@ -392,17 +413,40 @@ function renderRoster() {
   $("rosterList").innerHTML = groups.map((group) => `
     <article class="panel roster-card">
       <h2>${esc(group.district)} · ${group.members.length}人</h2>
-      ${group.members.map((member) => `<div class="roster-row"><b>${esc(member.name)}</b><span class="rank ${esc(String(member.rank || "").toLowerCase())}">${esc(member.rank)}</span></div>`).join("")}
+      ${group.members.map((member) => {
+        const remove = member.id && member.id !== meId && member.role !== "admin"
+          ? `<button class="btn danger small" type="button" data-action="remove-member" data-id="${esc(member.id)}" data-name="${esc(member.name)}">刪除夥伴</button>`
+          : "";
+        return `<div class="roster-row"><div class="roster-person"><b>${esc(member.name)}</b><small>上次登入 ${esc(formatLastSignIn(member.lastSignIn))}</small></div><span class="rank ${esc(String(member.rank || "").toLowerCase())}">${esc(member.rank)}</span>${remove}</div>`;
+      }).join("")}
     </article>`).join("") || `<div class="empty">沒有符合的同仁。</div>`;
+}
+
+async function loadActivity() {
+  if (me()?.role !== "admin" || !store?.listMemberActivity) {
+    activityById = new Map();
+    return;
+  }
+  try {
+    const rows = await store.listMemberActivity();
+    activityById = new Map((rows || []).map((row) => [row.id, row.last_sign_in_at || null]));
+  } catch {
+    activityById = new Map();
+  }
 }
 
 async function loadRoster() {
   if (!isAdmin()) return;
-  rosterSource = TEAM_ROSTER;
-  if (store?.mode === "cloud") {
-    const rows = await store.listTeamRoster();
-    rosterSource = groupRoster(rows);
-  }
+  await loadActivity();
+  const rows = store?.mode === "cloud"
+    ? await store.listTeamRoster()
+    : (await store.listProfiles()).filter((item) => item.is_active !== false);
+  rosterSource = groupRoster((rows || []).map((row) => ({
+    ...row,
+    last_sign_in_at: activityById.has(row.id) ? activityById.get(row.id) : row.last_sign_in_at,
+  })));
+  const profiles = store?.mode === "cloud" ? rows : await store.listProfiles();
+  fillMemberZones(profiles || []);
   renderRoster();
 }
 
@@ -1070,7 +1114,7 @@ function exportHeaders() {
 async function exportClients() {
   const XLSX = await loadSheetJs();
   const headers = exportHeaders();
-  const rows = clientWorkbookRows(await store.listCustomers(), me().id);
+  const rows = clientWorkbookRows(await store.listCustomers(), clientFocusId());
   const sheet = XLSX.utils.aoa_to_sheet([
     headers,
     ...rows.map((row) => headers.map((header) => row[header] ?? "")),
@@ -1127,15 +1171,52 @@ function nameButton(item) {
   return `<button class="name-line" type="button" data-action="open-client" data-id="${esc(item.id)}">${esc(item.display_name)}</button>`;
 }
 
+function clientFocusId() {
+  const profile = me();
+  if (!profile || profile.role !== "manager") return profile?.id || "";
+  return clientFocus || profile.id;
+}
+
+function clientsAreEditable() {
+  const profile = me();
+  return Boolean(profile) && profile.role !== "admin" && clientFocusId() === profile.id;
+}
+
+function paintClientSwitch(profile, profiles) {
+  const select = $("clientMember");
+  const banner = $("clientReadonly");
+  if (!select || !banner) return;
+  const focus = clientFocusId();
+  const viewing = profile?.role === "manager" && focus && focus !== profile.id;
+  const partners = (profiles || [])
+    .filter((person) => person.id !== profile?.id && person.is_active !== false && canViewPerson(profile, person))
+    .sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
+  if (profile?.role === "manager") {
+    const chosen = viewing && partners.some((person) => person.id === focus) ? focus : profile.id;
+    if (chosen === profile.id) clientFocus = "";
+    else clientFocus = chosen;
+    select.innerHTML = [`<option value="${esc(profile.id)}">自己</option>`]
+      .concat(partners.map((person) => `<option value="${esc(person.id)}">${esc(person.display_name)}</option>`))
+      .join("");
+    select.value = clientFocus || profile.id;
+  }
+  const name = profiles.find((person) => person.id === (clientFocus || focus))?.display_name || "夥伴";
+  $("clientReadonlyText").textContent = viewing && clientFocus ? `正在查看 ${name} 的名單（唯讀）` : "";
+  banner.hidden = !(viewing && clientFocus);
+}
+
 async function renderClients() {
   const profile = me();
   const [customers, profiles] = await Promise.all([
     store.listCustomers(),
     store.listProfiles(),
   ]);
+  paintClientSwitch(profile, profiles);
+  const focus = clientFocusId();
+  const scoped = customers.filter((item) => item.owner_id === focus);
   const q = $("clientSearch").value.trim().toLowerCase();
   const showArchived = $("showArchived").checked;
-  const list = customers.filter((item) => {
+  const list = scoped.filter((item) => {
     if (!showArchived && item.is_archived) return false;
     const blob = `${item.display_name} ${item.nickname || ""} ${item.ref_code || ""} ${(item.service_tags || []).join(" ")} ${item.notes || ""} ${item.hobbies || ""} ${item.lead_source || ""} ${item.contact_method || ""}`.toLowerCase();
     return blob.includes(q);
@@ -1149,15 +1230,15 @@ async function renderClients() {
   $("clientList").innerHTML = list.length
     ? list.map(nameButton).join("")
     : `<div class="empty">沒有符合的客戶。</div>`;
-  const picks = dailyClientPick(customers, profile.id, taipeiDay(), 30);
+  const picks = dailyClientPick(customers, focus, taipeiDay(), 30);
   $("clientPicks").innerHTML = picks.length
     ? picks.map(nameButton).join("")
     : `<div class="empty">目前沒有客戶</div>`;
-  clientCache = customers;
+  clientCache = scoped;
   renderSourceChips(customers);
   paintAnalysis();
   syncClientPanes();
-  if (!selectedCustomerId || !customers.some((item) => item.id === selectedCustomerId)) {
+  if (!selectedCustomerId || !scoped.some((item) => item.id === selectedCustomerId)) {
     $("clientDetail").innerHTML = "";
     return;
   }
@@ -1166,19 +1247,27 @@ async function renderClients() {
 }
 
 function syncClientPanes() {
+  const editable = clientsAreEditable();
+  if (!editable && clientTab === "new") clientTab = "list";
   const adding = clientTab === "new";
   const browsing = clientTab !== "new" && Boolean(selectedCustomerId);
+  const addTab = document.querySelector('#clientTabs [data-client-tab="new"]');
+  if (addTab) addTab.hidden = !editable;
   if ($("clientListPane")) $("clientListPane").hidden = clientTab !== "list";
   if ($("clientPickPane")) $("clientPickPane").hidden = clientTab !== "today";
   if ($("clientDetail")) $("clientDetail").hidden = !browsing;
-  if ($("customerForm")) $("customerForm").hidden = !adding && !browsing;
+  if ($("customerForm")) {
+    $("customerForm").hidden = !adding && !browsing;
+    $("customerForm").classList.toggle("locked", !editable);
+  }
   document.querySelectorAll("#clientTabs [data-client-tab]").forEach((button) => {
     button.classList.toggle("on", button.dataset.clientTab === clientTab);
   });
 }
 
 function showClientTab(tab) {
-  const next = tab === "today" ? "today" : tab === "new" ? "new" : "list";
+  let next = tab === "today" ? "today" : tab === "new" ? "new" : "list";
+  if (next === "new" && !clientsAreEditable()) next = "list";
   if (next !== clientTab) {
     selectedCustomerId = null;
     if ($("clientDetail")) $("clientDetail").innerHTML = "";
@@ -1199,42 +1288,14 @@ async function renderClientDetail(customers, profiles) {
     store.listServiceRecords(customer.id),
     store.listReminders(customer.id),
   ]);
-  const canEdit = canManageTeam(me().role) || customer.owner_id === me().id;
-  const areas = coverageOf(policies);
-  const coveredCount = areas.filter((area) => area.covered).length;
-  const ratio = Math.round((coveredCount / areas.length) * 100);
-  const ring = 2 * Math.PI * 32;
-  const offset = ring * (1 - coveredCount / areas.length);
-  const coverageHtml = `<section class="neo" id="coverageBoard">
-    <div class="neo-top">
-      <svg class="ring" viewBox="0 0 80 80" aria-hidden="true">
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#e7b2a6" stroke-width="8"></circle>
-        <circle cx="40" cy="40" r="32" fill="none" stroke="#3d8f5c" stroke-width="8" stroke-linecap="round" stroke-dasharray="${ring.toFixed(2)}" stroke-dashoffset="${offset.toFixed(2)}" transform="rotate(-90 40 40)"></circle>
-        <text x="40" y="46" text-anchor="middle" font-size="16" fill="#4e5b67">${ratio}%</text>
-      </svg>
-      <div>
-        <div class="ring-label">保障完整度</div>
-        <div class="ring-label"><b>${policies.filter((item) => item.status === "active").length} 張保單</b>涵蓋 ${coveredCount} / ${areas.length} 類</div>
-        <div class="pills">
-          <button type="button" data-action="coverage-tab" data-tab="policies">紀錄</button>
-          <button type="button" data-action="coverage-tab" data-tab="gaps">缺口</button>
-          <button type="button" data-nav="ai">指南</button>
-        </div>
-      </div>
-    </div>
-    <div class="seg">
-      <button type="button" data-action="coverage-tab" data-tab="policies" class="${coverageView === "policies" ? "on" : ""}">保單</button>
-      <button type="button" data-action="coverage-tab" data-tab="gaps" class="seg-gap ${coverageView === "gaps" ? "on" : ""}">缺口<span class="seg-dot" aria-hidden="true"></span></button>
-    </div>
-    ${coverageView === "gaps" ? `<div class="section-head"><h2>保障檢視</h2></div><div class="gap-grid">${areas.map((area) => `<div class="neo-tile ${area.covered ? "ok" : "gap"}"><span class="sym">${area.covered ? "●" : "○"}</span><b>${esc(area.label)}</b><small>${area.covered ? "已涵蓋" : "缺口"}</small></div>`).join("")}</div><p class="muted">依這位客戶的保單摘要歸類，不是完整需求分析。</p>` : ""}
-  </section>`;
-  $("clientDetail").innerHTML = `${coverageHtml}<div class="panel" style="margin-top:12px" ${coverageView === "gaps" ? "hidden" : ""}>
+  const canEdit = clientsAreEditable() && customer.owner_id === me().id;
+  $("clientDetail").innerHTML = `<div class="panel" style="margin-top:12px">
     <div class="client-top"><div><h3>${esc(customer.display_name)}</h3><p class="sub">${esc([customer.ref_code, customer.nickname, customer.gender, rocLabel(customer.birth_date), customer.contact_method || customer.preferred_contact].filter(Boolean).join(" · "))} · 負責人 ${esc(nameOf(customer.owner_id, profiles))}</p></div>
     <div class="row">${canEdit ? `<button class="btn secondary small" type="button" data-action="edit-client" data-id="${esc(customer.id)}">編輯</button>` : ""}<button class="btn secondary small" type="button" data-action="jump-analysis">五項度</button>${canEdit ? `<button class="btn danger small" type="button" data-action="archive-client" data-id="${esc(customer.id)}" data-archived="${customer.is_archived ? "1" : "0"}">${customer.is_archived ? "取消封存" : "封存"}</button>` : ""}</div></div>
     <p>${esc(customer.notes || "還沒有備註。")}</p>
     ${customer.birthday_md ? `<p class="muted">生日月日 ${esc(customer.birthday_md)}（不含年份）</p>` : ""}
     <h3>保單摘要</h3>
-    ${policies.map((item) => `<div class="list-item"><div><b>${esc(item.policy_category)}</b> ${esc(item.insurer_name || "")}<div class="muted">${esc(POLICY_STATUS[item.status] || item.status)} · 到期 ${formatDate(item.expiry_date)} · 續保提醒 ${formatDate(item.renewal_reminder_date)}${item.reference_last4 ? ` · 末四碼 ${esc(item.reference_last4)}` : ""}</div></div><button class="btn secondary small" type="button" data-action="delete-policy" data-id="${esc(item.id)}">刪除</button></div>`).join("") || `<div class="empty">還沒有保單摘要。</div>`}
+    ${policies.map((item) => `<div class="list-item"><div><b>${esc(item.policy_category)}</b> ${esc(item.insurer_name || "")}<div class="muted">${esc(POLICY_STATUS[item.status] || item.status)} · 到期 ${formatDate(item.expiry_date)} · 續保提醒 ${formatDate(item.renewal_reminder_date)}${item.reference_last4 ? ` · 末四碼 ${esc(item.reference_last4)}` : ""}</div></div>${canEdit ? `<button class="btn secondary small" type="button" data-action="delete-policy" data-id="${esc(item.id)}">刪除</button>` : ""}</div>`).join("") || `<div class="empty">還沒有保單摘要。</div>`}
     ${canEdit ? `<form id="policyForm" data-customer="${esc(customer.id)}" class="form-grid cols-2" style="margin-top:10px">
       <label class="field">種類<select name="policy_category">${POLICY_CATEGORIES.map((item) => `<option>${esc(item)}</option>`).join("")}</select></label>
       <label class="field">保險公司<input name="insurer_name" maxlength="80"></label>
@@ -1247,7 +1308,7 @@ async function renderClientDetail(customers, profiles) {
       <button class="btn" type="submit">新增保單摘要</button>
     </form>` : ""}
     <h3 style="margin-top:18px">服務紀錄</h3>
-    ${records.map((item) => `<div class="list-item"><div><b>${formatDate(item.service_date)} · ${esc(item.service_type)}</b><div>${esc(item.summary)}</div><div class="muted">${esc(item.next_action || "")}${item.next_contact_date ? ` · 下次 ${formatDate(item.next_contact_date)}` : ""}</div></div><button class="btn secondary small" type="button" data-action="delete-service" data-id="${esc(item.id)}">刪除</button></div>`).join("") || `<div class="empty">還沒有服務紀錄。</div>`}
+    ${records.map((item) => `<div class="list-item"><div><b>${formatDate(item.service_date)} · ${esc(item.service_type)}</b><div>${esc(item.summary)}</div><div class="muted">${esc(item.next_action || "")}${item.next_contact_date ? ` · 下次 ${formatDate(item.next_contact_date)}` : ""}</div></div>${canEdit ? `<button class="btn secondary small" type="button" data-action="delete-service" data-id="${esc(item.id)}">刪除</button>` : ""}</div>`).join("") || `<div class="empty">還沒有服務紀錄。</div>`}
     ${canEdit ? `<form id="serviceForm" data-customer="${esc(customer.id)}" style="margin-top:10px">
       <div class="form-grid cols-2">
         <label class="field">日期<input name="service_date" type="date" value="${isoDate()}" required></label>
@@ -1261,8 +1322,8 @@ async function renderClientDetail(customers, profiles) {
       <button class="btn" type="submit">新增服務紀錄</button>
     </form>` : ""}
     <h3 style="margin-top:18px">提醒</h3>
-    ${reminders.map((item) => `<div class="list-item"><div><b>${esc(KIND_LABEL[item.kind] || "提醒")}</b> ${esc(item.title)}<div class="muted">${formatDate(item.due_at)} · ${item.status === "open" ? "未完成" : item.status === "done" ? "已完成" : "已取消"}</div></div>${item.status === "open" ? `<button class="btn secondary small" type="button" data-action="done-reminder" data-id="${esc(item.id)}">完成</button>` : ""}</div>`).join("") || `<div class="empty">這位客戶還沒有提醒。</div>`}
-    ${(me().role === "admin" || customer.owner_id === me().id) ? `<form id="reminderForm" data-customer="${esc(customer.id)}" data-owner="${esc(customer.owner_id)}" class="form-grid cols-3" style="margin-top:10px">
+    ${reminders.map((item) => `<div class="list-item"><div><b>${esc(KIND_LABEL[item.kind] || "提醒")}</b> ${esc(item.title)}<div class="muted">${formatDate(item.due_at)} · ${item.status === "open" ? "未完成" : item.status === "done" ? "已完成" : "已取消"}</div></div>${canEdit && item.status === "open" ? `<button class="btn secondary small" type="button" data-action="done-reminder" data-id="${esc(item.id)}">完成</button>` : ""}</div>`).join("") || `<div class="empty">這位客戶還沒有提醒。</div>`}
+    ${canEdit ? `<form id="reminderForm" data-customer="${esc(customer.id)}" data-owner="${esc(customer.owner_id)}" class="form-grid cols-3" style="margin-top:10px">
       <label class="field">種類<select name="kind"><option value="birthday">生日</option><option value="policy_expiry">保單到期</option><option value="renewal">續保</option><option value="follow_up">追蹤</option><option value="other">其他</option></select></label>
       <label class="field">標題<input name="title" required maxlength="120"></label>
       <label class="field">日期<input name="due_at" type="date" required></label>
@@ -1278,16 +1339,24 @@ async function renderAnnouncements() {
     || `<div class="empty">還沒有公告。</div>`;
 }
 
-function fillMemberZones(profiles) {
-  const select = $("memberZone");
+function fillZoneSelect(select, custom) {
   if (!select) return;
   const current = select.value;
-  const zones = [...new Set(profiles.map((item) => String(item.zone || "").trim()).filter(Boolean))]
+  const zones = [...new Set((select._zones || []).map((zone) => String(zone || "").trim()).filter(Boolean))]
     .sort((a, b) => a.localeCompare(b, "zh-Hant"));
   select.innerHTML = `${zones.map((zone) => `<option value="${esc(zone)}">${esc(zone)}</option>`).join("")}<option value="__new">＋輸入新區</option>`;
   if ([...select.options].some((option) => option.value === current)) select.value = current;
-  const custom = $("memberZoneCustom");
   if (custom) custom.hidden = select.value !== "__new";
+}
+
+function fillMemberZones(profiles) {
+  const zones = (profiles || []).map((item) => item.zone);
+  for (const [selectId, customId] of [["memberZone", "memberZoneCustom"], ["rosterZone", "rosterZoneCustom"]]) {
+    const select = $(selectId);
+    if (!select) continue;
+    select._zones = zones;
+    fillZoneSelect(select, $(customId));
+  }
 }
 
 function roleForGrade(grade) {
@@ -1297,6 +1366,7 @@ function roleForGrade(grade) {
 async function renderMembers() {
   const profile = me();
   const profiles = await store.listProfiles();
+  await loadActivity();
   const shown = profiles.filter((item) => item.is_active !== false || $("showRemovedMembers")?.checked);
   const changed = shown.filter((item) => item.must_change_password === false).length;
   const summary = `<p class="member-summary">已改 ${changed} / 未改 ${shown.length - changed}</p>`;
@@ -1305,10 +1375,11 @@ async function renderMembers() {
     const account = item.account ? `帳號 ${item.account}` : "帳號 —";
     const grade = item.grade ? ` · ${item.grade}` : "";
     const email = item.email ? `<div class="muted">${esc(item.email)}</div>` : "";
+    const signedIn = activityById.has(item.id) ? activityById.get(item.id) : item.last_sign_in_at;
     const controls = profile.role === "admin" && item.id !== profile.id && item.role !== "admin" && item.is_active !== false
       ? `<div class="member-actions"><select data-role-for="${esc(item.id)}">${["member", "manager", "admin"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${esc(ROLE_LABEL[role])} (${role})</option>`).join("")}</select><button class="btn secondary small" type="button" data-action="save-member" data-id="${esc(item.id)}">更新</button><button class="btn danger small" type="button" data-action="reset-password" data-id="${esc(item.id)}" data-name="${esc(item.display_name)}">重設密碼</button><button class="btn danger small" type="button" data-action="remove-member" data-id="${esc(item.id)}" data-name="${esc(item.display_name)}">刪除夥伴</button></div>`
       : "";
-    return `<div class="list-item member-card"><div><b>${esc(item.display_name)}</b><div class="muted">${esc(account)}${esc(grade)} · ${esc(ROLE_LABEL[item.role] || item.role)}${item.is_active === false ? " · 已刪除" : ""}</div>${email}<span class="pw-badge ${changedPw ? "ok" : "wait"}">${changedPw ? "已改密碼" : "未改密碼"}</span></div>${controls}</div>`;
+    return `<div class="list-item member-card"><div><b>${esc(item.display_name)}</b><div class="muted">${esc(account)}${esc(grade)} · ${esc(ROLE_LABEL[item.role] || item.role)}${item.is_active === false ? " · 已刪除" : ""}</div>${email}<div class="muted">上次登入 ${esc(formatLastSignIn(signedIn))}</div><span class="pw-badge ${changedPw ? "ok" : "wait"}">${changedPw ? "已改密碼" : "未改密碼"}</span></div>${controls}</div>`;
   }).join("");
   $("memberList").innerHTML = summary + (cards || `<div class="empty">還沒有成員。</div>`);
   fillMemberZones(profiles);
@@ -1396,9 +1467,11 @@ async function handleAction(event) {
       $("analysisBlock").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (target.dataset.action === "edit-cell") {
+      if (!clientsAreEditable()) return;
       openCellSheet(target.dataset.cell);
     }
     if (target.dataset.action === "edit-client") {
+      if (!clientsAreEditable()) return;
       const customers = await store.listCustomers();
       const customer = customers.find((item) => item.id === id);
       if (!customer) return;
@@ -1409,6 +1482,7 @@ async function handleAction(event) {
       $("customerForm").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (target.dataset.action === "archive-client") {
+      if (!clientsAreEditable()) return;
       const customers = await store.listCustomers();
       const customer = customers.find((item) => item.id === id);
       if (!customer) return;
@@ -1417,14 +1491,17 @@ async function handleAction(event) {
       await renderClients();
     }
     if (target.dataset.action === "delete-policy") {
+      if (!clientsAreEditable()) return;
       await store.deletePolicy(id);
       await renderClients();
     }
     if (target.dataset.action === "delete-service") {
+      if (!clientsAreEditable()) return;
       await store.deleteServiceRecord(id);
       await renderClients();
     }
     if (target.dataset.action === "done-reminder") {
+      if (!clientsAreEditable()) return;
       await store.setReminderStatus(id, "done");
       await renderClients();
     }
@@ -1452,6 +1529,7 @@ async function handleAction(event) {
       await store.removeMember(id);
       toast("已刪除夥伴");
       await renderMembers();
+      if (isAdmin()) await loadRoster();
     }
   } catch (error) {
     toast(error.message || "沒有完成");
@@ -1522,9 +1600,11 @@ function bind() {
   $("previewRole").addEventListener("change", async () => {
     store.setPreviewRole($("previewRole").value);
     selectedCustomerId = null;
+    clientFocus = "";
     calOwner = "";
     calView = "month";
     resetCustomerForm();
+    if (page === "clients" && isAdmin()) page = "home";
     if (page === "roster" && !isAdmin()) page = "home";
     if (page === "announcements" && !canManageTeam(me().role)) page = "home";
     await renderPage();
@@ -1566,6 +1646,21 @@ function bind() {
   $("calMember").onchange = () => {
     calOwner = $("calMember").value;
     renderCalendar();
+  };
+  $("clientMember").onchange = async () => {
+    const chosen = $("clientMember").value;
+    clientFocus = chosen && chosen !== me().id ? chosen : "";
+    selectedCustomerId = null;
+    if (clientTab === "new") clientTab = "list";
+    resetCustomerForm();
+    await renderClients();
+  };
+  $("clientBack").onclick = async () => {
+    clientFocus = "";
+    selectedCustomerId = null;
+    clientTab = "list";
+    resetCustomerForm();
+    await renderClients();
   };
   $("calBack").onclick = () => {
     calOwner = "";
@@ -1722,18 +1817,26 @@ function bind() {
   $("gridFullDownload").onclick = () => downloadAnalysis().catch((error) => toast(error.message));
   $("pngClose").onclick = () => $("pngSheet").classList.remove("show");
   $("announcementForm").addEventListener("submit", onAnnouncement);
-  $("inviteForm").addEventListener("submit", onInvite);
   $("memberAddToggle").onclick = () => {
     $("memberCreateForm").hidden = !$("memberCreateForm").hidden;
   };
-  $("memberGrade").addEventListener("change", () => {
-    $("memberRole").value = roleForGrade($("memberGrade").value);
-  });
-  $("memberZone").addEventListener("change", () => {
-    const custom = $("memberZoneCustom");
-    custom.hidden = $("memberZone").value !== "__new";
-    custom.required = !custom.hidden;
-  });
+  for (const [gradeId, roleId, zoneId, customId] of [
+    ["memberGrade", "memberRole", "memberZone", "memberZoneCustom"],
+    ["rosterGrade", "rosterRole", "rosterZone", "rosterZoneCustom"],
+  ]) {
+    $(gradeId).addEventListener("change", () => {
+      $(roleId).value = roleForGrade($(gradeId).value);
+    });
+    $(zoneId).addEventListener("change", () => {
+      const custom = $(customId);
+      custom.hidden = $(zoneId).value !== "__new";
+      custom.required = !custom.hidden;
+    });
+  }
+  $("rosterAddToggle").onclick = () => {
+    $("rosterCreateForm").hidden = !$("rosterCreateForm").hidden;
+  };
+  $("rosterCreateForm").addEventListener("submit", onCreateMember);
   $("showRemovedMembers").addEventListener("change", () => renderMembers());
   $("memberCreateForm").addEventListener("submit", onCreateMember);
   document.body.addEventListener("submit", async (event) => {
@@ -1818,6 +1921,7 @@ async function onCourse(event) {
 
 async function onCustomer(event) {
   event.preventDefault();
+  if (!clientsAreEditable()) return;
   const data = readForm(event.target);
   try {
     const adding = clientTab === "new";
@@ -1826,7 +1930,7 @@ async function onCustomer(event) {
       ...data,
       id: adding ? null : (data.id || null),
       is_archived: Boolean(existing?.is_archived),
-      owner_id: canManageTeam(me().role) ? data.owner_id : me().id,
+      owner_id: me().id,
       email: existing?.email || "",
       preferred_contact: existing?.preferred_contact || "",
       service_tags: existing?.service_tags || [],
@@ -1851,6 +1955,7 @@ async function onCustomer(event) {
 
 async function onPolicy(event) {
   event.preventDefault();
+  if (!clientsAreEditable()) return;
   const form = event.target;
   const data = readForm(form);
   if (!isLast4(data.reference_last4)) return toast("保單只留末四碼，或先留空。");
@@ -1863,6 +1968,7 @@ async function onPolicy(event) {
 
 async function onService(event) {
   event.preventDefault();
+  if (!clientsAreEditable()) return;
   const form = event.target;
   const data = readForm(form);
   if (!data.summary.trim()) return;
@@ -1879,6 +1985,7 @@ async function onService(event) {
 
 async function onReminder(event) {
   event.preventDefault();
+  if (!clientsAreEditable()) return;
   const form = event.target;
   const data = readForm(form);
   try {
@@ -1920,20 +2027,12 @@ async function onCreateMember(event) {
       role: data.role || roleForGrade(data.grade),
     });
     event.target.reset();
-    $("memberRole").value = roleForGrade($("memberGrade").value);
+    const grade = event.target.querySelector("[name=grade]");
+    const role = event.target.querySelector("[name=role]");
+    if (grade && role) role.value = roleForGrade(grade.value);
     toast("已新增夥伴");
     await renderMembers();
-  } catch (error) { toast(error.message); }
-}
-
-async function onInvite(event) {
-  event.preventDefault();
-  const data = readForm(event.target);
-  try {
-    await store.inviteMember(data);
-    event.target.reset();
-    toast("邀請信已送出");
-    await renderMembers();
+    if (isAdmin()) await loadRoster();
   } catch (error) { toast(error.message); }
 }
 

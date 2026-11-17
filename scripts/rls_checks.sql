@@ -111,6 +111,15 @@ update public.profiles set zone = '示範一區', grade = 'SP' where id = '20000
 update public.profiles set zone = '示範一區', grade = 'CA', must_change_password = false where id = '20000000-0000-4000-8000-000000000003';
 update public.profiles set zone = '示範二區', grade = 'CA' where id = '20000000-0000-4000-8000-000000000004';
 insert into private.app_settings (key, value) values ('default_password', 'test-default-pass');
+insert into public.policies (id, team_id, customer_id, owner_id, policy_category, reference_last4)
+values (
+  '50000000-0000-4000-8000-000000000001',
+  '10000000-0000-4000-8000-000000000001',
+  '30000000-0000-4000-8000-000000000001',
+  '20000000-0000-4000-8000-000000000003',
+  '意外',
+  '1280'
+);
 set local role authenticated;
 select set_config('request.jwt.claim.role', 'authenticated', true);
 
@@ -127,6 +136,19 @@ begin
   if n <> 0 then raise exception '主管不該看到其他團隊'; end if;
   select count(*) into n from public.social_accounts;
   if n <> 2 then raise exception '主管應看到同團隊 2 個 IG，實際 %', n; end if;
+  update public.customers set notes = '主管不該改' where display_name like '王先生%';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception '主管不該改別人的客戶，實際改了 %', n; end if;
+  delete from public.policies where reference_last4 = '1280';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception '主管不該刪別人的保單，實際刪了 %', n; end if;
+  begin
+    insert into public.customers (team_id, owner_id, display_name)
+    values (public.current_team_id(), '20000000-0000-4000-8000-000000000003', '不該新增');
+    raise exception '主管不該替別人新增客戶';
+  exception
+    when insufficient_privilege then null;
+  end;
 end $$;
 
 select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);
@@ -161,6 +183,28 @@ begin
 exception
   when others then
     if sqlerrm not like '%不能刪除自己%' then raise; end if;
+end $$;
+
+reset role;
+update auth.users set last_sign_in_at = timestamptz '2026-11-17 14:05:00+00' where id = '20000000-0000-4000-8000-000000000001';
+set local role authenticated;
+select set_config('request.jwt.claim.role', 'authenticated', true);
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);
+
+do $$
+declare n int;
+begin
+  select count(*) into n from public.admin_member_activity();
+  if n < 1 then raise exception '管理員應看到上次登入，實際 %', n; end if;
+end $$;
+
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000003', true);
+
+do $$
+declare n int;
+begin
+  select count(*) into n from public.admin_member_activity();
+  if n <> 0 then raise exception '夥伴不該看到上次登入，實際 %', n; end if;
 end $$;
 
 reset role;

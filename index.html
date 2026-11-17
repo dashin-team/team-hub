@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117x 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117z 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon-32.png?v=20261117x" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117x">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117x">
+  <link rel="icon" href="./favicon-32.png?v=20261117z" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117z">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117z">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117x",
-      "@hub/guides": "./js/guides.js?v=20261117x",
-      "@hub/store": "./js/store.js?v=20261117x",
-      "@hub/metrics": "./js/metrics.js?v=20261117x",
-      "@hub/config": "./js/config.js?v=20261117x",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117x",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117x",
-      "@hub/safe": "./js/safe-browser.js?v=20261117x",
-      "@hub/contest": "./js/contest.js?v=20261117x",
-      "@hub/profile": "./js/client-profile.js?v=20261117x",
-      "@hub/calendar": "./js/calendar.js?v=20261117x",
-      "@hub/team": "./js/team-schedule.js?v=20261117x",
-      "@hub/roster": "./js/team-roster.js?v=20261117x",
-      "@hub/account": "./js/account.js?v=20261117x"
+      "@hub/app": "./js/app.js?v=20261117z",
+      "@hub/guides": "./js/guides.js?v=20261117z",
+      "@hub/store": "./js/store.js?v=20261117z",
+      "@hub/metrics": "./js/metrics.js?v=20261117z",
+      "@hub/config": "./js/config.js?v=20261117z",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117z",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117z",
+      "@hub/safe": "./js/safe-browser.js?v=20261117z",
+      "@hub/contest": "./js/contest.js?v=20261117z",
+      "@hub/profile": "./js/client-profile.js?v=20261117z",
+      "@hub/calendar": "./js/calendar.js?v=20261117z",
+      "@hub/team": "./js/team-schedule.js?v=20261117z",
+      "@hub/roster": "./js/team-roster.js?v=20261117z",
+      "@hub/account": "./js/account.js?v=20261117z"
     }
   }
   </script>
@@ -35,7 +35,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117x" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117z" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -54,7 +54,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117x" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117z" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -92,7 +92,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117x" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117z" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -158,18 +158,16 @@
         <strong id="drawerName">南恩</strong>
         <input id="avatarFile" type="file" accept="image/*" hidden>
       </div>
-      <nav>
+      <nav class="drawer-nav">
         <button type="button" data-nav="home">總覽</button>
-        <button type="button" data-nav="clients">名單</button>
+        <button type="button" class="not-admin" data-nav="clients">名單</button>
         <button type="button" data-nav="tasks">行事曆</button>
         <button type="button" data-nav="social">競賽</button>
         <button type="button" data-nav="learn">訓練</button>
         <button type="button" data-nav="ai">工具</button>
         <button type="button" class="admin-only" data-nav="roster">同仁名單</button>
         <button type="button" class="manager-only" data-nav="announcements">管理</button>
-      </nav>
-      <div class="drawer-foot">
-        <div id="whoName"></div>
+        <div id="whoName" class="drawer-role"></div>
         <span class="badge" id="modeBadge">示範資料</span>
         <label class="field demo-only" style="margin-top:10px">示範視角
           <select id="previewRole" aria-label="示範視角">
@@ -179,8 +177,10 @@
           </select>
         </label>
         <button class="btn secondary small demo-only" id="resetDemo" type="button">還原示範資料</button>
-        <button class="btn secondary small" id="changePasswordBtn" type="button">修改密碼</button>
-        <button class="btn secondary small cloud-only" id="signOutBtn" type="button">登出</button>
+      </nav>
+      <div class="drawer-foot">
+        <button class="btn secondary drawer-action" id="changePasswordBtn" type="button">修改密碼</button>
+        <button class="btn drawer-logout" id="signOutBtn" type="button">登出</button>
       </div>
     </aside>
     <div class="main">
@@ -201,8 +201,8 @@
             </div>
           </article>
           <div class="metric-grid" id="homeStats"></div>
-          <div class="section-head"><h2>客戶生日</h2></div>
-          <div id="homeBirthdays"></div>
+          <div class="section-head not-admin"><h2>客戶生日</h2></div>
+          <div id="homeBirthdays" class="not-admin"></div>
           <div class="section-head"><h2>近期行程</h2><button type="button" data-nav="tasks">行事曆</button></div>
           <div id="homeSchedule"></div>
           <div class="section-head"><h2>公告</h2><button type="button" class="manager-only" data-nav="announcements">管理</button></div>
@@ -211,6 +211,13 @@
 
         <section class="page" id="page-clients">
           <h1 class="page-title">名單</h1>
+          <label class="field manager-switch" id="clientSwitch">切換夥伴
+            <select id="clientMember" aria-label="切換夥伴"></select>
+          </label>
+          <div id="clientReadonly" class="cal-readonly" hidden>
+            <p id="clientReadonlyText"></p>
+            <button class="btn secondary small" id="clientBack" type="button">回到自己的名單</button>
+          </div>
           <div class="seg client-tabs" id="clientTabs" role="group" aria-label="名單分頁">
             <button type="button" data-client-tab="list" class="on">名單總覽</button>
             <button type="button" data-client-tab="new">新增名單</button>
@@ -235,7 +242,7 @@
             <input type="hidden" name="relation_social" id="relationSocial">
             <input type="hidden" name="relation_business" id="relationBusiness">
             <label class="npss"><span>姓名</span><input name="display_name" required maxlength="80" placeholder="王先生（示範）"></label>
-            <label class="npss manager-only"><span>負責人</span><select name="owner_id" id="customerOwner"></select></label>
+            <label class="npss admin-only"><span>負責人</span><select name="owner_id" id="customerOwner"></select></label>
             <input type="hidden" name="nickname" id="nicknameKeep">
             <input type="hidden" name="referrer" id="referrerKeep">
             <div class="npss">
@@ -400,8 +407,37 @@
         </section>
 
         <section class="page" id="page-roster">
-          <h1 class="page-title">同仁名單</h1>
-          <p class="sub">依區與職級查看。目前整個團隊都能看，之後會改成登入才能看。</p>
+          <div class="section-head">
+            <h1 class="page-title">同仁名單</h1>
+            <button class="btn secondary small" id="rosterAddToggle" type="button">新增夥伴</button>
+          </div>
+          <p class="sub">依區與職級查看。</p>
+          <form id="rosterCreateForm" class="panel" hidden>
+            <h3>新增夥伴</h3>
+            <div class="form-grid cols-2">
+              <label class="field">姓名<input name="display_name" required maxlength="80"></label>
+              <label class="field">帳號<input name="account" required maxlength="40" autocomplete="off"></label>
+              <label class="field">職級
+                <select name="grade" id="rosterGrade">
+                  <option value="UM">UM</option>
+                  <option value="SP">SP</option>
+                  <option value="CA">CA</option>
+                </select>
+              </label>
+              <label class="field">角色
+                <select name="role" id="rosterRole">
+                  <option value="manager">主管 (manager)</option>
+                  <option value="member">一般夥伴 (member)</option>
+                  <option value="admin">管理員 (admin)</option>
+                </select>
+              </label>
+            </div>
+            <label class="field">區
+              <select name="zone" id="rosterZone"></select>
+            </label>
+            <input name="zone_custom" id="rosterZoneCustom" hidden maxlength="40" placeholder="輸入區名" aria-label="新的區">
+            <button class="btn" type="submit">建立帳號</button>
+          </form>
           <div class="roster-stats" id="rosterStats"></div>
           <input class="search" id="rosterSearch" placeholder="搜尋姓名" autocomplete="off">
           <div class="tag-row" id="rosterRanks"></div>
@@ -452,22 +488,6 @@
           </form>
           <label class="checkline admin-only"><input id="showRemovedMembers" type="checkbox"> 顯示已刪除</label>
           <div id="memberList"></div>
-          <form id="inviteForm" class="panel admin-only cloud-only">
-            <h3>邀請夥伴</h3>
-            <div class="form-grid cols-3">
-              <label class="field">姓名<input name="display_name" required maxlength="80"></label>
-              <label class="field">工作信箱<input name="email" type="email" required></label>
-              <label class="field">角色
-                <select name="role">
-                  <option value="member">一般夥伴</option>
-                  <option value="manager">主管</option>
-                  <option value="admin">管理員</option>
-                </select>
-              </label>
-            </div>
-            <button class="btn" type="submit">寄出邀請信</button>
-          </form>
-          <p class="privacy-line demo-only">示範模式不會寄信。接上 Supabase 並部署邀請功能後才能邀請。</p>
         </section>
         <p class="footer">Fall in Love · Full Intelligent</p>
       </div>
@@ -583,6 +603,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117x"></script>
+  <script type="module" src="./js/app.js?v=20261117z"></script>
 </body>
 </html>

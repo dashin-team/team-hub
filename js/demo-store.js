@@ -30,13 +30,13 @@ function seed() {
   const today = isoDate();
   const soonDay = addDays(today, 12);
   const profiles = [
-    ["admin", "梁仕翰", "admin", "han@example.com", "南恩", "ADMIN", "", false],
-    ["manager", "陳可恩", "manager", "keen@example.com", "可恩", "SP", "示範一區", true],
-    ["lin", "林子安", "member", "zian@example.com", "子安", "CA", "示範一區", false],
-    ["huang", "黃詩涵", "member", "shihan@example.com", "詩涵", "CA", "示範二區", true],
-    ["zhang", "張柏宇", "member", "boyu@example.com", "柏宇", "UM", "示範二區", false],
-    ["wu", "吳心怡", "member", "xinyi@example.com", "心怡", "CA", "示範一區", true],
-  ].map(([key, name, role, email, account, grade, zone, mustChange]) => ({
+    ["admin", "梁仕翰", "admin", "han@example.com", "南恩", "ADMIN", "", false, "2026-11-17T14:05:00Z"],
+    ["manager", "陳可恩", "manager", "keen@example.com", "可恩", "SP", "示範一區", true, null],
+    ["lin", "林子安", "member", "zian@example.com", "子安", "CA", "示範一區", false, "2026-11-17T01:20:00Z"],
+    ["huang", "黃詩涵", "member", "shihan@example.com", "詩涵", "CA", "示範二區", true, "2026-11-16T10:00:00Z"],
+    ["zhang", "張柏宇", "member", "boyu@example.com", "柏宇", "UM", "示範二區", false, null],
+    ["wu", "吳心怡", "member", "xinyi@example.com", "心怡", "CA", "示範一區", true, "2026-11-17T06:40:00Z"],
+  ].map(([key, name, role, email, account, grade, zone, mustChange, lastSignIn]) => ({
     id: PEOPLE[key],
     team_id: DEMO_TEAM_ID,
     display_name: name,
@@ -45,6 +45,7 @@ function seed() {
     grade,
     zone: zone || null,
     must_change_password: mustChange,
+    last_sign_in_at: lastSignIn,
     role,
     is_active: true,
     created_at: nowIso(),
@@ -218,7 +219,7 @@ function seed() {
   ];
 
   return {
-    version: 10,
+    version: 11,
     profiles,
     customers,
     policies,
@@ -360,7 +361,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 10 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 11 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -761,16 +762,13 @@ export function createDemoStore() {
 
     async saveCustomer(input) {
       const me = requireProfile();
-      const ownerId = input.owner_id || me.id;
-      if (!ownerVisible(ownerId)) throw new Error("只能維護自己區的客戶");
-      if (!state.profiles.some((item) => item.id === ownerId && item.team_id === me.team_id)) {
-        throw new Error("負責人必須是同團隊的夥伴");
-      }
+      const ownerId = me.id;
+      if (input.owner_id && input.owner_id !== me.id) throw new Error("只能維護自己的客戶");
       const norm = normalizeCustomerInput(input);
       if (norm.error) throw new Error(norm.error);
       if (input.id) {
         const row = state.customers.find((item) => item.id === input.id && item.team_id === me.team_id);
-        if (!row || !ownerVisible(row.owner_id)) throw new Error("找不到客戶");
+        if (!row || row.owner_id !== me.id) throw new Error("只能維護自己的客戶");
         const previousOwner = row.owner_id;
         Object.assign(row, norm.fields, {
           owner_id: ownerId,
@@ -819,7 +817,7 @@ export function createDemoStore() {
     async savePolicy(input) {
       const me = requireProfile();
       const customer = state.customers.find((item) => item.id === input.customer_id && item.team_id === me.team_id);
-      if (!customer || !ownerVisible(customer.owner_id)) throw new Error("找不到客戶");
+      if (!customer || customer.owner_id !== me.id) throw new Error("只能維護自己的客戶");
       const row = {
         id: uid(),
         team_id: me.team_id,
@@ -844,7 +842,7 @@ export function createDemoStore() {
     async deletePolicy(id) {
       const me = requireProfile();
       const row = state.policies.find((item) => item.id === id);
-      if (!row || !ownerVisible(row.owner_id)) throw new Error("找不到保單摘要");
+      if (!row || row.owner_id !== me.id) throw new Error("只能維護自己的客戶");
       state.policies = state.policies.filter((item) => item.id !== id);
       persist();
     },
@@ -860,7 +858,7 @@ export function createDemoStore() {
     async saveServiceRecord(input) {
       const me = requireProfile();
       const customer = state.customers.find((item) => item.id === input.customer_id && item.team_id === me.team_id);
-      if (!customer || !ownerVisible(customer.owner_id)) throw new Error("找不到客戶");
+      if (!customer || customer.owner_id !== me.id) throw new Error("只能維護自己的客戶");
       const row = {
         id: uid(),
         team_id: me.team_id,
@@ -882,7 +880,7 @@ export function createDemoStore() {
     async deleteServiceRecord(id) {
       const me = requireProfile();
       const row = state.service_records.find((item) => item.id === id);
-      if (!row || !ownerVisible(row.owner_id)) throw new Error("找不到服務紀錄");
+      if (!row || row.owner_id !== me.id) throw new Error("只能維護自己的客戶");
       state.service_records = state.service_records.filter((item) => item.id !== id);
       persist();
     },
@@ -927,8 +925,12 @@ export function createDemoStore() {
       persist();
     },
 
-    async inviteMember() {
-      throw new Error("示範模式不會寄出邀請信。接上 Supabase 之後，管理員才能邀請夥伴。");
+    async listMemberActivity() {
+      const me = requireProfile();
+      if (me.role !== "admin") return [];
+      return state.profiles
+        .filter((item) => item.team_id === me.team_id)
+        .map((item) => ({ id: item.id, last_sign_in_at: item.last_sign_in_at || null }));
     },
 
     async updateMember() {

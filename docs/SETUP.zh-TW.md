@@ -29,6 +29,7 @@
 7. 五份都只要執行一次。不要把 `scripts/` 裡的測試檔貼進去。
 8. 已經上線的資料庫，再執行一次 `supabase/migrations/202411170007_strategy_grid.sql`。這份加上客戶策略分析圖。還沒執行時，其他名單欄位仍可儲存，策略圖要等欄位加上之後才會寫進雲端。
 9. 再執行一次 `supabase/migrations/202411170008_admin_reset_password.sql`。這份讓管理員新增、重設、刪除夥伴，並讓主管只看自己區的客戶。執行完後，請自己在 SQL Editor 放入團隊預設密碼，不要把密碼寫進檔案：`insert into private.app_settings (key, value) values ('default_password', '你的預設密碼');`
+10. 再執行 `supabase/migrations/202411170009_avatars.sql`（頭像）、`supabase/migrations/202411170010_last_sign_in.sql`（上次登入）、`supabase/migrations/202411170011_client_readonly.sql`（名單寫入只限本人）。這幾份都還沒套到正式資料庫，請自己執行。
 
 左側 **Table Editor** 應看得到 `teams`、`profiles`、`customers` 和 `social_accounts` 等資料表。
 
@@ -88,33 +89,21 @@ export const SUPABASE_ANON_KEY = "你的 anon key";
 
 第一次若 Actions 失敗，多半是 Pages 還沒改成 GitHub Actions。改好後到 Actions 頁把失敗的那次重跑。
 
-## 7. 邀請夥伴
+## 7. 新增夥伴
 
-網頁上的「邀請」需要一支只活在伺服器的小程式。請有人用終端機，在專案資料夾執行（需要先安裝並登入 Supabase CLI）：
+先執行 `supabase/migrations/202411170008_admin_reset_password.sql`，並自己寫入 `private.app_settings` 的 `default_password`。
 
-```bash
-npx supabase login
-npx supabase link --project-ref 你的專案代碼
-npx supabase functions deploy admin-invite
-```
-
-專案代碼在 Supabase 的 Project Settings → General。  
-`SUPABASE_SERVICE_ROLE_KEY` 由 Supabase 自己帶進這支程式，不要寫進 `config.js`，也不要貼到聊天室。
-
-部署完成後：
-
-1. 用你的信箱到網站登入。
-2. 打開 **團隊成員**，填夥伴的姓名、公司信箱和角色，寄出邀請。
-3. 夥伴到信箱點邀請信，設定密碼，就能登入。
-4. 忘記密碼用登入頁的「忘記密碼」。
+1. 用管理員帳號登入。
+2. 打開 **管理** 或 **同仁名單**，按 **新增夥伴**，填姓名、帳號、職級和區。
+3. 夥伴用「帳號」和預設密碼登入，第一次會被要求改密碼。
 
 角色只有三種：
 
-- **管理員**：邀請、停用、調整角色，並看團隊客戶。
-- **主管**：看團隊客戶，可發公告、教材和素材。不能邀請。
+- **管理員**：新增、刪除、重設密碼、調整角色，並看團隊客戶。
+- **主管**：看自己區的客戶，可發公告、教材和素材。
 - **一般夥伴**：只看自己的客戶、任務和提醒。
 
-停用帳號也在團隊成員頁。至少要留下一位啟用中的管理員。
+刪除夥伴會停用帳號並留下客戶資料。不能刪除自己或管理員。
 
 ## 8. 夥伴開始用
 

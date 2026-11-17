@@ -25,7 +25,8 @@ create table if not exists auth.users (
   reauthentication_token text,
   is_sso_user boolean not null default false,
   is_anonymous boolean not null default false,
-  banned_until timestamptz
+  banned_until timestamptz,
+  last_sign_in_at timestamptz
 );
 
 create table if not exists auth.identities (

@@ -69,7 +69,8 @@ textarea { min-height: 110px; resize: vertical; }
   position: fixed; z-index: 30; top: 0; bottom: 0; left: 0; width: min(280px, 84vw);
   background: #fbf7f1; border-right: 1px solid var(--line);
   transform: translateX(-105%); transition: transform 0.22s ease;
-  display: flex; flex-direction: column; padding: 22px 14px 16px;
+  display: flex; flex-direction: column; padding: 16px 14px 12px;
+  overflow: hidden;
 }
 .drawer.open { transform: none; }
 .drawer-brand { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 12px 16px; }
@@ -80,13 +81,21 @@ textarea { min-height: 110px; resize: vertical; }
 }
 .drawer-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
 .drawer-name { font-size: 18px; font-weight: 650; }
-.drawer nav { display: grid; gap: 4px; }
+.drawer nav { display: grid; gap: 4px; align-content: start; flex: 1; min-height: 0; overflow-y: auto; }
 .drawer nav button {
   text-align: left; border: 0; background: transparent; border-radius: 12px;
   min-height: 48px; padding: 0 14px; font-size: 16px; color: #5c5348;
 }
 .drawer nav button.active { color: var(--gold-deep); background: #f4eadc; box-shadow: inset 3px 0 0 var(--gold); }
-.drawer-foot { margin-top: auto; padding: 14px 12px 0; color: var(--muted); font-size: 12px; white-space: pre-line; }
+.drawer-foot {
+  flex: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid var(--line);
+  background: #fbf7f1;
+}
+.drawer-role { margin-top: 8px; color: var(--muted); font-size: 12px; }
+.drawer-action, .drawer-logout {
+  width: 100%; min-height: 48px; margin-top: 8px; font-size: 17px;
+}
+.drawer-logout { font-weight: 700; }
 .badge {
   display: inline-block; margin-top: 8px; font-size: 12px; color: var(--gold-deep);
   background: #f6ecdc; border-radius: 99px; padding: 3px 8px;
@@ -294,6 +303,8 @@ body[data-page="home"] .schedule-item { padding-right: 76px; }
 }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
+body[data-role="admin"] .not-admin,
+body:not([data-role="manager"]) .manager-switch,
 body[data-role="member"] .manager-only,
 body:not([data-role="admin"]) .admin-only,
 body[data-mode="cloud"] .demo-only,
@@ -336,6 +347,8 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 }
 
 .client-form { margin-top: 16px; }
+#customerForm.locked :is(input, textarea, select, .choice, #sourceChips button, .nine-cell) { pointer-events: none; }
+#customerForm.locked :is([type="submit"], #customerCancel, #birthBtn) { display: none !important; }
 .npss {
   position: relative;
   display: flex;
@@ -595,6 +608,8 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
   padding: 10px 0; border-top: 1px solid #efe6d8;
 }
 .roster-row b { font-weight: 650; }
+.roster-person { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.roster-person small { color: var(--muted); font-weight: 450; }
 .rank {
   flex: none; min-width: 36px; text-align: center; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700;
 }
