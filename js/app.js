@@ -1,13 +1,24 @@
 import {
   EVENT_TYPES,
+  HOUR_PX,
+  REMINDERS,
   WEEKDAYS,
+  addMinutes,
   eventType,
+  formatHours,
+  layoutDay,
   monthGrid,
+  nextHalfHour,
+  pad,
+  parseInstant,
+  reminderLabel,
   shiftMonth,
   shiftWeek,
   stocktake,
+  toLocalInput,
   weekdayIndex,
 } from "@hub/calendar";
+import { teamDay } from "@hub/team";
 import { CURRENT_CONTEST } from "@hub/contest";
 import {
   ANALYSIS_SECTIONS,
@@ -315,18 +326,28 @@ async function renderLearn() {
 
 function calendarItems(events, tasks, reminders, ownerId) {
   const rows = [];
-  events.filter((item) => item.owner_id === ownerId).forEach((item) => rows.push({
-    id: item.id,
-    source: "event",
-    owner_id: item.owner_id,
-    title: item.title,
-    date: String(item.event_date).slice(0, 10),
-    time: item.event_time ? String(item.event_time).slice(0, 5) : "",
-    type: item.event_type,
-    customer_id: item.customer_id || "",
-    note: item.note || "",
-    is_done: Boolean(item.is_done),
-  }));
+  events.filter((item) => item.owner_id === ownerId).forEach((item) => {
+    const date = String(item.event_date || item.starts_at || "").slice(0, 10);
+    const start = item.starts_at ? new Date(item.starts_at) : (item.event_time ? new Date(`${date}T${String(item.event_time).slice(0, 5)}:00`) : new Date(`${date}T00:00:00`));
+    const end = item.ends_at ? new Date(item.ends_at) : new Date(start.getTime() + (item.all_day || !item.event_time ? 24 * 3600000 - 60000 : 30 * 60000));
+    rows.push({
+      id: item.id,
+      source: "event",
+      owner_id: item.owner_id,
+      title: item.title,
+      date,
+      time: item.all_day || !item.event_time ? "" : `${pad(start.getHours())}:${pad(start.getMinutes())}`,
+      type: item.event_type,
+      customer_id: item.customer_id || "",
+      companion_id: item.companion_id || "",
+      note: item.note || "",
+      is_done: Boolean(item.is_done),
+      allDay: Boolean(item.all_day) || !item.event_time,
+      starts: start.toISOString(),
+      ends: end.toISOString(),
+      reminder: item.reminder || "none",
+    });
+  });
   tasks.filter((item) => item.owner_id === ownerId && item.due_date).forEach((item) => rows.push({
     id: item.id,
     source: "task",
@@ -338,6 +359,7 @@ function calendarItems(events, tasks, reminders, ownerId) {
     customer_id: "",
     note: "",
     is_done: Boolean(item.is_done),
+    allDay: true,
   }));
   reminders.filter((item) => item.owner_id === ownerId && item.status === "open").forEach((item) => rows.push({
     id: item.id,
@@ -350,6 +372,7 @@ function calendarItems(events, tasks, reminders, ownerId) {
     customer_id: item.customer_id || "",
     note: "",
     is_done: false,
+    allDay: true,
   }));
   return rows.sort((a, b) => a.date.localeCompare(b.date) || (a.time || "").localeCompare(b.time || "") || a.title.localeCompare(b.title, "zh-Hant"));
 }
@@ -366,56 +389,171 @@ function itemLabel(item) {
   return eventType(item.type)?.label || "活動";
 }
 
-function chipText(item, customers) {
-  const who = customers.find((customer) => customer.id === item.customer_id);
-  const bits = [item.time, itemLabel(item), item.title, who ? who.display_name : ""].filter(Boolean);
-  return bits.join(" ");
+function timeRange(item) {
+  if (!item.starts || !item.ends || item.allDay) return "";
+  const start = new Date(item.starts);
+  const end = new Date(item.ends);
+  return `${pad(start.getHours())}:${pad(start.getMinutes())}–${pad(end.getHours())}:${pad(end.getMinutes())}`;
 }
 
-function dotsHtml(items) {
-  const shown = items.slice(0, 4).map((item) =>
+function chipText(item, customers) {
+  const who = customers.find((customer) => customer.id === item.customer_id);
+  return [timeRange(item) || item.time, itemLabel(item), item.title, who ? who.display_name : ""].filter(Boolean).join(" ");
+}
+
+function dotsHtml(items, date) {
+  const team = teamDay(date);
+  const teamDot = team ? `<i class="dot" style="background:#1b3a5f" title="團隊"></i>` : "";
+  const shown = items.slice(0, 3).map((item) =>
     `<i class="dot ${item.is_done ? "done" : ""}" style="background:${itemColor(item)}" title="${esc(itemLabel(item))}"></i>`).join("");
-  const more = items.length > 4 ? `<span class="cal-more">+${items.length - 4}</span>` : "";
-  return `<span class="cal-dots">${shown}${more}</span>`;
+  const more = items.length > 3 ? `<span class="cal-more">+${items.length - 3}</span>` : "";
+  return `<span class="cal-dots">${teamDot}${shown}${more}</span>`;
 }
 
 function stockBlock(title, tally) {
   const lines = EVENT_TYPES.map((type) => {
     const count = tally.byType[type.id];
-    return `<div class="cal-count"><span><i style="background:${type.color}"></i>${esc(type.label)}</span><b>${count.done}/${count.planned}</b></div>`;
+    return `<div class="cal-count"><span><i style="background:${type.color}"></i>${esc(type.label)}</span><b>${count.done}/${count.planned} · ${esc(formatHours(count.hours))}</b></div>`;
   }).join("");
   const extra = [
     tally.tasks.planned ? `<p class="muted">原有待辦 ${tally.tasks.done}/${tally.tasks.planned}，不計入完成率。</p>` : "",
     tally.reminders ? `<p class="muted">未完成的客戶提醒 ${tally.reminders} 件。</p>` : "",
+    `<p class="muted">團隊固定行程不計入個人盤點。</p>`,
   ].join("");
-  return `<h3>${esc(title)}</h3>${lines}<p>計畫 ${tally.planned} · 完成 ${tally.done} · 未完成 ${tally.open} · 完成率 ${tally.rate}%</p>${extra}`;
+  return `<h3>${esc(title)}</h3>${lines}<p>計畫 ${tally.planned} · 完成 ${tally.done} · 未完成 ${tally.open} · 完成率 ${tally.rate}% · ${esc(formatHours(tally.hours))}</p>${extra}`;
 }
 
 function teamTable(profiles, events, today) {
   const rows = profiles.map((person) => {
     const mine = calendarItems(events, [], [], person.id);
     const tally = stocktake(mine, today);
-    const detail = (bucket) => EVENT_TYPES.map((type) => `${type.label} ${bucket.byType[type.id].done}/${bucket.byType[type.id].planned}`).join("、");
+    const detail = (bucket) => EVENT_TYPES.map((type) => `${type.label} ${bucket.byType[type.id].done}/${bucket.byType[type.id].planned} ${formatHours(bucket.byType[type.id].hours)}`).join("、");
     return `<tr><td>${esc(person.display_name)}</td><td><b>${tally.week.done}/${tally.week.planned} · ${tally.week.rate}%</b><small>${esc(detail(tally.week))}</small></td><td><b>${tally.month.done}/${tally.month.planned} · ${tally.month.rate}%</b><small>${esc(detail(tally.month))}</small></td></tr>`;
   }).join("");
   return `<h3>團隊盤點</h3><div class="table-wrap"><table class="cal-team"><thead><tr><th>夥伴</th><th>本週</th><th>本月</th></tr></thead><tbody>${rows || `<tr><td colspan="3">還沒有夥伴。</td></tr>`}</tbody></table></div>`;
 }
 
-function paintCalForm(item, date) {
+function teamChipHtml(chip) {
+  return `<span class="team-chip ${esc(chip.kind)}">🔒 ${esc(chip.text)}</span>`;
+}
+
+function teamDetailHtml(day) {
+  if (!day) return "";
+  if (day.weekend) return `<div class="team-chips">${teamChipHtml(day.chips[0])}</div>`;
+  const lines = [`<p>早會 08:30–10:00　${esc(day.title.replace(/^早會｜/, ""))}</p>`]
+    .concat(day.chips.map((chip) => `<p class="${chip.kind === "important" ? "important" : ""}">${esc(chip.text)}</p>`));
+  const chips = day.chips.map(teamChipHtml).join("");
+  return `<div class="team-chips">${chips}</div><details class="team-fold"><summary>團隊固定行程</summary>${lines.join("")}</details>`;
+}
+
+function hourRows() {
+  return Array.from({ length: 24 }, (_, hour) => `<div class="tl-hour"><span>${pad(hour)}:00</span><div></div></div>`).join("");
+}
+
+function personalBlocks(items, date) {
+  const layout = layoutDay(items, date);
+  return layout.timed.map((item) => {
+    const top = (item.startMin / 60) * HOUR_PX;
+    const height = Math.max(22, ((item.endMin - item.startMin) / 60) * HOUR_PX - 2);
+    const width = 100 / layout.columns;
+    const left = item.column * width;
+    return `<button class="tl-block ${item.is_done ? "done" : ""}" type="button" style="top:${top}px;height:${height}px;left:${left}%;width:${width}%;background:${itemColor(item)}" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${date}"><b>${esc(item.title)}</b><small>${esc(timeRange(item))}</small></button>`;
+  }).join("");
+}
+
+function teamTimedHtml(day) {
+  if (!day || day.weekend) return "";
+  const top = 8.5 * HOUR_PX;
+  const height = 1.5 * HOUR_PX - 2;
+  return `<div class="tl-block team" style="top:${top}px;height:${height}px;left:0;width:100%"><b>🔒 ${esc(day.title)}</b><small>08:30–10:00</small></div>`;
+}
+
+function allDayPersonal(items, date, customers) {
+  return items.filter((item) => item.allDay && item.date === date).map((item) =>
+    `<button class="all-chip" type="button" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${date}">${esc(chipText(item, customers))}</button>`).join("");
+}
+
+function renderTimeline(dates, customers) {
+  if (dates.length === 1) {
+    const date = dates[0];
+    const day = teamDay(date);
+    return `<div class="tl"><div class="tl-all"><b>全天</b><div>${teamDetailHtml(day)}${allDayPersonal(calItems, date, customers)}</div></div><div class="tl-scroll" data-cal-scroll><div class="tl-grid">${hourRows()}<div class="tl-overlay">${teamTimedHtml(day)}${personalBlocks(calItems, date)}</div></div></div></div>`;
+  }
+  const head = dates.map((date) => `<button type="button" class="${date === isoDate() ? "today" : ""}" data-action="cal-day" data-date="${date}">${Number(date.slice(8))}<br>${WEEKDAYS[weekdayIndex(date)]}</button>`).join("");
+  const allday = dates.map((date) => {
+    const day = teamDay(date);
+    const holiday = day?.weekend ? teamChipHtml(day.chips[0]) : "";
+    const morning = day && !day.weekend ? `<span class="team-chip">🔒 早會</span>` : "";
+    return `<div>${holiday}${morning}${allDayPersonal(calItems, date, customers)}</div>`;
+  }).join("");
+  const cols = dates.map((date) => `<div class="wk-col">${teamTimedHtml(teamDay(date))}${personalBlocks(calItems, date)}</div>`).join("");
+  const hours = Array.from({ length: 24 }, (_, hour) => `<div>${pad(hour)}</div>`).join("");
+  return `<div class="wk"><div class="wk-head"><span></span>${head}</div><div class="wk-all"><b>全天</b>${allday}</div><div class="wk-scroll" data-cal-scroll><div class="wk-body"><div class="wk-hours">${hours}</div>${cols}</div></div></div>`;
+}
+
+function scrollTimeline() {
+  const scroller = document.querySelector("[data-cal-scroll]");
+  if (scroller) scroller.scrollTop = 8 * HOUR_PX;
+}
+
+function paintClientList(query) {
+  const q = String(query || "").trim().toLowerCase();
+  const matches = calCustomers.filter((customer) => {
+    const blob = `${customer.display_name} ${customer.nickname || ""}`.toLowerCase();
+    return !q || blob.includes(q);
+  }).slice(0, 6);
+  $("calClientList").innerHTML = matches.map((customer) =>
+    `<button type="button" data-client="${esc(customer.id)}">${esc(customer.display_name)}</button>`).join("");
+}
+
+function selectType(typeId) {
+  $("calType").value = typeId;
+  document.querySelectorAll("#calTypes button").forEach((button) => button.classList.toggle("on", button.dataset.type === typeId));
+}
+
+function paintCalForm(item, date, preset = {}) {
   const form = $("calForm");
   const editingTask = item?.source === "task";
+  const editing = Boolean(item);
   form.elements.id.value = item?.id || "";
   form.elements.source.value = editingTask ? "task" : "event";
-  form.elements.title.value = item?.title || "";
-  form.elements.event_date.value = item?.date || date;
-  form.elements.event_time.value = item?.time || "";
-  form.elements.event_type.value = eventType(item?.type) ? item.type : "visit";
-  form.elements.customer_id.value = item?.customer_id || "";
+  form.elements.title.value = preset.title || item?.title || "";
   form.elements.note.value = item?.note || "";
   form.elements.is_done.checked = Boolean(item?.is_done);
+  form.elements.next_visit.checked = false;
   document.querySelectorAll(".cal-event-only").forEach((node) => { node.hidden = editingTask; });
-  $("calDelete").hidden = !item || item.source === "reminder";
-  $("calForm").hidden = item?.source === "reminder" || !canEditCalendar();
+  document.querySelectorAll(".cal-task-only").forEach((node) => { node.hidden = !editingTask; });
+  form.elements.starts_at.required = !editingTask;
+  form.elements.ends_at.required = !editingTask;
+  if (editingTask) {
+    form.elements.event_date.value = item.date || date;
+  } else {
+    selectType(preset.event_type || (eventType(item?.type) ? item.type : "visit"));
+    const customerId = preset.customer_id || item?.customer_id || "";
+    form.elements.customer_id.value = customerId;
+    const customer = calCustomers.find((row) => row.id === customerId);
+    $("calClientSearch").value = customer?.display_name || "";
+    $("calClientList").innerHTML = "";
+    const options = [`<option value="">不指定</option>`].concat(calTeammates.filter((person) => person.id !== me()?.id).map((person) =>
+      `<option value="${esc(person.id)}">${esc(person.display_name)}</option>`));
+    $("calCompanion").innerHTML = options.join("");
+    $("calCompanion").value = item?.companion_id || "";
+    $("calReminder").value = item?.reminder || "none";
+    $("calReminderHint").textContent = `提醒：${reminderLabel($("calReminder").value)}。這一版只記錄，不會推播。`;
+    if (item?.starts && item?.ends && !preset.title) {
+      form.elements.all_day.checked = Boolean(item.allDay);
+      form.elements.starts_at.value = toLocalInput(item.starts);
+      form.elements.ends_at.value = toLocalInput(item.ends);
+    } else {
+      const start = nextHalfHour(new Date(), date || isoDate());
+      form.elements.all_day.checked = false;
+      form.elements.starts_at.value = toLocalInput(start);
+      form.elements.ends_at.value = toLocalInput(addMinutes(start, 30));
+    }
+  }
+  $("calDelete").hidden = !editing || item.source === "reminder";
+  form.hidden = item?.source === "reminder" || !canEditCalendar();
+  $("calSheetTitle").textContent = editingTask ? "編輯待辦" : (editing ? "編輯行程" : "新增行程");
 }
 
 function canEditCalendar() {
@@ -429,54 +567,37 @@ function viewedOwnerId() {
   return calOwner || profile.id;
 }
 
-function paintDayList(date, customers) {
-  const items = calItems.filter((item) => item.date === date);
-  const editable = canEditCalendar();
-  $("calDayList").innerHTML = items.map((item) => {
-    const done = item.is_done ? " done" : "";
-    const check = editable && item.source !== "reminder"
-      ? `<input type="checkbox" data-action="${item.source === "task" ? "toggle-task" : "toggle-event"}" data-id="${esc(item.id)}" ${item.is_done ? "checked" : ""}>`
-      : "";
-    const edit = item.source === "reminder" ? "" : `<button class="btn secondary small" type="button" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}">編輯</button>`;
-    return `<div class="list-item${done}"><label class="task-line">${check}<span>${esc(chipText(item, customers))}</span></label>${edit}</div>`;
-  }).join("") || `<p class="muted">這一天還沒有活動。</p>`;
-}
-
-function openCalendarDay(date, itemId) {
-  calFocus = date;
-  const [year, month, day] = date.split("-");
-  $("calSheetTitle").textContent = `${Number(month)}月${Number(day)}日 ${WEEKDAYS[weekdayIndex(date)]}`;
-  const customers = calCustomers;
-  const client = $("calClient");
-  const current = client.value;
-  client.innerHTML = `<option value="">不連結</option>${customers.map((customer) => `<option value="${esc(customer.id)}">${esc(customer.display_name)}</option>`).join("")}`;
-  client.value = current;
-  paintDayList(date, customers);
-  const item = itemId ? calItems.find((row) => row.id === itemId) : null;
-  paintCalForm(item, date);
+function openEventForm(item, date, preset) {
+  calFocus = date || item?.date || isoDate();
+  paintCalForm(item, calFocus, preset);
   $("calNew").hidden = !canEditCalendar();
   $("calSheet").classList.add("show");
   if (!item && canEditCalendar()) $("calForm").elements.title.focus();
 }
 
 let calCustomers = [];
+let calTeammates = [];
 
 async function renderCalendar() {
   const profile = me();
   if (!calCursor) calCursor = isoDate();
-  if (!$("calType").dataset.ready) {
-    $("calType").innerHTML = EVENT_TYPES.map((type) => `<option value="${type.id}">${esc(type.label)}</option>`).join("");
-    $("calType").dataset.ready = "1";
+  if (!$("calTypes").dataset.ready) {
+    $("calTypes").innerHTML = EVENT_TYPES.map((type) =>
+      `<button type="button" data-type="${type.id}" style="--c:${type.color}">${esc(type.label)}</button>`).join("");
+    $("calTypes").dataset.ready = "1";
+    $("calReminder").innerHTML = REMINDERS.map((item) => `<option value="${item.id}">${esc(item.label)}</option>`).join("");
   }
   const today = isoDate();
-  const [events, tasks, reminders, profiles, customers] = await Promise.all([
+  const [events, tasks, reminders, profiles, customers, teammates] = await Promise.all([
     store.listCalendarEvents(),
     store.listTasks(),
     store.listReminders(),
     store.listProfiles(),
     store.listCustomers(),
+    store.listTeammates(),
   ]);
   calCustomers = customers;
+  calTeammates = teammates;
   const ownerId = viewedOwnerId();
   if (!profiles.some((person) => person.id === ownerId)) calOwner = "";
   const activeOwner = viewedOwnerId();
@@ -485,11 +606,12 @@ async function renderCalendar() {
   $("calMember").innerHTML = [`<option value="">我的行事曆</option>`].concat(profiles.filter((person) => person.id !== profile.id).map((person) =>
     `<option value="${esc(person.id)}">${esc(person.display_name)}</option>`)).join("");
   $("calMember").value = calOwner && calOwner !== profile.id ? calOwner : "";
-  $("calScope").textContent = canEditCalendar() ? "點一天可以新增或修改。" : `正在看${owner.display_name}的行事曆，不能改對方的活動。`;
+  $("calScope").textContent = canEditCalendar() ? "點一天看時間表，右下角 ＋ 可新增。" : `正在看${owner.display_name}的行事曆，不能改對方的活動。`;
+  $("calAdd").hidden = !canEditCalendar();
   document.querySelectorAll("[data-cal-view]").forEach((button) => button.classList.toggle("on", button.dataset.calView === calView));
   $("calLegend").innerHTML = EVENT_TYPES.map((type) =>
     `<span><i class="dot" style="background:${type.color}"></i>${esc(type.label)}</span>`).join("")
-    + `<span><i class="dot" style="background:#c4a574"></i>待辦</span><span><i class="dot" style="background:#b0a89d"></i>提醒</span>`;
+    + `<span><i class="dot" style="background:#1b3a5f"></i>團隊</span><span><i class="dot" style="background:#c4a574"></i>待辦</span>`;
   if (calView === "month") {
     const grid = monthGrid(calCursor);
     $("calLabel").textContent = grid.label;
@@ -497,37 +619,46 @@ async function renderCalendar() {
     const cells = grid.weeks.flat().map((day) => {
       const mine = calItems.filter((item) => item.date === day.date);
       const classes = ["cal-cell", day.inMonth ? "" : "out", day.date === today ? "today" : ""].filter(Boolean).join(" ");
-      return `<button class="${classes}" type="button" data-action="cal-day" data-date="${day.date}"><b>${Number(day.date.slice(8))}</b>${dotsHtml(mine)}</button>`;
+      return `<button class="${classes}" type="button" data-action="cal-day" data-date="${day.date}"><b>${Number(day.date.slice(8))}</b>${dotsHtml(mine, day.date)}</button>`;
     }).join("");
     $("calBoard").innerHTML = `<div class="cal-month">${head}${cells}</div>`;
   } else if (calView === "week") {
-    const start = weekStartSafe(calCursor);
+    const start = addDays(calCursor, -weekdayIndex(calCursor));
     $("calLabel").textContent = `${formatDate(start)} – ${formatDate(addDays(start, 6))}`;
-    $("calBoard").innerHTML = `<div class="cal-week">${Array.from({ length: 7 }, (_, index) => {
-      const date = addDays(start, index);
-      const mine = calItems.filter((item) => item.date === date);
-      const chips = mine.map((item) =>
-        `<button class="cal-chip ${item.is_done ? "done" : ""}" type="button" style="--c:${itemColor(item)}" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${date}">${esc(chipText(item, customers))}</button>`).join("")
-        || `<span class="muted">沒有活動</span>`;
-      return `<article class="cal-daycard ${date === today ? "today" : ""}"><header><button type="button" data-action="cal-day" data-date="${date}"><b>${Number(date.slice(8))} ${WEEKDAYS[index]}</b></button></header><div class="cal-chips">${chips}</div></article>`;
-    }).join("")}</div>`;
+    const dates = Array.from({ length: 7 }, (_, index) => addDays(start, index));
+    $("calBoard").innerHTML = renderTimeline(dates, customers);
+    scrollTimeline();
   } else {
-    const grid = monthGrid(calCursor);
-    $("calLabel").textContent = grid.label;
-    const mine = calItems.filter((item) => item.date.startsWith(calCursor.slice(0, 7)));
-    $("calBoard").innerHTML = `<div class="cal-list">${mine.map((item) =>
-      `<button class="cal-row" type="button" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${esc(item.date)}"><span>${esc(formatDate(item.date))} ${esc(chipText(item, customers))}</span><i class="dot ${item.is_done ? "done" : ""}" style="background:${itemColor(item)}"></i></button>`).join("") || `<div class="empty">這個月還沒有活動。</div>`}</div>`;
+    $("calLabel").textContent = `${Number(calCursor.slice(5, 7))}月${Number(calCursor.slice(8))}日 ${WEEKDAYS[weekdayIndex(calCursor)]}`;
+    $("calBoard").innerHTML = renderTimeline([calCursor], customers);
+    scrollTimeline();
   }
   const tally = stocktake(calItems, today);
   $("calStock").innerHTML = `<div class="cal-stock"><h2>盤點</h2>${stockBlock(`本週 ${formatDate(tally.weekStart)} – ${formatDate(tally.weekEnd)}`, tally.week)}${stockBlock(`${today.slice(0, 4)}年${Number(today.slice(5, 7))}月`, tally.month)}</div>`;
   $("calTeam").innerHTML = canManageTeam(profile.role) ? teamTable(profiles, events, today) : "";
-  if ($("calSheet").classList.contains("show") && calFocus) paintDayList(calFocus, customers);
 }
 
-function weekStartSafe(iso) {
-  const index = weekdayIndex(iso);
-  return addDays(iso, -index);
+function applyAllDay(on) {
+  const form = $("calForm");
+  const start = parseInstant(form.elements.starts_at.value) || nextHalfHour();
+  if (!on) {
+    const next = nextHalfHour(new Date(), isoDate(start));
+    form.elements.starts_at.value = toLocalInput(next);
+    form.elements.ends_at.value = toLocalInput(addMinutes(next, 30));
+    return;
+  }
+  const day = isoDate(start);
+  form.elements.starts_at.value = `${day}T00:00`;
+  form.elements.ends_at.value = `${day}T23:59`;
 }
+
+function keepEndAfterStart() {
+  const form = $("calForm");
+  const start = parseInstant(form.elements.starts_at.value);
+  const end = parseInstant(form.elements.ends_at.value);
+  if (start && (!end || end.getTime() <= start.getTime())) form.elements.ends_at.value = toLocalInput(addMinutes(start, 30));
+}
+
 
 function mountAnalysisFields() {
   const root = $("analysisFields");
@@ -811,10 +942,14 @@ async function handleAction(event) {
       await renderCalendar();
     }
     if (target.dataset.action === "cal-day") {
-      openCalendarDay(target.dataset.date);
+      calCursor = target.dataset.date;
+      calFocus = calCursor;
+      calView = "day";
+      await renderCalendar();
     }
     if (target.dataset.action === "cal-edit") {
-      openCalendarDay(target.dataset.date || calItems.find((item) => item.id === id)?.date, id);
+      const item = calItems.find((row) => row.id === id && row.source === (target.dataset.source || row.source));
+      openEventForm(item, item?.date || target.dataset.date);
     }
     if (target.dataset.action === "coverage-tab") {
       coverageView = target.dataset.tab === "policies" ? "policies" : "gaps";
@@ -942,11 +1077,13 @@ function bind() {
     await renderPage();
   };
   $("calPrev").onclick = () => {
-    calCursor = calView === "week" ? shiftWeek(calCursor || isoDate(), -1) : shiftMonth(calCursor || isoDate(), -1);
+    const cursor = calCursor || isoDate();
+    calCursor = calView === "week" ? shiftWeek(cursor, -1) : calView === "day" ? addDays(cursor, -1) : shiftMonth(cursor, -1);
     renderCalendar();
   };
   $("calNext").onclick = () => {
-    calCursor = calView === "week" ? shiftWeek(calCursor || isoDate(), 1) : shiftMonth(calCursor || isoDate(), 1);
+    const cursor = calCursor || isoDate();
+    calCursor = calView === "week" ? shiftWeek(cursor, 1) : calView === "day" ? addDays(cursor, 1) : shiftMonth(cursor, 1);
     renderCalendar();
   };
   $("calToday").onclick = () => {
@@ -965,7 +1102,28 @@ function bind() {
     renderCalendar();
   };
   $("calSheetClose").onclick = () => $("calSheet").classList.remove("show");
-  $("calNew").onclick = () => paintCalForm(null, calFocus || isoDate());
+  $("calAdd").onclick = () => openEventForm(null, calView === "month" ? isoDate() : (calCursor || isoDate()));
+  $("calNew").onclick = () => paintCalForm(null, calFocus || calCursor || isoDate());
+  $("calAllDay").addEventListener("change", () => applyAllDay($("calAllDay").checked));
+  $("calForm").elements.starts_at.addEventListener("change", keepEndAfterStart);
+  $("calReminder").addEventListener("change", () => {
+    $("calReminderHint").textContent = `提醒：${reminderLabel($("calReminder").value)}。這一版只記錄，不會推播。`;
+  });
+  $("calClientSearch").addEventListener("input", () => {
+    $("calClient").value = "";
+    paintClientList($("calClientSearch").value);
+  });
+  $("calClientList").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-client]");
+    if (!button) return;
+    $("calClient").value = button.dataset.client;
+    $("calClientSearch").value = button.textContent;
+    $("calClientList").innerHTML = "";
+  });
+  $("calTypes").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-type]");
+    if (button) selectType(button.dataset.type);
+  });
   $("calDelete").onclick = async () => {
     const form = $("calForm");
     const id = form.elements.id.value;
@@ -973,7 +1131,7 @@ function bind() {
     try {
       if (form.elements.source.value === "task") await store.deleteTask(id);
       else await store.deleteCalendarEvent(id);
-      paintCalForm(null, form.elements.event_date.value);
+      $("calSheet").classList.remove("show");
       toast("已刪除");
       await renderCalendar();
     } catch (error) { toast(error.message); }
@@ -1100,25 +1258,39 @@ async function onCalendar(event) {
   const form = event.target;
   const data = readForm(form);
   data.is_done = form.elements.is_done.checked;
+  data.all_day = form.elements.all_day.checked;
+  const nextVisit = form.elements.next_visit.checked;
   try {
     if (data.source === "task") {
       await store.saveTask({ id: data.id, title: data.title, due_date: data.event_date, is_done: data.is_done });
+      calCursor = data.event_date || calCursor;
+      $("calSheet").classList.remove("show");
     } else {
-      await store.saveCalendarEvent({
+      const saved = await store.saveCalendarEvent({
         id: data.id || null,
         title: data.title,
-        event_date: data.event_date,
-        event_time: data.event_time,
         event_type: data.event_type,
         customer_id: data.customer_id,
+        companion_id: data.companion_id,
+        all_day: data.all_day,
+        starts_at: data.starts_at,
+        ends_at: data.ends_at,
+        reminder: data.reminder,
         note: data.note,
         is_done: data.is_done,
       });
+      calCursor = saved.event_date || String(data.starts_at).slice(0, 10);
+      calView = "day";
+      if (nextVisit && data.customer_id) {
+        toast("已儲存。接著安排下次約訪。");
+        await renderCalendar();
+        openEventForm(null, addDays(calCursor, 1), { title: "下次約訪", event_type: "visit", customer_id: data.customer_id });
+        return;
+      }
+      $("calSheet").classList.remove("show");
     }
     toast("已存進行事曆");
-    calCursor = data.event_date || calCursor;
     await renderCalendar();
-    if (data.event_date) openCalendarDay(data.event_date);
   } catch (error) { toast(error.message); }
 }
 

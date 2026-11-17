@@ -214,6 +214,12 @@ export function createCloudStore(url, anonKey) {
       fail(error, "任務沒有刪除");
     },
 
+    async listTeammates() {
+      const { data, error } = await sb.rpc("team_directory");
+      if (!error && Array.isArray(data)) return data;
+      return rows(sb.from("profiles").select("id, display_name").order("display_name"), "讀取夥伴時發生問題");
+    },
+
     async listCalendarEvents() {
       return rows(sb.from("calendar_events").select("*").order("event_date"), "讀取行事曆時發生問題");
     },
