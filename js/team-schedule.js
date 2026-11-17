@@ -13,7 +13,7 @@ export const TEAM_SCHEDULE = [
   { date: "2026-11-09", morning: "體系時間", speaker: "各區主管", report: "健弘", district: "外幣考衝班" },
   { date: "2026-11-10", morning: "產險宣導", speaker: "莉娟", report: "健弘", important: "處主管研習營", district: "壽險考衝班/外幣考照班" },
   { date: "2026-11-11", morning: "團險宣導", speaker: "靜雯", report: "健弘", important: "處主管研習營" },
-  { date: "2026-11-12", morning: "商品種子會議", speaker: "訓練組", report: "健弘", training: "跨售攻略(信用卡)", trainer: "蔡楷", important: "區部體慎班", district: "壽險考照班" },
+  { date: "2026-11-12", morning: "商品種子會議", speaker: "訓練組", report: "健弘", training: "跨售攻略(信用卡)", trainer: "榮楷", important: "區部體慎班", district: "壽險考照班" },
   { date: "2026-11-13", morning: "富邦的三流之路", speaker: "林孝恩 業務經理", report: "健弘", training: "現實人生", trainer: "銘旭", district: "壽險考照班" },
   { date: "2026-11-16", morning: "體系時間", speaker: "各區主管", report: "秀涵", important: "三新特訓班", district: "新人基礎班" },
   { date: "2026-11-17", morning: "摩根投顧", speaker: "葉文凱 副總經理", report: "秀涵", district: "新人基礎班" },
