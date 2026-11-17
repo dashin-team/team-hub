@@ -44,7 +44,7 @@ export function teamDay(iso) {
   const speaker = row?.speaker || "";
   const title = speaker ? `早會｜${morning}・${speaker}` : `早會｜${morning}`;
   const chips = [];
-  if (row?.report) chips.push({ kind: "report", text: `信星&績效報報 ${row.report}` });
+  if (row?.report) chips.push({ kind: "report", text: `值星&績效報報 ${row.report}` });
   if (row?.training || row?.trainer) {
     chips.push({ kind: "course", text: `新人訓課程 ${[row.training, row.trainer].filter(Boolean).join(" · ")}` });
   }
