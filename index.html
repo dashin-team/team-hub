@@ -5,28 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117p 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117q 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117p">
+  <link rel="icon" href="./favicon-32.png?v=20261117q" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117q">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117q">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117p",
-      "@hub/guides": "./js/guides.js?v=20261117p",
-      "@hub/store": "./js/store.js?v=20261117p",
-      "@hub/metrics": "./js/metrics.js?v=20261117p",
-      "@hub/config": "./js/config.js?v=20261117p",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117p",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117p",
-      "@hub/safe": "./js/safe-browser.js?v=20261117p",
-      "@hub/contest": "./js/contest.js?v=20261117p",
-      "@hub/profile": "./js/client-profile.js?v=20261117p",
-      "@hub/calendar": "./js/calendar.js?v=20261117p",
-      "@hub/team": "./js/team-schedule.js?v=20261117p",
-      "@hub/roster": "./js/team-roster.js?v=20261117p",
-      "@hub/account": "./js/account.js?v=20261117p"
+      "@hub/app": "./js/app.js?v=20261117q",
+      "@hub/guides": "./js/guides.js?v=20261117q",
+      "@hub/store": "./js/store.js?v=20261117q",
+      "@hub/metrics": "./js/metrics.js?v=20261117q",
+      "@hub/config": "./js/config.js?v=20261117q",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117q",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117q",
+      "@hub/safe": "./js/safe-browser.js?v=20261117q",
+      "@hub/contest": "./js/contest.js?v=20261117q",
+      "@hub/profile": "./js/client-profile.js?v=20261117q",
+      "@hub/calendar": "./js/calendar.js?v=20261117q",
+      "@hub/team": "./js/team-schedule.js?v=20261117q",
+      "@hub/roster": "./js/team-roster.js?v=20261117q",
+      "@hub/account": "./js/account.js?v=20261117q"
     }
   }
   </script>
@@ -34,7 +35,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <div class="brand-mark"><span>南</span> TEAM HUB</div>
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117q" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">南恩團隊</p>
     </div>
@@ -53,7 +54,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<div class="brand-mark"><span>南</span> TEAM HUB</div>' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117q" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -91,7 +92,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <div class="brand-mark"><span>南</span> TEAM HUB</div>
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117q" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -504,6 +505,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117p"></script>
+  <script type="module" src="./js/app.js?v=20261117q"></script>
 </body>
 </html>
