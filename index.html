@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117t 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117u 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon-32.png?v=20261117t" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117t">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117t">
+  <link rel="icon" href="./favicon-32.png?v=20261117u" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117u">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117u">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117t",
-      "@hub/guides": "./js/guides.js?v=20261117t",
-      "@hub/store": "./js/store.js?v=20261117t",
-      "@hub/metrics": "./js/metrics.js?v=20261117t",
-      "@hub/config": "./js/config.js?v=20261117t",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117t",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117t",
-      "@hub/safe": "./js/safe-browser.js?v=20261117t",
-      "@hub/contest": "./js/contest.js?v=20261117t",
-      "@hub/profile": "./js/client-profile.js?v=20261117t",
-      "@hub/calendar": "./js/calendar.js?v=20261117t",
-      "@hub/team": "./js/team-schedule.js?v=20261117t",
-      "@hub/roster": "./js/team-roster.js?v=20261117t",
-      "@hub/account": "./js/account.js?v=20261117t"
+      "@hub/app": "./js/app.js?v=20261117u",
+      "@hub/guides": "./js/guides.js?v=20261117u",
+      "@hub/store": "./js/store.js?v=20261117u",
+      "@hub/metrics": "./js/metrics.js?v=20261117u",
+      "@hub/config": "./js/config.js?v=20261117u",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117u",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117u",
+      "@hub/safe": "./js/safe-browser.js?v=20261117u",
+      "@hub/contest": "./js/contest.js?v=20261117u",
+      "@hub/profile": "./js/client-profile.js?v=20261117u",
+      "@hub/calendar": "./js/calendar.js?v=20261117u",
+      "@hub/team": "./js/team-schedule.js?v=20261117u",
+      "@hub/roster": "./js/team-roster.js?v=20261117u",
+      "@hub/account": "./js/account.js?v=20261117u"
     }
   }
   </script>
@@ -35,7 +35,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117t" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117u" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -54,7 +54,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117t" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117u" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -92,7 +92,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117t" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117u" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -211,16 +211,23 @@
         <section class="page" id="page-clients">
           <h1 class="page-title">名單</h1>
           <div class="seg client-tabs" id="clientTabs" role="group" aria-label="名單分頁">
-            <button type="button" data-client-tab="new" class="on">新增名單</button>
-            <button type="button" data-client-tab="list">現有名單</button>
+            <button type="button" data-client-tab="list" class="on">名單總覽</button>
+            <button type="button" data-client-tab="new">新增名單</button>
+            <button type="button" data-client-tab="today">本日推薦</button>
           </div>
-          <div id="clientListPane" hidden>
+          <div id="clientListPane">
+            <div class="client-tools">
+              <button class="btn secondary small" id="exportClients" type="button">匯出 Excel</button>
+            </div>
             <input class="search" id="clientSearch" placeholder="搜尋客戶、標籤或備註">
             <label class="checkline"><input id="showArchived" type="checkbox"> 顯示已封存</label>
             <div id="clientList"></div>
-            <div id="clientDetail"></div>
           </div>
-          <form id="customerForm" class="panel client-form" autocomplete="off">
+          <div id="clientPickPane" hidden>
+            <div id="clientPicks"></div>
+          </div>
+          <div id="clientDetail"></div>
+          <form id="customerForm" class="panel client-form" autocomplete="off" hidden>
             <h3 id="customerFormTitle">新增名單</h3>
             <input type="hidden" name="id">
             <input type="hidden" name="birthday_md_keep">
@@ -541,6 +548,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117t"></script>
+  <script type="module" src="./js/app.js?v=20261117u"></script>
 </body>
 </html>

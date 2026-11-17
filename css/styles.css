@@ -286,7 +286,13 @@ body[data-role="member"] .manager-only,
 body:not([data-role="admin"]) .admin-only,
 body[data-mode="cloud"] .demo-only,
 body[data-mode="demo"] .cloud-only { display: none !important; }
-.client-tabs { margin: 4px 0 14px; }
+.client-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 4px 0 14px; }
+.client-tabs button { font-size: 13px; padding: 0 2px; }
+.client-tools { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.name-line {
+  display: block; width: 100%; text-align: left; background: #fff;
+  border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 8px; font-weight: 650;
+}
 
 .stack { display: grid; gap: 10px; }
 .table-only { display: none; }

@@ -534,6 +534,48 @@ export async function renderStrategyPng(grid, clientName, dateLabel) {
   return blob;
 }
 
+function hashSeed(text) {
+  let hash = 2166136261;
+  for (let index = 0; index < text.length; index += 1) {
+    hash ^= text.charCodeAt(index);
+    hash = Math.imul(hash, 16777619);
+  }
+  return hash >>> 0;
+}
+
+function mulberry32(seed) {
+  let state = seed >>> 0;
+  return () => {
+    state = (state + 0x6d2b79f5) >>> 0;
+    let value = state;
+    value = Math.imul(value ^ (value >>> 15), value | 1);
+    value ^= value + Math.imul(value ^ (value >>> 7), value | 61);
+    return ((value ^ (value >>> 14)) >>> 0) / 4294967296;
+  };
+}
+
+export function taipeiDay(date = new Date()) {
+  return new Intl.DateTimeFormat("en-CA", {
+    timeZone: "Asia/Taipei",
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).format(date);
+}
+
+export function dailyClientPick(customers, userId, day, limit = 30) {
+  const own = (customers || []).filter((item) => item && item.owner_id === userId && !item.is_archived);
+  const random = mulberry32(hashSeed(`${userId}|${day}`));
+  const rows = own.slice();
+  for (let index = rows.length - 1; index > 0; index -= 1) {
+    const swap = Math.floor(random() * (index + 1));
+    const current = rows[index];
+    rows[index] = rows[swap];
+    rows[swap] = current;
+  }
+  return rows.slice(0, Math.max(0, limit));
+}
+
 export function strategyFrom(input) {
   const source = input?.strategy_grid && typeof input.strategy_grid === "object" && !Array.isArray(input.strategy_grid)
     ? input.strategy_grid
