@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117z 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261118a 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon-32.png?v=20261117z" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117z">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117z">
+  <link rel="icon" href="./favicon-32.png?v=20261118a" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118a">
+  <link rel="stylesheet" href="./css/styles.css?v=20261118a">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117z",
-      "@hub/guides": "./js/guides.js?v=20261117z",
-      "@hub/store": "./js/store.js?v=20261117z",
-      "@hub/metrics": "./js/metrics.js?v=20261117z",
-      "@hub/config": "./js/config.js?v=20261117z",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117z",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117z",
-      "@hub/safe": "./js/safe-browser.js?v=20261117z",
-      "@hub/contest": "./js/contest.js?v=20261117z",
-      "@hub/profile": "./js/client-profile.js?v=20261117z",
-      "@hub/calendar": "./js/calendar.js?v=20261117z",
-      "@hub/team": "./js/team-schedule.js?v=20261117z",
-      "@hub/roster": "./js/team-roster.js?v=20261117z",
-      "@hub/account": "./js/account.js?v=20261117z"
+      "@hub/app": "./js/app.js?v=20261118a",
+      "@hub/guides": "./js/guides.js?v=20261118a",
+      "@hub/store": "./js/store.js?v=20261118a",
+      "@hub/metrics": "./js/metrics.js?v=20261118a",
+      "@hub/config": "./js/config.js?v=20261118a",
+      "@hub/demo-store": "./js/demo-store.js?v=20261118a",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261118a",
+      "@hub/safe": "./js/safe-browser.js?v=20261118a",
+      "@hub/contest": "./js/contest.js?v=20261118a",
+      "@hub/profile": "./js/client-profile.js?v=20261118a",
+      "@hub/calendar": "./js/calendar.js?v=20261118a",
+      "@hub/team": "./js/team-schedule.js?v=20261118a",
+      "@hub/roster": "./js/team-roster.js?v=20261118a",
+      "@hub/account": "./js/account.js?v=20261118a"
     }
   }
   </script>
@@ -35,7 +35,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117z" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118a" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -54,7 +54,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117z" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118a" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -92,7 +92,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117z" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118a" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -187,6 +187,7 @@
       <header class="topbar">
         <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
         <div class="top-title" id="crumb">總覽</div>
+        <a id="learnPop" class="learn-pop" href="https://dashin-team.github.io/nanen-newbie-training/" target="_blank" rel="noopener" aria-label="新視窗開啟" title="新視窗開啟">↗</a>
       </header>
       <div class="content">
         <section class="page" id="page-home">
@@ -398,7 +399,9 @@
           <iframe id="contestFrame" class="contest-frame" title="富邦 Q4 競賽獎勵"></iframe>
         </section>
 
-        <section class="page" id="page-learn"></section>
+        <section class="page" id="page-learn">
+          <iframe id="learnFrame" class="learn-frame" title="南恩新人訓練"></iframe>
+        </section>
 
         <section class="page" id="page-ai">
           <h1 class="page-title">工具</h1>
@@ -603,6 +606,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117z"></script>
+  <script type="module" src="./js/app.js?v=20261118a"></script>
 </body>
 </html>

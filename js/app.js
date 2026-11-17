@@ -252,7 +252,9 @@ async function renderPage() {
   if (page === "home") await renderHome();
   if (page === "ai") await renderTools();
   if (page === "learn") {
-    /* 訓練頁先留白。 */
+    const frame = $("learnFrame");
+    const href = "https://dashin-team.github.io/nanen-newbie-training/";
+    if (frame && frame.getAttribute("src") !== href) frame.src = href;
   }
   if (page === "tasks") await renderCalendar();
   if (page === "clients") await renderClients();

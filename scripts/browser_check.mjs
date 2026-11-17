@@ -419,6 +419,38 @@ try {
   await evalJson(ws, "window.scrollTo(0,0)");
   await shot(ws, "mobile_client_readonly");
 
+  await setViewport(ws, 390, 844, true);
+  await evalJson(ws, "document.querySelector('[data-nav=learn]').click()");
+  await waitFor(async () => {
+    const ok = await evalJson(ws, `(() => {
+      const frame = document.getElementById('learnFrame');
+      const box = frame.getBoundingClientRect();
+      const header = document.querySelector('.topbar').getBoundingClientRect();
+      const pop = document.getElementById('learnPop');
+      let framed = false;
+      try {
+        framed = frame.contentWindow.location.href.includes('nanen-newbie-training');
+      } catch (error) {
+        framed = true;
+      }
+      return document.getElementById('page-learn').classList.contains('active')
+        && frame.title === '南恩新人訓練'
+        && frame.src.startsWith('https://dashin-team.github.io/nanen-newbie-training/')
+        && pop.getAttribute('aria-label') === '新視窗開啟'
+        && pop.target === '_blank'
+        && !document.querySelector('#page-learn .guide-card')
+        && box.top <= header.bottom + 1
+        && box.left <= 1
+        && box.width >= 380
+        && box.bottom >= 820
+        && framed;
+    })()`);
+    if (!ok) throw new Error("訓練頁沒有整頁嵌入新人訓練");
+    return ok;
+  }, "training embed");
+  await wait(800);
+  await shot(ws, "mobile_training");
+
   await setViewport(ws, 1280, 800, false);
   await evalJson(ws, "document.querySelector('[data-nav=home]').click()");
   await wait(300);
