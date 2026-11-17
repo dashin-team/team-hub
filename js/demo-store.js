@@ -128,10 +128,10 @@ function seed() {
   ];
 
   const calendarEvents = [
-    calEvent(PEOPLE.lin, "約王先生喝咖啡", "visit", 0, "10:00", 0, "虛構。先聊近況，不先談商品。", false),
-    calEvent(PEOPLE.lin, "李小姐年度面談", "meet", 1, "14:30", 1, "虛構。帶保障檢視表。", false),
-    calEvent(PEOPLE.lin, "送件練習（示範）", "deal", -1, "16:00", 0, "虛構。不是真實送件。", true),
-    calEvent(PEOPLE.lin, "週三教材小課", "train", 2, "19:00", null, "虛構。團隊內部分享。", false),
+    calEvent(PEOPLE.lin, "約王先生喝咖啡", "visit", 0, "10:00", 0, "虛構。先聊近況，不先談商品。", false, { minutes: 60, reminder: "30m", companion: PEOPLE.manager }),
+    calEvent(PEOPLE.lin, "李小姐年度面談", "meet", 1, "14:30", 1, "虛構。帶保障檢視表。", false, { minutes: 90 }),
+    calEvent(PEOPLE.lin, "送件練習（示範）", "deal", -1, "16:00", 0, "虛構。不是真實送件。", true, { minutes: 60 }),
+    calEvent(PEOPLE.lin, "週三教材小課", "train", 2, "19:00", null, "虛構。團隊內部分享。", false, { minutes: 120 }),
     calEvent(PEOPLE.lin, "認識一位新人朋友", "recruit", -3, "11:00", null, "虛構。只是約喝咖啡。", true),
     calEvent(PEOPLE.lin, "整理客戶近況", "other", 4, null, null, "", false),
     calEvent(PEOPLE.lin, "上週已完成的約訪", "visit", -6, "09:30", 1, "", true),
@@ -207,7 +207,7 @@ function seed() {
   ];
 
   return {
-    version: 5,
+    version: 6,
     profiles,
     customers,
     policies,
@@ -289,18 +289,27 @@ function seed() {
     };
   }
 
-  function calEvent(owner, title, type, dayOffset, time, customerIndex, note, done) {
+  function calEvent(owner, title, type, dayOffset, time, customerIndex, note, done, extra = {}) {
+    const date = addDays(today, dayOffset);
+    const allDay = !time;
+    const starts = allDay ? new Date(`${date}T00:00:00`) : new Date(`${date}T${time}:00`);
+    const ends = allDay ? new Date(`${date}T23:59:00`) : new Date(starts.getTime() + (extra.minutes || 60) * 60000);
     return {
       id: uid(),
       team_id: DEMO_TEAM_ID,
       owner_id: owner,
       title,
-      event_date: addDays(today, dayOffset),
+      event_date: date,
       event_time: time,
       event_type: type,
       customer_id: customerIndex == null ? null : customers[customerIndex].id,
       note: note || "",
       is_done: Boolean(done),
+      all_day: allDay,
+      starts_at: starts.toISOString(),
+      ends_at: ends.toISOString(),
+      companion_id: extra.companion || null,
+      reminder: extra.reminder || "none",
       created_at: nowIso(),
       updated_at: nowIso(),
     };
@@ -339,7 +348,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 5 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 6 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -597,6 +606,13 @@ export function createDemoStore() {
       persist();
     },
 
+    async listTeammates() {
+      const me = requireProfile();
+      return state.profiles
+        .filter((item) => item.team_id === me.team_id)
+        .map((item) => ({ id: item.id, display_name: item.display_name }));
+    },
+
     async listCalendarEvents() {
       const me = requireProfile();
       return (state.calendar_events || []).filter((item) => {
@@ -612,6 +628,9 @@ export function createDemoStore() {
       if (norm.fields.customer_id) {
         const customer = state.customers.find((item) => item.id === norm.fields.customer_id && item.team_id === me.team_id);
         if (!customer || (!manager() && customer.owner_id !== me.id)) throw new Error("找不到這位客戶");
+      }
+      if (norm.fields.companion_id && !state.profiles.some((item) => item.id === norm.fields.companion_id && item.team_id === me.team_id)) {
+        throw new Error("陪同必須是同團隊的夥伴");
       }
       if (!state.calendar_events) state.calendar_events = [];
       if (input.id) {

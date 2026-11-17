@@ -25,7 +25,8 @@
 3. 看到成功之後，再新開一個查詢，貼上 `supabase/migrations/202411170002_social.sql`，再按 **Run**。
 4. 再貼上 `supabase/migrations/202411170003_client_profile.sql`，按 **Run**。這份加上名單欄位和五項度筆記。
 5. 再貼上 `supabase/migrations/202411170004_calendar.sql`，按 **Run**。這份是行事曆。
-6. 四份都只要執行一次。不要把 `scripts/` 裡的測試檔貼進去。
+6. 再貼上 `supabase/migrations/202411170005_calendar_times.sql`，按 **Run**。這份補上開始、結束、陪同和提醒。
+7. 五份都只要執行一次。不要把 `scripts/` 裡的測試檔貼進去。
 
 左側 **Table Editor** 應看得到 `teams`、`profiles`、`customers` 和 `social_accounts` 等資料表。
 

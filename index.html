@@ -5,25 +5,26 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117j 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117k 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117j">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117k">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117j",
-      "@hub/guides": "./js/guides.js?v=20261117j",
-      "@hub/store": "./js/store.js?v=20261117j",
-      "@hub/metrics": "./js/metrics.js?v=20261117j",
-      "@hub/config": "./js/config.js?v=20261117j",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117j",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117j",
-      "@hub/safe": "./js/safe-browser.js?v=20261117j",
-      "@hub/contest": "./js/contest.js?v=20261117j",
-      "@hub/profile": "./js/client-profile.js?v=20261117j",
-      "@hub/calendar": "./js/calendar.js?v=20261117j"
+      "@hub/app": "./js/app.js?v=20261117k",
+      "@hub/guides": "./js/guides.js?v=20261117k",
+      "@hub/store": "./js/store.js?v=20261117k",
+      "@hub/metrics": "./js/metrics.js?v=20261117k",
+      "@hub/config": "./js/config.js?v=20261117k",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117k",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117k",
+      "@hub/safe": "./js/safe-browser.js?v=20261117k",
+      "@hub/contest": "./js/contest.js?v=20261117k",
+      "@hub/profile": "./js/client-profile.js?v=20261117k",
+      "@hub/calendar": "./js/calendar.js?v=20261117k",
+      "@hub/team": "./js/team-schedule.js?v=20261117k"
     }
   }
   </script>
@@ -265,13 +266,14 @@
           <div class="seg cal-views" role="group" aria-label="行事曆檢視">
             <button type="button" data-cal-view="month">月</button>
             <button type="button" data-cal-view="week">週</button>
-            <button type="button" data-cal-view="list">清單</button>
+            <button type="button" data-cal-view="day">日</button>
           </div>
           <div class="cal-legend" id="calLegend"></div>
           <p class="muted" id="calScope"></p>
           <div id="calBoard"></div>
           <section class="panel" id="calStock"></section>
           <section class="panel manager-only" id="calTeam"></section>
+          <button class="cal-add" id="calAdd" type="button" aria-label="新增行程">＋</button>
         </section>
 
         <section class="page" id="page-social">
@@ -435,23 +437,34 @@
         <h3 id="calSheetTitle">活動</h3>
         <button class="icon-btn" id="calSheetClose" type="button" aria-label="關閉">✕</button>
       </div>
-      <div id="calDayList"></div>
       <form id="calForm" autocomplete="off">
         <input type="hidden" name="id">
         <input type="hidden" name="source" value="event">
+        <input type="hidden" name="event_type" id="calType" value="visit">
+        <input type="hidden" name="customer_id" id="calClient">
         <label class="field">標題<input name="title" required maxlength="200" placeholder="例如：約王先生喝咖啡"></label>
-        <div class="form-grid cols-2">
-          <label class="field">日期<input name="event_date" type="date" required></label>
-          <label class="field cal-event-only">時間（選填）<input name="event_time" type="time"></label>
+        <div class="field cal-event-only">
+          <span>項目</span>
+          <div class="type-pills" id="calTypes"></div>
         </div>
-        <label class="field cal-event-only">類型
-          <select name="event_type" id="calType"></select>
+        <label class="field cal-event-only">姓名
+          <input id="calClientSearch" placeholder="搜尋名單" autocomplete="off">
+          <div id="calClientList" class="cal-suggest"></div>
         </label>
-        <label class="field cal-event-only">連結客戶（選填）
-          <select name="customer_id" id="calClient"></select>
+        <label class="field cal-event-only">陪同
+          <select name="companion_id" id="calCompanion"></select>
         </label>
-        <label class="field cal-event-only">備註<textarea name="note" maxlength="4000"></textarea></label>
+        <label class="checkline cal-event-only"><input name="all_day" id="calAllDay" type="checkbox"> 全日</label>
+        <label class="field cal-task-only" hidden>日期<input name="event_date" id="calTaskDate" type="date"></label>
+        <label class="field cal-event-only">開始<input name="starts_at" type="datetime-local" required></label>
+        <label class="field cal-event-only">結束<input name="ends_at" type="datetime-local" required></label>
+        <label class="field cal-event-only">提醒
+          <select name="reminder" id="calReminder"></select>
+        </label>
+        <p class="muted cal-event-only" id="calReminderHint"></p>
+        <label class="field">備註<textarea name="note" maxlength="4000"></textarea></label>
         <label class="checkline"><input name="is_done" type="checkbox"> 已完成</label>
+        <label class="checkline cal-event-only"><input name="next_visit" id="calNextVisit" type="checkbox"> 安排下次約訪</label>
         <div class="row">
           <button class="btn" type="submit">儲存</button>
           <button class="btn secondary" id="calNew" type="button">改為新增</button>
@@ -462,6 +475,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117j"></script>
+  <script type="module" src="./js/app.js?v=20261117k"></script>
 </body>
 </html>

@@ -9,5 +9,6 @@ sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/
 sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/202411170002_social.sql
 sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/202411170003_client_profile.sql
 sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/202411170004_calendar.sql
+sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f supabase/migrations/202411170005_calendar_times.sql
 sudo -u postgres psql -d teamhub_test -v ON_ERROR_STOP=1 -f scripts/rls_checks.sql
 echo "RLS checks passed"

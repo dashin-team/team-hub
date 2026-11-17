@@ -231,7 +231,7 @@ try {
     return text;
   }, "member clients");
   await evalJson(ws, "document.querySelector('[data-nav=tasks]').click()");
-  await evalJson(ws, "document.querySelector('[data-cal-view=list]').click()");
+  await evalJson(ws, "document.querySelector('[data-cal-view=day]').click()");
   await waitFor(async () => {
     const text = await evalJson(ws, "document.getElementById('page-tasks').innerText");
     const team = await evalJson(ws, "document.getElementById('calTeam').innerText");
@@ -259,10 +259,16 @@ try {
   }, "calendar");
   await evalJson(ws, "document.querySelector('.cal-cell.today').click()");
   await waitFor(async () => {
-    const open = await evalJson(ws, "document.getElementById('calSheet').classList.contains('show')");
-    if (!open) throw new Error("沒有打開當天");
-    return open;
+    const text = await evalJson(ws, "document.getElementById('calBoard').innerText");
+    if (!text.includes("早會")) throw new Error("日檢視沒有團隊早會");
+    return text;
   }, "calendar day");
+  await evalJson(ws, "document.getElementById('calAdd').click()");
+  await waitFor(async () => {
+    const open = await evalJson(ws, "document.getElementById('calSheet').classList.contains('show')");
+    if (!open) throw new Error("沒有打開新增行程");
+    return open;
+  }, "calendar form");
   await evalJson(ws, `
     document.querySelector('#calForm [name=title]').value = '瀏覽器測試約訪';
     document.querySelector('#calForm [name=event_type]').value = 'visit';
@@ -270,7 +276,7 @@ try {
     true
   `);
   await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('calDayList').innerText");
+    const text = await evalJson(ws, "document.getElementById('calBoard').innerText");
     if (!text.includes("瀏覽器測試約訪")) throw new Error("活動沒有存進當天");
     return text;
   }, "calendar save");
