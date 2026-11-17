@@ -172,6 +172,15 @@ textarea { min-height: 110px; resize: vertical; }
 .guide-icon { font-size: 26px; line-height: 1; }
 .guide-card b { font-size: 15px; font-weight: 650; letter-spacing: 0.02em; }
 .guide-card small { color: var(--muted); font-size: 12px; }
+.contest-link { flex-direction: row; align-items: center; min-height: 72px; margin: 8px 0 12px; }
+.contest-frame {
+  width: 100%;
+  height: calc(100dvh - 230px);
+  min-height: 70vh;
+  border: 1px solid var(--line);
+  border-radius: 16px;
+  background: #fff;
+}
 .tool-card h3 { margin: 0 0 8px; font-size: 18px; letter-spacing: 0.14em; font-weight: 650; }
 .tool-card p { color: #5e564c; font-size: 14px; margin: 0 0 12px; }
 .tag-row { display: flex; flex-wrap: wrap; gap: 8px; }

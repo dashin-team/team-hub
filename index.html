@@ -5,22 +5,23 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117g 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117h 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
   <link rel="icon" href="./favicon.svg" type="image/svg+xml">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117g">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117h">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117g",
-      "@hub/guides": "./js/guides.js?v=20261117g",
-      "@hub/store": "./js/store.js?v=20261117g",
-      "@hub/metrics": "./js/metrics.js?v=20261117g",
-      "@hub/config": "./js/config.js?v=20261117g",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117g",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117g",
-      "@hub/safe": "./js/safe-browser.js?v=20261117g"
+      "@hub/app": "./js/app.js?v=20261117h",
+      "@hub/guides": "./js/guides.js?v=20261117h",
+      "@hub/store": "./js/store.js?v=20261117h",
+      "@hub/metrics": "./js/metrics.js?v=20261117h",
+      "@hub/config": "./js/config.js?v=20261117h",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117h",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117h",
+      "@hub/safe": "./js/safe-browser.js?v=20261117h",
+      "@hub/contest": "./js/contest.js?v=20261117h"
     }
   }
   </script>
@@ -180,7 +181,6 @@
           <div class="metric-grid" id="homeStats"></div>
           <div class="section-head"><h2>近期行程</h2><button type="button" data-nav="tasks">行事曆</button></div>
           <div id="homeSchedule"></div>
-          <div class="carousel" id="podium"></div>
           <div class="section-head"><h2>公告</h2><button type="button" class="manager-only" data-nav="announcements">管理</button></div>
           <div id="homeNotices"></div>
         </section>
@@ -240,70 +240,14 @@
 
         <section class="page" id="page-social">
           <h1 class="page-title">競賽</h1>
-          <p class="sub">看的是經營行動：粉絲成長、限動回報、貼文與 Reels。不需要 IG 密碼，也不用粉絲數定輸贏。</p>
-          <div id="socialStats" class="metric-grid"></div>
-          <div class="panel">
-            <div class="section-head" style="margin-top:0"><h2>粉絲成長</h2><span class="muted">相較前一筆</span></div>
-            <div id="socialRank"></div>
-          </div>
-          <div class="columns">
-            <form id="storyForm" class="panel">
-              <h3>每日限動回報</h3>
-              <p class="sub">同一天再送出會更新原紀錄。未回報不會被當成沒有發。</p>
-              <div class="form-grid cols-2">
-                <label class="field">日期<input name="story_date" type="date" required></label>
-                <label class="field">限動則數<input name="story_count" type="number" min="0" max="100" value="1"></label>
-              </div>
-              <label class="checkline"><input name="posted" type="checkbox" checked> 今天有發布限動</label>
-              <button class="btn" type="submit">儲存每日回報</button>
-              <div id="storyWeek" class="week" style="margin-top:12px"></div>
-            </form>
-            <form id="followerForm" class="panel">
-              <h3>粉絲數更新</h3>
-              <p class="sub">建議每週記一次。第一筆只當基準。</p>
-              <div class="form-grid cols-2">
-                <label class="field">日期<input name="snapshot_date" type="date" required></label>
-                <label class="field">目前粉絲數<input name="follower_count" type="number" min="0" step="1" placeholder="例如 1280" required></label>
-              </div>
-              <label class="checkline"><input name="verified" type="checkbox"> 已核對專業主控板或截圖</label>
-              <button class="btn" type="submit">儲存粉絲數</button>
-            </form>
-          </div>
-          <form id="accountForm" class="panel">
-            <h3>我的 Instagram</h3>
-            <p class="sub" id="accountStatus"></p>
-            <div class="form-grid cols-3">
-              <label class="field">帳號名稱<input name="instagram_username" required maxlength="40" placeholder="your.name"></label>
-              <label class="field">類型
-                <select name="account_type">
-                  <option value="personal">個人帳號</option>
-                  <option value="creator">創作者</option>
-                  <option value="business">商業帳號</option>
-                  <option value="unknown">還不確定</option>
-                </select>
-              </label>
-              <label class="field">主頁連結（選填）<input name="profile_url" type="url" placeholder="https://www.instagram.com/..."></label>
-            </div>
-            <button class="btn secondary" type="submit">儲存帳號</button>
-          </form>
-          <div class="panel" id="teamStories"></div>
-          <form id="postForm" class="panel">
-            <h3>貼文／Reels</h3>
-            <div class="form-grid cols-3">
-              <label class="field">發布日期<input name="published_on" type="date" required></label>
-              <label class="field">類型
-                <select name="content_type">
-                  <option value="post">一般貼文</option>
-                  <option value="reel">Reels</option>
-                </select>
-              </label>
-              <label class="field">連結（選填）<input name="permalink" type="url" placeholder="https://"></label>
-            </div>
-            <button class="btn" type="submit">新增發布紀錄</button>
-            <div class="table-wrap" id="postList" style="margin-top:12px"></div>
-          </form>
-          <p class="privacy-line" id="socialGoals"></p>
-          <p class="privacy-line">自動抓取 Instagram 尚未開放。權杖以後只放在伺服器。手動回報仍然可用。</p>
+          <a id="contestLink" class="guide-card contest-link" target="_blank" rel="noopener">
+            <span class="guide-icon" aria-hidden="true">🏆</span>
+            <span>
+              <b id="contestTitle">富邦 Q4 競賽獎勵</b>
+              <small>若下面沒有顯示，點這裡另開</small>
+            </span>
+          </a>
+          <iframe id="contestFrame" class="contest-frame" title="富邦 Q4 競賽獎勵"></iframe>
         </section>
 
         <section class="page" id="page-learn">
@@ -383,10 +327,8 @@
       </div>
       <div class="dock">
         <div class="dock-inner">
-          <button class="pill" type="button" data-nav="social">本週社群經營</button>
           <div class="fabs">
             <button class="fab" type="button" data-nav="tasks" aria-label="任務">任務</button>
-            <button class="fab" type="button" data-nav="social" aria-label="回報">回報</button>
             <button class="fab dark" id="secretaryBtn" type="button">秘書</button>
           </div>
         </div>
@@ -404,6 +346,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117g"></script>
+  <script type="module" src="./js/app.js?v=20261117h"></script>
 </body>
 </html>

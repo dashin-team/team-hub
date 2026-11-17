@@ -1,4 +1,4 @@
-import { addDays, isoDate, weekStart } from "@hub/metrics";
+import { addDays, isoDate } from "@hub/metrics";
 import { randomId, safeLocal, safeSession } from "@hub/safe";
 
 const STORAGE_KEY = "naneun-team-hub-demo-v1";
@@ -26,7 +26,6 @@ function nowIso() {
 
 function seed() {
   const today = isoDate();
-  const start = weekStart(today);
   const profiles = [
     ["admin", "梁仕翰", "admin", "han@example.com"],
     ["manager", "陳可恩", "manager", "keen@example.com"],
@@ -44,81 +43,6 @@ function seed() {
     created_at: nowIso(),
     updated_at: nowIso(),
   }));
-
-  const accounts = [
-    [PEOPLE.admin, "naneun.leader", "business", "manual", 980, 940],
-    [PEOPLE.manager, "naneun.digital", "creator", "manual", 640, 610],
-    [PEOPLE.lin, "zian.lin", "creator", "manual", 1280, 1160],
-    [PEOPLE.huang, "shihan.huang", "business", "manual", 860, 820],
-    [PEOPLE.zhang, "boyu.zhang", "creator", "manual", 2450, 2420],
-    [PEOPLE.wu, "xinyi.wu", "personal", "expired", 530, 520],
-  ].map(([owner, username, type, status, latest, prev]) => ({
-    id: uid(),
-    owner_id: owner,
-    username,
-    type,
-    status,
-    latest,
-    prev,
-  }));
-
-  const socialAccounts = accounts.map((a) => ({
-    id: a.id,
-    team_id: DEMO_TEAM_ID,
-    owner_id: a.owner_id,
-    platform: "instagram",
-    instagram_username: a.username,
-    profile_url: `https://www.instagram.com/${a.username}/`,
-    account_type: a.type,
-    connection_status: a.status,
-    consented_at: null,
-    last_synced_at: null,
-    created_at: nowIso(),
-    updated_at: nowIso(),
-  }));
-
-  const snapshots = accounts.flatMap((a) => [
-    snap(a, addDays(today, -7), a.prev, false),
-    snap(a, today, a.latest, true),
-  ]);
-
-  const stories = [];
-  const storyPlan = {
-    [PEOPLE.lin]: [true, true, true, false],
-    [PEOPLE.huang]: [true, false, true],
-    [PEOPLE.zhang]: [true, true, true, true, true],
-    [PEOPLE.admin]: [true, true],
-    [PEOPLE.manager]: [true],
-  };
-  for (const [owner, flags] of Object.entries(storyPlan)) {
-    const account = socialAccounts.find((item) => item.owner_id === owner);
-    flags.forEach((posted, index) => {
-      const date = addDays(start, index);
-      if (date > today) return;
-      stories.push({
-        id: uid(),
-        account_id: account.id,
-        team_id: DEMO_TEAM_ID,
-        owner_id: owner,
-        story_date: date,
-        posted,
-        story_count: posted ? (index % 3) + 1 : 0,
-        source: "manual",
-        note: "",
-        recorded_by: owner,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      });
-    });
-  }
-
-  const posts = [
-    post(PEOPLE.lin, "post", 0, "https://www.instagram.com/p/demo-service/"),
-    post(PEOPLE.lin, "reel", -1, "https://www.instagram.com/reel/demo-review/"),
-    post(PEOPLE.huang, "post", -2, "https://www.instagram.com/p/demo-care/"),
-    post(PEOPLE.zhang, "reel", -1, "https://www.instagram.com/reel/demo-brand/"),
-    post(PEOPLE.admin, "post", -3, "https://www.instagram.com/p/demo-team/"),
-  ];
 
   const customers = [
     customer("TH-1001", PEOPLE.lin, "王先生（示範）", "0912-000-101", ["車險", "醫療保障"], "03-18", "虛構資料。有小孩，偏好用 LINE 聯絡。"),
@@ -161,11 +85,11 @@ function seed() {
   ];
 
   const tasks = [
-    task(PEOPLE.admin, "看本週社群回報，找出需要協助的夥伴", false, 0),
+    task(PEOPLE.admin, "看本週客戶提醒，找出需要協助的夥伴", false, 0),
     task(PEOPLE.admin, "準備週四的 AI 指令小練習", false, 2),
     task(PEOPLE.lin, "關心三位客戶，訊息先寫好再送出", false, 0),
     task(PEOPLE.lin, "完成車險續保提醒的服務紀錄", true, -1),
-    task(PEOPLE.huang, "補上本週兩則限動", false, 0),
+    task(PEOPLE.huang, "整理本週要聯絡的客戶", false, 0),
     task(PEOPLE.manager, "整理新人可以用的素材連結", false, 1),
   ];
 
@@ -233,7 +157,7 @@ function seed() {
   ];
 
   return {
-    version: 2,
+    version: 3,
     profiles,
     customers,
     policies,
@@ -244,47 +168,7 @@ function seed() {
     courses,
     course_progress: courseProgress,
     announcements,
-    social_accounts: socialAccounts,
-    social_follower_snapshots: snapshots,
-    social_story_logs: stories,
-    social_posts: posts,
   };
-
-  function snap(account, date, count, verified) {
-    return {
-      id: uid(),
-      account_id: account.id,
-      team_id: DEMO_TEAM_ID,
-      owner_id: account.owner_id,
-      snapshot_date: date,
-      follower_count: count,
-      following_count: null,
-      source: "manual",
-      verified,
-      recorded_by: account.owner_id,
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    };
-  }
-
-  function post(owner, type, dayOffset, url) {
-    const account = socialAccounts.find((item) => item.owner_id === owner);
-    const date = addDays(today, dayOffset);
-    return {
-      id: uid(),
-      account_id: account.id,
-      team_id: DEMO_TEAM_ID,
-      owner_id: owner,
-      content_type: type,
-      published_at: `${date}T10:00:00`,
-      permalink: url,
-      source: "manual",
-      external_media_id: null,
-      recorded_by: owner,
-      created_at: nowIso(),
-      updated_at: nowIso(),
-    };
-  }
 
   function customer(code, owner, name, phone, tags, birthday, notes) {
     return {
@@ -374,7 +258,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 2 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 3 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -414,10 +298,6 @@ export function createDemoStore() {
     return `TH-${next}`;
   }
 
-  function ownAccount() {
-    const me = requireProfile();
-    return state.social_accounts.find((item) => item.owner_id === me.id) || null;
-  }
 
   return {
     mode: "demo",
@@ -812,166 +692,6 @@ export function createDemoStore() {
       if (!row || (row.owner_id !== me.id && me.role !== "admin")) throw new Error("找不到提醒");
       row.status = status;
       row.updated_at = nowIso();
-      persist();
-    },
-
-    async listSocialAccounts() {
-      const me = requireProfile();
-      return state.social_accounts.filter((item) => {
-        if (item.team_id !== me.team_id) return false;
-        return manager() || item.owner_id === me.id;
-      });
-    },
-
-    async saveSocialAccount(input) {
-      const me = requireProfile();
-      const existing = ownAccount();
-      if (existing) {
-        existing.instagram_username = input.instagram_username.trim().replace(/^@/, "");
-        existing.profile_url = input.profile_url?.trim() || null;
-        existing.account_type = input.account_type || "unknown";
-        existing.updated_at = nowIso();
-        persist();
-        return existing;
-      }
-      const row = {
-        id: uid(),
-        team_id: me.team_id,
-        owner_id: me.id,
-        platform: "instagram",
-        instagram_username: input.instagram_username.trim().replace(/^@/, ""),
-        profile_url: input.profile_url?.trim() || null,
-        account_type: input.account_type || "unknown",
-        connection_status: "manual",
-        consented_at: null,
-        last_synced_at: null,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      };
-      state.social_accounts.push(row);
-      persist();
-      return row;
-    },
-
-    async listSnapshots() {
-      const accounts = await this.listSocialAccounts();
-      const ids = new Set(accounts.map((item) => item.id));
-      return state.social_follower_snapshots.filter((item) => ids.has(item.account_id));
-    },
-
-    async upsertSnapshot(input) {
-      const me = requireProfile();
-      const account = ownAccount();
-      if (!account) throw new Error("請先建立自己的 IG 帳號");
-      const date = input.snapshot_date;
-      let row = state.social_follower_snapshots.find(
-        (item) => item.account_id === account.id && item.snapshot_date === date,
-      );
-      if (!row) {
-        row = {
-          id: uid(),
-          account_id: account.id,
-          team_id: me.team_id,
-          owner_id: me.id,
-          snapshot_date: date,
-          follower_count: input.follower_count,
-          following_count: null,
-          source: "manual",
-          verified: Boolean(input.verified),
-          recorded_by: me.id,
-          created_at: nowIso(),
-          updated_at: nowIso(),
-        };
-        state.social_follower_snapshots.push(row);
-      } else {
-        row.follower_count = input.follower_count;
-        row.verified = Boolean(input.verified);
-        row.source = "manual";
-        row.recorded_by = me.id;
-        row.updated_at = nowIso();
-      }
-      persist();
-      return row;
-    },
-
-    async listStories() {
-      const accounts = await this.listSocialAccounts();
-      const ids = new Set(accounts.map((item) => item.id));
-      return state.social_story_logs.filter((item) => ids.has(item.account_id));
-    },
-
-    async upsertStory(input) {
-      const me = requireProfile();
-      const account = ownAccount();
-      if (!account) throw new Error("請先建立自己的 IG 帳號");
-      let row = state.social_story_logs.find(
-        (item) => item.account_id === account.id && item.story_date === input.story_date,
-      );
-      if (!row) {
-        row = {
-          id: uid(),
-          account_id: account.id,
-          team_id: me.team_id,
-          owner_id: me.id,
-          story_date: input.story_date,
-          posted: input.posted,
-          story_count: input.story_count,
-          source: "manual",
-          note: "",
-          recorded_by: me.id,
-          created_at: nowIso(),
-          updated_at: nowIso(),
-        };
-        state.social_story_logs.push(row);
-      } else {
-        Object.assign(row, {
-          posted: input.posted,
-          story_count: input.story_count,
-          source: "manual",
-          recorded_by: me.id,
-          updated_at: nowIso(),
-        });
-      }
-      persist();
-      return row;
-    },
-
-    async listPosts() {
-      const accounts = await this.listSocialAccounts();
-      const ids = new Set(accounts.map((item) => item.id));
-      return state.social_posts
-        .filter((item) => ids.has(item.account_id))
-        .sort((a, b) => String(b.published_at).localeCompare(String(a.published_at)));
-    },
-
-    async savePost(input) {
-      const me = requireProfile();
-      const account = ownAccount();
-      if (!account) throw new Error("請先建立自己的 IG 帳號");
-      const row = {
-        id: uid(),
-        account_id: account.id,
-        team_id: me.team_id,
-        owner_id: me.id,
-        content_type: input.content_type,
-        published_at: `${input.published_on}T10:00:00`,
-        permalink: input.permalink || null,
-        source: "manual",
-        external_media_id: null,
-        recorded_by: me.id,
-        created_at: nowIso(),
-        updated_at: nowIso(),
-      };
-      state.social_posts.unshift(row);
-      persist();
-      return row;
-    },
-
-    async deletePost(id) {
-      const me = requireProfile();
-      const row = state.social_posts.find((item) => item.id === id);
-      if (!row || row.owner_id !== me.id) throw new Error("只能刪除自己的發布紀錄");
-      state.social_posts = state.social_posts.filter((item) => item.id !== id);
       persist();
     },
 
