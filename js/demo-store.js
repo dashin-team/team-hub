@@ -1,6 +1,7 @@
 import { normalizeEvent } from "@hub/calendar";
 import { addDays, canViewPerson, isoDate } from "@hub/metrics";
-import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
+import { cleanActions, redactNote, summarizeNoteLocal } from "@hub/contact";
+import { normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
 import { randomId, safeLocal, safeSession } from "@hub/safe";
 
 const STORAGE_KEY = "naneun-team-hub-demo-v1";
@@ -218,8 +219,34 @@ function seed() {
     announce("草稿：下週晨會", "這則還沒發布，一般夥伴不應該看到。", false),
   ];
 
+  const todayTw = taipeiDay();
+  const contactLogs = [
+    {
+      id: uid(),
+      team_id: DEMO_TEAM_ID,
+      owner_id: PEOPLE.lin,
+      customer_id: customers[0].id,
+      log_date: todayTw,
+      actions: ["訊息定聯"],
+      note: "虛構。他說小孩下週段考，想再看看教育金。答應週五前傳一份簡單比較。",
+      summary: "家人近況：小孩下週段考。\n在意的事：想再看看教育金。\n答應他的事：週五前傳一份簡單比較。",
+      created_at: nowIso(),
+    },
+    {
+      id: uid(),
+      team_id: DEMO_TEAM_ID,
+      owner_id: PEOPLE.lin,
+      customer_id: customers[0].id,
+      log_date: addDays(todayTw, -1),
+      actions: ["回覆限動"],
+      note: "虛構。回了他的咖啡限動，約好改天再聊近況。",
+      summary: "下次聯絡時間：改天再聊近況。",
+      created_at: new Date(Date.now() - 86400000).toISOString(),
+    },
+  ];
+
   return {
-    version: 11,
+    version: 12,
     profiles,
     customers,
     policies,
@@ -231,6 +258,7 @@ function seed() {
     courses,
     course_progress: courseProgress,
     announcements,
+    contact_logs: contactLogs,
   };
 
   function customer(code, owner, name, phone, tags, birthday, notes, extra = {}) {
@@ -361,7 +389,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 11 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 12 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -883,6 +911,44 @@ export function createDemoStore() {
       if (!row || row.owner_id !== me.id) throw new Error("只能維護自己的客戶");
       state.service_records = state.service_records.filter((item) => item.id !== id);
       persist();
+    },
+
+    async listContactLogs(customerId) {
+      const me = requireProfile();
+      return (state.contact_logs || []).filter((item) => {
+        if (item.team_id !== me.team_id) return false;
+        if (customerId && item.customer_id !== customerId) return false;
+        return ownerVisible(item.owner_id);
+      });
+    },
+
+    async saveContactLog(input) {
+      const me = requireProfile();
+      const customer = state.customers.find((item) => item.id === input.customer_id && item.team_id === me.team_id);
+      if (!customer || customer.owner_id !== me.id) throw new Error("只能維護自己的客戶");
+      const actions = cleanActions(input.actions);
+      const note = String(input.note || "").trim().slice(0, 4000);
+      const summary = String(input.summary || "").trim().slice(0, 2000);
+      if (!actions.length && !note) throw new Error("請先選今天做了什麼，或寫一句備註。");
+      const row = {
+        id: uid(),
+        team_id: me.team_id,
+        owner_id: me.id,
+        customer_id: customer.id,
+        log_date: taipeiDay(),
+        actions,
+        note,
+        summary,
+        created_at: nowIso(),
+      };
+      if (!state.contact_logs) state.contact_logs = [];
+      state.contact_logs.unshift(row);
+      persist();
+      return row;
+    },
+
+    async summarizeContactNote(note, customer) {
+      return { summary: summarizeNoteLocal(note), demo: true, redacted: redactNote(note, customer) };
     },
 
     async listReminders(customerId) {

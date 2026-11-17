@@ -149,6 +149,24 @@ begin
   exception
     when insufficient_privilege then null;
   end;
+  begin
+    insert into public.contact_logs (team_id, owner_id, customer_id, log_date, actions, note)
+    values (public.current_team_id(), '20000000-0000-4000-8000-000000000003', '30000000-0000-4000-8000-000000000001', current_date, array['訊息定聯'], '不該寫');
+    raise exception '主管不該替別人寫 FBFLI';
+  exception
+    when insufficient_privilege then null;
+  end;
+end $$;
+
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000003', true);
+insert into public.contact_logs (team_id, owner_id, customer_id, log_date, actions, note, summary)
+values (public.current_team_id(), auth.uid(), '30000000-0000-4000-8000-000000000001', current_date, array['訊息定聯'], '虛構紀錄', '在意的事：虛構');
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000002', true);
+do $$
+declare n int;
+begin
+  select count(*) into n from public.contact_logs;
+  if n <> 1 then raise exception '主管應看得到同區 FBFLI，實際 %', n; end if;
 end $$;
 
 select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000001', true);

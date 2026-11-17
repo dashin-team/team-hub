@@ -36,6 +36,7 @@ import {
   strategyFrom,
   taipeiDay,
 } from "@hub/profile";
+import { FBFLI_ACTIONS } from "@hub/contact";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
 import {
@@ -1173,6 +1174,166 @@ function nameButton(item) {
   return `<button class="name-line" type="button" data-action="open-client" data-id="${esc(item.id)}">${esc(item.display_name)}</button>`;
 }
 
+function taipeiLabel(iso = taipeiDay()) {
+  return String(iso || "").slice(0, 10).replace(/-/g, "/");
+}
+
+function micAvailable() {
+  return Boolean(window.SpeechRecognition || window.webkitSpeechRecognition);
+}
+
+function fbfliChips() {
+  return FBFLI_ACTIONS.map((action) =>
+    `<button class="fbfli-chip" type="button" data-fbfli-action="${esc(action)}" aria-pressed="false">${esc(action)}</button>`).join("");
+}
+
+function fbfliEditorHtml() {
+  const mic = micAvailable();
+  return `<p class="fbfli-date">${esc(taipeiLabel())}</p>
+    <div class="fbfli-chips">${fbfliChips()}</div>
+    <label class="field">備註
+      <div class="fbfli-note">
+        <textarea data-fbfli-note maxlength="4000" placeholder="今天聊了什麼"></textarea>
+        <button class="btn secondary fbfli-mic" type="button" data-fbfli-mic aria-label="語音輸入" ${mic ? "" : "hidden"}>🎤</button>
+      </div>
+    </label>
+    <p class="sub" data-fbfli-hint ${mic ? "hidden" : ""}>這台裝置沒有語音輸入，可以用鍵盤的聽寫。</p>
+    <button class="btn secondary" type="button" data-fbfli-sum>✨ 整理成重點</button>
+    <div data-fbfli-sumbox hidden>
+      <div class="row spread"><span>重點</span><span class="badge" data-fbfli-demo hidden>示範模式</span></div>
+      <textarea data-fbfli-summary maxlength="2000"></textarea>
+    </div>
+    <button class="btn" type="button" data-fbfli-save>儲存</button>`;
+}
+
+function contactHistoryHtml(logs) {
+  const rows = (logs || []).slice().sort((a, b) =>
+    String(b.log_date).localeCompare(String(a.log_date)) || String(b.created_at || "").localeCompare(String(a.created_at || "")));
+  if (!rows.length) return `<div class="empty">還沒有 FBFLI 紀錄。</div>`;
+  return `<div class="fbfli-history">${rows.map((item) => {
+    const actions = (item.actions || []).join("、");
+    const body = item.summary || item.note || "";
+    return `<article class="fbfli-log"><b>${esc(taipeiLabel(item.log_date))}</b>${actions ? ` ${esc(actions)}` : ""}${body ? `<p>${esc(body)}</p>` : ""}</article>`;
+  }).join("")}</div>`;
+}
+
+function pickRow(item, loggedToday) {
+  const mark = loggedToday ? `<span class="done-mark" aria-label="今天已紀錄">✓</span>` : "";
+  const button = clientsAreEditable()
+    ? `<button class="btn fbfli" type="button" data-action="open-fbfli" data-id="${esc(item.id)}">FBFLI</button>`
+    : "";
+  return `<div class="pick-row"><button class="name-line" type="button" data-action="open-client" data-id="${esc(item.id)}"><span>${esc(item.display_name)}</span>${mark}</button>${button}</div>`;
+}
+
+function resetFbfli(root) {
+  if (!root) return;
+  root.querySelectorAll("[data-fbfli-action]").forEach((button) => button.setAttribute("aria-pressed", "false"));
+  const note = root.querySelector("[data-fbfli-note]");
+  if (note) note.value = "";
+  const summary = root.querySelector("[data-fbfli-summary]");
+  if (summary) summary.value = "";
+  const box = root.querySelector("[data-fbfli-sumbox]");
+  if (box) box.hidden = true;
+  const demo = root.querySelector("[data-fbfli-demo]");
+  if (demo) demo.hidden = true;
+}
+
+function startDictation(textarea, button, hint) {
+  const Ctor = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!Ctor) {
+    button.hidden = true;
+    if (hint) hint.hidden = false;
+    return;
+  }
+  const rec = new Ctor();
+  rec.lang = "zh-TW";
+  rec.interimResults = false;
+  rec.onresult = (event) => {
+    const said = event.results?.[0]?.[0]?.transcript || "";
+    if (!said) return;
+    const base = textarea.value.trim();
+    textarea.value = base ? `${base}${said}` : said;
+  };
+  rec.onerror = () => {
+    button.hidden = true;
+    if (hint) hint.hidden = false;
+  };
+  try {
+    rec.start();
+  } catch {
+    button.hidden = true;
+    if (hint) hint.hidden = false;
+  }
+}
+
+function bindFbfli(root) {
+  if (!root || root.dataset.fbfliBound === "1") return;
+  root.dataset.fbfliBound = "1";
+  const mic = root.querySelector("[data-fbfli-mic]");
+  const note = root.querySelector("[data-fbfli-note]");
+  const hint = root.querySelector("[data-fbfli-hint]");
+  if (mic && note) {
+    if (!micAvailable()) {
+      mic.hidden = true;
+      if (hint) hint.hidden = false;
+    } else {
+      mic.addEventListener("click", () => startDictation(note, mic, hint));
+    }
+  }
+  root.querySelector("[data-fbfli-sum]")?.addEventListener("click", () => {
+    summarizeFbfli(root).catch((error) => toast(error.message || "沒有整理成功"));
+  });
+  root.querySelector("[data-fbfli-save]")?.addEventListener("click", () => {
+    saveFbfli(root).catch((error) => toast(error.message || "沒有儲存"));
+  });
+}
+
+async function summarizeFbfli(root) {
+  const note = root.querySelector("[data-fbfli-note]")?.value.trim() || "";
+  if (!note) {
+    toast("先寫一句備註，再整理成重點。");
+    return;
+  }
+  const customers = clientCache.length ? clientCache : await store.listCustomers();
+  const customer = customers.find((item) => item.id === root.dataset.customer);
+  const result = await store.summarizeContactNote(note, customer);
+  const box = root.querySelector("[data-fbfli-sumbox]");
+  const summary = root.querySelector("[data-fbfli-summary]");
+  const demo = root.querySelector("[data-fbfli-demo]");
+  if (box) box.hidden = false;
+  if (summary) summary.value = result.summary || "";
+  if (demo) demo.hidden = !result.demo;
+}
+
+async function saveFbfli(root) {
+  if (!clientsAreEditable()) return;
+  const actions = [...root.querySelectorAll("[data-fbfli-action][aria-pressed='true']")].map((button) => button.dataset.fbfliAction);
+  const note = root.querySelector("[data-fbfli-note]")?.value.trim() || "";
+  const box = root.querySelector("[data-fbfli-sumbox]");
+  const summary = box && !box.hidden ? (root.querySelector("[data-fbfli-summary]")?.value.trim() || "") : "";
+  if (!actions.length && !note) {
+    toast("請先選今天做了什麼，或寫一句備註。");
+    return;
+  }
+  await store.saveContactLog({ customer_id: root.dataset.customer, actions, note, summary });
+  toast("已記下今天的 FBFLI");
+  if (root.id === "fbfliSheet") root.hidden = true;
+  await renderClients();
+}
+
+function openFbfliSheet(customerId) {
+  if (!clientsAreEditable()) return;
+  const customer = clientCache.find((item) => item.id === customerId);
+  if (!customer) return;
+  const sheet = $("fbfliSheet");
+  sheet.dataset.customer = customer.id;
+  $("fbfliWho").textContent = customer.display_name;
+  $("fbfliDate").textContent = taipeiLabel();
+  resetFbfli(sheet);
+  bindFbfli(sheet);
+  sheet.hidden = false;
+}
+
 function clientFocusId() {
   const profile = me();
   if (!profile || profile.role !== "manager") return profile?.id || "";
@@ -1209,9 +1370,10 @@ function paintClientSwitch(profile, profiles) {
 
 async function renderClients() {
   const profile = me();
-  const [customers, profiles] = await Promise.all([
+  const [customers, profiles, logs] = await Promise.all([
     store.listCustomers(),
     store.listProfiles(),
+    store.listContactLogs(),
   ]);
   paintClientSwitch(profile, profiles);
   const focus = clientFocusId();
@@ -1232,9 +1394,13 @@ async function renderClients() {
   $("clientList").innerHTML = list.length
     ? list.map(nameButton).join("")
     : `<div class="empty">沒有符合的客戶。</div>`;
-  const picks = dailyClientPick(customers, focus, taipeiDay(), 30);
+  const today = taipeiDay();
+  const loggedToday = new Set(logs
+    .filter((item) => String(item.log_date).slice(0, 10) === today && item.owner_id === focus)
+    .map((item) => item.customer_id));
+  const picks = dailyClientPick(customers, focus, today, 30);
   $("clientPicks").innerHTML = picks.length
-    ? picks.map(nameButton).join("")
+    ? picks.map((item) => pickRow(item, loggedToday.has(item.id))).join("")
     : `<div class="empty">目前沒有客戶</div>`;
   clientCache = scoped;
   renderSourceChips(customers);
@@ -1285,10 +1451,11 @@ async function renderClientDetail(customers, profiles) {
     $("clientDetail").innerHTML = "";
     return;
   }
-  const [policies, records, reminders] = await Promise.all([
+  const [policies, records, reminders, logs] = await Promise.all([
     store.listPolicies(customer.id),
     store.listServiceRecords(customer.id),
     store.listReminders(customer.id),
+    store.listContactLogs(customer.id),
   ]);
   const canEdit = clientsAreEditable() && customer.owner_id === me().id;
   $("clientDetail").innerHTML = `<div class="panel" style="margin-top:12px">
@@ -1296,6 +1463,11 @@ async function renderClientDetail(customers, profiles) {
     <div class="row">${canEdit ? `<button class="btn secondary small" type="button" data-action="edit-client" data-id="${esc(customer.id)}">編輯</button>` : ""}<button class="btn secondary small" type="button" data-action="jump-analysis">五項度</button>${canEdit ? `<button class="btn danger small" type="button" data-action="archive-client" data-id="${esc(customer.id)}" data-archived="${customer.is_archived ? "1" : "0"}">${customer.is_archived ? "取消封存" : "封存"}</button>` : ""}</div></div>
     <p>${esc(customer.notes || "還沒有備註。")}</p>
     ${customer.birthday_md ? `<p class="muted">生日月日 ${esc(customer.birthday_md)}（不含年份）</p>` : ""}
+    <section class="fbfli-block" id="fbfliHistory">
+      <h3>FBFLI</h3>
+      ${canEdit ? `<div data-fbfli-root data-customer="${esc(customer.id)}">${fbfliEditorHtml()}</div>` : `<p class="muted">這是查看模式，只能看紀錄。</p>`}
+      ${contactHistoryHtml(logs)}
+    </section>
     <h3>保單摘要</h3>
     ${policies.map((item) => `<div class="list-item"><div><b>${esc(item.policy_category)}</b> ${esc(item.insurer_name || "")}<div class="muted">${esc(POLICY_STATUS[item.status] || item.status)} · 到期 ${formatDate(item.expiry_date)} · 續保提醒 ${formatDate(item.renewal_reminder_date)}${item.reference_last4 ? ` · 末四碼 ${esc(item.reference_last4)}` : ""}</div></div>${canEdit ? `<button class="btn secondary small" type="button" data-action="delete-policy" data-id="${esc(item.id)}">刪除</button>` : ""}</div>`).join("") || `<div class="empty">還沒有保單摘要。</div>`}
     ${canEdit ? `<form id="policyForm" data-customer="${esc(customer.id)}" class="form-grid cols-2" style="margin-top:10px">
@@ -1332,6 +1504,8 @@ async function renderClientDetail(customers, profiles) {
       <button class="btn" type="submit">新增提醒</button>
     </form>` : `<p class="muted">提醒屬於負責夥伴。主管可以查看客戶與服務，個人提醒預設不互相瀏覽。</p>`}
   </div>`;
+  const fbfliRoot = $("clientDetail").querySelector("[data-fbfli-root]");
+  if (fbfliRoot) bindFbfli(fbfliRoot);
 }
 
 async function renderAnnouncements() {
@@ -1455,6 +1629,10 @@ async function handleAction(event) {
       syncClientPanes();
       $("customerForm").scrollIntoView({ behavior: "smooth", block: "start" });
     }
+    if (target.dataset.action === "open-fbfli") {
+      openFbfliSheet(id);
+      return;
+    }
     if (target.dataset.action === "open-client") {
       coverageView = "gaps";
       if (clientTab === "new") clientTab = "list";
@@ -1540,6 +1718,13 @@ async function handleAction(event) {
 
 function bind() {
   document.body.addEventListener("click", (event) => {
+    if (event.target.closest("#videoTile")) {
+      const href = "https://nanen-video.netlify.app";
+      const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
+      if (standalone) location.assign(href);
+      else window.open(href, "_blank", "noopener");
+      return;
+    }
     const nav = event.target.closest("[data-nav]");
     if (nav) {
       event.preventDefault();
@@ -1559,6 +1744,11 @@ function bind() {
     }
   });
   document.body.addEventListener("click", (event) => {
+    const chip = event.target.closest("[data-fbfli-action]");
+    if (chip) {
+      chip.setAttribute("aria-pressed", chip.getAttribute("aria-pressed") === "true" ? "false" : "true");
+      return;
+    }
     if (event.target.closest("[data-action='toggle-task'], [data-action='toggle-event']")) return;
     handleAction(event);
   });
@@ -1586,6 +1776,8 @@ function bind() {
   });
   $("secretaryBtn").onclick = () => { $("secretary").hidden = false; };
   $("secretaryClose").onclick = () => { $("secretary").hidden = true; };
+  $("fbfliClose").onclick = () => { $("fbfliSheet").hidden = true; };
+  bindFbfli($("fbfliSheet"));
   if ($("assetSearch")) $("assetSearch").addEventListener("input", () => renderAssets());
   $("clientSearch").addEventListener("input", () => renderClients());
   $("rosterSearch").addEventListener("input", () => {
@@ -2097,7 +2289,13 @@ async function onPassword(event) {
   }
 }
 
+function registerServiceWorker() {
+  if (!("serviceWorker" in navigator)) return;
+  navigator.serviceWorker.register("./sw.js").catch(() => {});
+}
+
 async function main() {
+  registerServiceWorker();
   bind();
   try {
     store = await openStore();

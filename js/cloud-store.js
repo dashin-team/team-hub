@@ -2,7 +2,8 @@ import { accountEmail } from "@hub/account";
 import { normalizeEvent } from "@hub/calendar";
 import { canViewPerson } from "@hub/metrics";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/+esm";
-import { normalizeCustomerInput, PROFILE_TEXT_FIELDS } from "@hub/profile";
+import { cleanActions, redactNote, summarizeNoteLocal } from "@hub/contact";
+import { normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
 
 function fail(error, fallback) {
   if (!error) return;
@@ -452,6 +453,48 @@ export function createCloudStore(url, anonKey) {
     async deleteServiceRecord(id) {
       const { error } = await sb.from("service_records").delete().eq("id", id);
       fail(error, "服務紀錄沒有刪除");
+    },
+
+    async listContactLogs(customerId) {
+      let query = sb.from("contact_logs").select("*").order("log_date", { ascending: false }).order("created_at", { ascending: false });
+      if (customerId) query = query.eq("customer_id", customerId);
+      const { data, error } = await query;
+      if (error && /contact_logs|schema cache|does not exist|42P01/i.test(`${error.message || ""} ${error.code || ""}`)) return [];
+      fail(error, "讀取聯絡紀錄時發生問題");
+      const rowsOut = data || [];
+      if (profile?.role !== "manager") return rowsOut;
+      const people = await this.listProfiles();
+      return rowsOut.filter((item) => item.owner_id === profile.id || canViewPerson(profile, people.find((person) => person.id === item.owner_id)));
+    },
+
+    async saveContactLog(input) {
+      if (input.owner_id && input.owner_id !== profile.id) throw new Error("只能維護自己的客戶");
+      const actions = cleanActions(input.actions);
+      const note = String(input.note || "").trim().slice(0, 4000);
+      const summary = String(input.summary || "").trim().slice(0, 2000);
+      if (!actions.length && !note) throw new Error("請先選今天做了什麼，或寫一句備註。");
+      const { data, error } = await sb.from("contact_logs").insert({
+        team_id: profile.team_id,
+        owner_id: profile.id,
+        customer_id: input.customer_id,
+        log_date: taipeiDay(),
+        actions,
+        note,
+        summary,
+      }).select().single();
+      fail(error, "聯絡紀錄沒有儲存");
+      return data;
+    },
+
+    async summarizeContactNote(note, customer) {
+      const redacted = redactNote(note, customer);
+      try {
+        const { data, error } = await sb.functions.invoke("summarize-note", { body: { note: redacted } });
+        if (!error && data?.summary && !data.fallback) return { summary: String(data.summary).trim(), demo: false };
+      } catch {
+        /* 沒有密鑰或函式還沒部署時，改用本機整理。 */
+      }
+      return { summary: summarizeNoteLocal(note), demo: true };
     },
 
     async listReminders(customerId) {
