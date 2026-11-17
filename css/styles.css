@@ -73,8 +73,7 @@ textarea { min-height: 110px; resize: vertical; }
 }
 .drawer.open { transform: none; }
 .drawer-brand { padding: 4px 12px 16px; }
-.drawer-brand small { display: block; color: var(--muted); letter-spacing: 0.18em; font-size: 12px; }
-.drawer-brand b { display: block; margin-top: 4px; font-size: 20px; letter-spacing: 0.16em; font-weight: 650; }
+.drawer-brand small { display: block; color: var(--muted); letter-spacing: 0.04em; font-size: 12px; line-height: 1.45; }
 .drawer nav { display: grid; gap: 4px; }
 .drawer nav button {
   text-align: left; border: 0; background: transparent; border-radius: 12px;
@@ -284,9 +283,10 @@ body[data-page="home"] .schedule-item { padding-right: 76px; }
 .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
 body[data-role="member"] .manager-only,
-body[data-role="manager"] .admin-only,
+body:not([data-role="admin"]) .admin-only,
 body[data-mode="cloud"] .demo-only,
 body[data-mode="demo"] .cloud-only { display: none !important; }
+.client-tabs { margin: 4px 0 14px; }
 
 .stack { display: grid; gap: 10px; }
 .table-only { display: none; }

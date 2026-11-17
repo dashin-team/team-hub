@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117s 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117t 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon-32.png?v=20261117s" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117s">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117s">
+  <link rel="icon" href="./favicon-32.png?v=20261117t" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117t">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117t">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117s",
-      "@hub/guides": "./js/guides.js?v=20261117s",
-      "@hub/store": "./js/store.js?v=20261117s",
-      "@hub/metrics": "./js/metrics.js?v=20261117s",
-      "@hub/config": "./js/config.js?v=20261117s",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117s",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117s",
-      "@hub/safe": "./js/safe-browser.js?v=20261117s",
-      "@hub/contest": "./js/contest.js?v=20261117s",
-      "@hub/profile": "./js/client-profile.js?v=20261117s",
-      "@hub/calendar": "./js/calendar.js?v=20261117s",
-      "@hub/team": "./js/team-schedule.js?v=20261117s",
-      "@hub/roster": "./js/team-roster.js?v=20261117s",
-      "@hub/account": "./js/account.js?v=20261117s"
+      "@hub/app": "./js/app.js?v=20261117t",
+      "@hub/guides": "./js/guides.js?v=20261117t",
+      "@hub/store": "./js/store.js?v=20261117t",
+      "@hub/metrics": "./js/metrics.js?v=20261117t",
+      "@hub/config": "./js/config.js?v=20261117t",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117t",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117t",
+      "@hub/safe": "./js/safe-browser.js?v=20261117t",
+      "@hub/contest": "./js/contest.js?v=20261117t",
+      "@hub/profile": "./js/client-profile.js?v=20261117t",
+      "@hub/calendar": "./js/calendar.js?v=20261117t",
+      "@hub/team": "./js/team-schedule.js?v=20261117t",
+      "@hub/roster": "./js/team-roster.js?v=20261117t",
+      "@hub/account": "./js/account.js?v=20261117t"
     }
   }
   </script>
@@ -35,9 +35,9 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117s" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117t" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
-      <p class="sub">南恩團隊</p>
+      <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
   </div>
   <script>
@@ -54,7 +54,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117s" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117t" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -92,7 +92,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117s" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117t" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -149,8 +149,7 @@
     <div id="backdrop" class="backdrop"></div>
     <aside id="drawer" class="drawer" aria-label="功能選單">
       <div class="drawer-brand">
-        <small>南恩團隊</small>
-        <b>TEAM HUB</b>
+        <small>Fall in Love · Full Intelligent</small>
       </div>
       <nav>
         <button type="button" data-nav="home">總覽</button>
@@ -159,12 +158,11 @@
         <button type="button" data-nav="social">競賽</button>
         <button type="button" data-nav="learn">訓練</button>
         <button type="button" data-nav="ai">工具</button>
-        <button type="button" data-nav="roster">同仁名單</button>
+        <button type="button" class="admin-only" data-nav="roster">同仁名單</button>
         <button type="button" class="manager-only" data-nav="announcements">管理</button>
       </nav>
       <div class="drawer-foot">
         <div id="whoName"></div>
-        <div id="sideFoot">請勿輸入真實客戶個資</div>
         <span class="badge" id="modeBadge">示範資料</span>
         <label class="field demo-only" style="margin-top:10px">示範視角
           <select id="previewRole" aria-label="示範視角">
@@ -212,11 +210,16 @@
 
         <section class="page" id="page-clients">
           <h1 class="page-title">名單</h1>
-          <p class="sub">每位夥伴維護自己負責的客戶。主管看得到團隊，看不到別組。</p>
-          <input class="search" id="clientSearch" placeholder="搜尋客戶、標籤或備註">
-          <label class="checkline"><input id="showArchived" type="checkbox"> 顯示已封存</label>
-          <div id="clientList"></div>
-          <div id="clientDetail"></div>
+          <div class="seg client-tabs" id="clientTabs" role="group" aria-label="名單分頁">
+            <button type="button" data-client-tab="new" class="on">新增名單</button>
+            <button type="button" data-client-tab="list">現有名單</button>
+          </div>
+          <div id="clientListPane" hidden>
+            <input class="search" id="clientSearch" placeholder="搜尋客戶、標籤或備註">
+            <label class="checkline"><input id="showArchived" type="checkbox"> 顯示已封存</label>
+            <div id="clientList"></div>
+            <div id="clientDetail"></div>
+          </div>
           <form id="customerForm" class="panel client-form" autocomplete="off">
             <h3 id="customerFormTitle">新增名單</h3>
             <input type="hidden" name="id">
@@ -332,7 +335,6 @@
                 <label>目標<textarea name="strategy_goal" rows="3" maxlength="4000"></textarea></label>
               </div>
             </section>
-            <p class="privacy-line">請用虛構或已核准的資料。不要填身分證、病歷文件、完整保單號碼或銀行帳戶。</p>
             <div class="row">
               <button class="btn" type="submit">儲存名單</button>
               <button class="btn secondary" id="customerCancel" type="button" hidden>改為新增</button>
@@ -377,42 +379,7 @@
           <iframe id="contestFrame" class="contest-frame" title="富邦 Q4 競賽獎勵"></iframe>
         </section>
 
-        <section class="page" id="page-learn">
-          <h1 class="page-title">訓練</h1>
-          <p class="sub">教材與團隊素材放在同一個地方。學完就標記。</p>
-          <div class="panel" id="learnSummary"></div>
-          <div id="courseList"></div>
-          <div id="teamLearn" class="manager-only"></div>
-          <form id="courseForm" class="panel manager-only">
-            <h3>新增教材</h3>
-            <label class="field">標題<input name="title" required maxlength="80"></label>
-            <label class="field">說明<input name="description" maxlength="400"></label>
-            <label class="field">教材連結（選填，https）<input name="content_url" type="url" placeholder="https://"></label>
-            <button class="btn" type="submit">發布教材</button>
-          </form>
-          <div class="section-head"><h2>素材庫</h2></div>
-          <p class="sub">正式檔案請用公司核准的雲端連結。</p>
-          <input class="search" id="assetSearch" placeholder="搜尋素材名稱或用途">
-          <div class="tag-row" id="assetCats"></div>
-          <div id="assetList" style="margin-top:12px"></div>
-          <form id="assetForm" class="panel manager-only">
-            <h3>新增素材入口</h3>
-            <div class="form-grid cols-2">
-              <label class="field">名稱<input name="title" required maxlength="80"></label>
-              <label class="field">分類
-                <select name="category">
-                  <option>社群貼文</option>
-                  <option>客戶服務</option>
-                  <option>簡報教材</option>
-                  <option>節慶活動</option>
-                </select>
-              </label>
-            </div>
-            <label class="field">用途說明<input name="description" maxlength="200"></label>
-            <label class="field">https 連結（選填）<input name="external_url" type="url" placeholder="https://"></label>
-            <button class="btn" type="submit">加入素材庫</button>
-          </form>
-        </section>
+        <section class="page" id="page-learn"></section>
 
         <section class="page" id="page-ai">
           <h1 class="page-title">工具</h1>
@@ -460,7 +427,7 @@
           </form>
           <p class="privacy-line demo-only">示範模式不會寄信。接上 Supabase 並部署邀請功能後才能邀請。</p>
         </section>
-        <p class="footer">南恩團隊 TEAM HUB · 請勿輸入真實客戶個資</p>
+        <p class="footer">Fall in Love · Full Intelligent</p>
       </div>
       <div class="dock">
         <div class="dock-inner">
@@ -574,6 +541,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117s"></script>
+  <script type="module" src="./js/app.js?v=20261117t"></script>
 </body>
 </html>

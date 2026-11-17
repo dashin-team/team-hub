@@ -158,7 +158,7 @@ try {
   await wait(200);
   await shot(ws, "mobile_home");
 
-  await evalJson(ws, "document.querySelector('[data-nav=clients]').click()");
+  await evalJson(ws, "document.querySelector('[data-nav=clients]').click(); document.querySelector('[data-client-tab=list]').click()");
   await waitFor(async () => {
     const text = await evalJson(ws, "document.getElementById('page-clients').classList.contains('active') ? document.getElementById('clientList').innerText : ''");
     if (!text.includes("王先生")) throw new Error("客戶列表還沒出現");
@@ -239,7 +239,7 @@ try {
     if (role !== "member") throw new Error(role);
     return role;
   }, "member role");
-  await evalJson(ws, "document.querySelector('[data-nav=clients]').click()");
+  await evalJson(ws, "document.querySelector('[data-nav=clients]').click(); document.querySelector('[data-client-tab=list]').click()");
   await waitFor(async () => {
     const text = await evalJson(ws, "document.getElementById('clientList').innerText");
     if (!text.includes("王先生") || text.includes("陳媽媽")) throw new Error(`夥伴看到不該看的客戶: ${text}`);
@@ -318,7 +318,7 @@ try {
   }, "tools shot");
   await evalJson(ws, "window.scrollTo(0,0)");
   await shot(ws, "mobile_tools");
-  await evalJson(ws, "document.querySelector('[data-nav=clients]').click()");
+  await evalJson(ws, "document.querySelector('[data-nav=clients]').click(); document.querySelector('[data-client-tab=list]').click()");
   await waitFor(async () => {
     const text = await evalJson(ws, "document.getElementById('clientList').innerText");
     if (!text.includes("王先生")) throw new Error(text);
