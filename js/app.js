@@ -27,6 +27,7 @@ import {
   gridCells,
   parseRoc,
   relationLabel,
+  upcomingBirthdays,
   renderAnalysisPng,
   rocLabel,
 } from "@hub/profile";
@@ -261,6 +262,16 @@ async function renderHome() {
   ];
   $("homeStats").innerHTML = metrics.map(([value, label, dest]) =>
     `<button class="metric" type="button" data-nav="${dest}"><b>${esc(value)}</b><span>${esc(label)} →</span></button>`).join("");
+  const birthdays = upcomingBirthdays(
+    customers.filter((item) => !item.is_archived && item.owner_id === profile.id),
+    today,
+    30,
+  );
+  $("homeBirthdays").innerHTML = birthdays.length ? birthdays.map((item) => `
+    <button class="bday-row ${item.days === 0 ? "today" : ""}" type="button" data-action="open-birthday" data-id="${esc(item.id)}">
+      <span><b>${esc(item.name)}</b><small> ${item.month}/${item.day}${item.age != null ? ` · ${item.age} 歲` : ""}</small></span>
+      <b>${item.days === 0 ? "今天生日🎂" : `還有 ${item.days} 天`}</b>
+    </button>`).join("") : `<div class="empty">近 30 天沒有客戶生日</div>`;
   $("homeSchedule").innerHTML = agenda.slice(0, 2).map((item) =>
     `<div class="schedule-item"><span>${esc(item.title)}</span><small class="muted">${esc(item.kind)} ${formatDate(item.date)}</small></div>`).join("")
     || `<div class="schedule-empty">（此區間沒有行程）</div>`;
@@ -734,12 +745,98 @@ function paintAnalysis() {
   $("relationText").textContent = label || "請選擇";
 }
 
+const CONTACT_OPTIONS = ["LINE", "IG", "FB", "Threads"];
+const SOURCE_OPTIONS = ["緣故", "陌開", "轉介紹", "其他"];
+
+function splitList(value) {
+  return String(value || "").split(/[,，、]/).map((item) => item.trim()).filter(Boolean);
+}
+
+function syncContactMethod() {
+  const selected = [...document.querySelectorAll("#contactChips button.on")].map((button) => button.dataset.contact);
+  const legacy = splitList($("contactChips").dataset.legacy);
+  $("contactMethod").value = [...selected, ...legacy].join(",");
+  paintAnalysis();
+}
+
+function setContactChips(value) {
+  const parts = splitList(value);
+  const known = new Set(parts.filter((item) => CONTACT_OPTIONS.includes(item)));
+  const legacy = parts.filter((item) => !CONTACT_OPTIONS.includes(item));
+  $("contactChips").dataset.legacy = legacy.join(",");
+  document.querySelectorAll("#contactChips button").forEach((button) => {
+    button.classList.toggle("on", known.has(button.dataset.contact));
+  });
+  $("contactLegacy").hidden = legacy.length === 0;
+  $("contactLegacy").textContent = legacy.length ? `原紀錄：${legacy.join("、")}` : "";
+  $("contactMethod").value = [...CONTACT_OPTIONS.filter((item) => known.has(item)), ...legacy].join(",");
+}
+
+function syncLeadSource() {
+  const selected = document.querySelector("#sourceChips button.on");
+  const legacy = $("sourceChips").dataset.legacy || "";
+  $("leadSource").value = selected ? selected.dataset.source : legacy;
+  paintAnalysis();
+}
+
+let clientCache = [];
+
+function sourceOptionsFor(customers, extra = "") {
+  const ownerId = me()?.id;
+  const values = [...SOURCE_OPTIONS];
+  const seen = new Set(values);
+  for (const customer of customers || []) {
+    if (ownerId && customer.owner_id !== ownerId) continue;
+    const text = String(customer.lead_source || "").trim();
+    if (!text || seen.has(text)) continue;
+    seen.add(text);
+    values.push(text);
+  }
+  const more = String(extra || "").trim();
+  if (more && !seen.has(more)) values.push(more);
+  return values;
+}
+
+function renderSourceChips(customers = clientCache, extra = "") {
+  const current = $("leadSource")?.value || extra;
+  const choices = sourceOptionsFor(customers, extra || current);
+  $("sourceChips").innerHTML = `${choices.map((item) =>
+    `<button type="button" data-source="${esc(item)}">${esc(item)}</button>`).join("")}<button type="button" id="sourceAdd">＋新增</button>`;
+  setLeadSource(current);
+}
+
+function setLeadSource(value) {
+  const text = String(value || "").trim();
+  const buttons = [...document.querySelectorAll("#sourceChips [data-source]")];
+  const known = buttons.some((button) => button.dataset.source === text);
+  $("sourceChips").dataset.legacy = known || !text ? "" : text;
+  buttons.forEach((button) => button.classList.toggle("on", button.dataset.source === text));
+  $("sourceLegacy").hidden = known || !text;
+  $("sourceLegacy").textContent = known || !text ? "" : `原紀錄：${text}`;
+  $("leadSource").value = text;
+}
+
+function commitCustomSource() {
+  const text = $("sourceCustom").value.trim();
+  $("sourceCustom").value = "";
+  $("sourceCustom").hidden = true;
+  if (!text) return;
+  if (text.length > 80) {
+    toast("客戶來源請在 80 字以內。");
+    return;
+  }
+  renderSourceChips(clientCache, text);
+  setLeadSource(text);
+  paintAnalysis();
+}
+
 function fillCustomerForm(customer) {
   const form = $("customerForm");
   mountAnalysisFields();
   form.elements.id.value = customer.id || "";
   form.elements.display_name.value = customer.display_name || "";
   form.elements.nickname.value = customer.nickname || "";
+  form.elements.referrer.value = customer.referrer || "";
   form.elements.birth_roc.value = rocLabel(customer.birth_date);
   $("birthPicker").value = customer.birth_date ? String(customer.birth_date).slice(0, 10) : "";
   form.elements.birthday_md_keep.value = customer.birth_date ? "" : (customer.birthday_md || "");
@@ -747,10 +844,9 @@ function fillCustomerForm(customer) {
     radio.checked = radio.value === customer.gender;
   });
   form.elements.phone.value = customer.phone || "";
-  form.elements.referrer.value = customer.referrer || "";
-  form.elements.contact_method.value = customer.contact_method || "";
+  setContactChips(customer.contact_method || "");
   form.elements.hobbies.value = customer.hobbies || "";
-  form.elements.lead_source.value = customer.lead_source || "";
+  setLeadSource(customer.lead_source || "");
   form.elements.notes.value = customer.notes || "";
   form.elements.relation_social.value = customer.relation_social || "";
   form.elements.relation_business.value = customer.relation_business || "";
@@ -837,6 +933,8 @@ async function renderClients() {
   const emptyClients = `<div class="empty">沒有符合的客戶。</div>`;
   $("clientList").innerHTML = clientRows.length ? clientRows.map(({ item, tags, owner, code, follow }) =>
     `<button class="person" type="button" data-action="open-client" data-id="${esc(item.id)}"><span class="ava">${esc(item.display_name.slice(0, 1))}</span><span><b>${esc(item.display_name)}</b><small class="muted">${code} · ${owner}</small><div>${tags}</div>${follow}</span></button>`).join("") : emptyClients;
+  clientCache = customers;
+  renderSourceChips(customers);
   paintAnalysis();
   if (!selectedCustomerId || !customers.some((item) => item.id === selectedCustomerId)) {
     $("clientDetail").innerHTML = "";
@@ -950,6 +1048,9 @@ function resetCustomerForm() {
   $("customerForm").reset();
   $("customerForm").elements.id.value = "";
   $("birthPicker").value = "";
+  setContactChips("");
+  renderSourceChips();
+  setLeadSource("");
   $("customerFormTitle").textContent = "新增名單";
   $("customerCancel").hidden = true;
   if (me()) $("customerOwner").value = me().id;
@@ -995,6 +1096,18 @@ async function handleAction(event) {
     if (target.dataset.action === "coverage-tab") {
       coverageView = target.dataset.tab === "policies" ? "policies" : "gaps";
       await renderClients();
+    }
+    if (target.dataset.action === "open-birthday") {
+      selectedCustomerId = id;
+      page = "clients";
+      const url = new URL(location.href);
+      url.searchParams.set("page", "clients");
+      history.pushState({}, "", url);
+      const customers = await store.listCustomers();
+      const customer = customers.find((item) => item.id === id);
+      await renderPage();
+      if (customer) fillCustomerForm(customer);
+      $("clientDetail").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (target.dataset.action === "open-client") {
       coverageView = "gaps";
@@ -1214,6 +1327,34 @@ function bind() {
   $("assetForm").addEventListener("submit", onAsset);
   $("courseForm").addEventListener("submit", onCourse);
   $("customerForm").addEventListener("submit", onCustomer);
+  $("contactChips").addEventListener("click", (event) => {
+    const button = event.target.closest("[data-contact]");
+    if (!button) return;
+    button.classList.toggle("on");
+    syncContactMethod();
+  });
+  $("sourceChips").addEventListener("click", (event) => {
+    if (event.target.closest("#sourceAdd")) {
+      $("sourceCustom").hidden = false;
+      $("sourceCustom").focus();
+      return;
+    }
+    const button = event.target.closest("[data-source]");
+    if (!button) return;
+    const on = button.classList.contains("on");
+    document.querySelectorAll("#sourceChips [data-source]").forEach((item) => item.classList.remove("on"));
+    $("sourceChips").dataset.legacy = "";
+    $("sourceLegacy").hidden = true;
+    if (!on) button.classList.add("on");
+    syncLeadSource();
+  });
+  $("sourceCustom").addEventListener("keydown", (event) => {
+    if (event.key === "Enter") {
+      event.preventDefault();
+      commitCustomSource();
+    }
+  });
+  $("sourceCustom").addEventListener("change", commitCustomSource);
   $("customerForm").addEventListener("input", paintAnalysis);
   $("customerForm").addEventListener("change", paintAnalysis);
   $("relationOpen").onclick = openRelation;

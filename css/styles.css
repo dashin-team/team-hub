@@ -415,6 +415,16 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 .cal-count i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; margin-right: 6px; }
 .cal-team { width: 100%; font-size: 12px; }
 .cal-team td small { display: block; color: var(--muted); line-height: 1.45; }
+.chip-field { margin: 8px 0 12px; }
+.source-custom { display: block; width: 100%; margin-top: 8px; border: 1px solid var(--line); border-radius: 999px; padding: 8px 12px; background: #fff; }
+.bday-row {
+  width: 100%; display: flex; justify-content: space-between; gap: 8px; align-items: center;
+  text-align: left; background: var(--soft); border: 1px solid var(--line); border-radius: 14px;
+  padding: 10px 12px; margin-bottom: 8px;
+}
+.bday-row.today { background: #fff6e8; border-color: #e4c98a; }
+.bday-row small { color: var(--muted); }
+.chip-field > span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
 .type-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .type-pills button {
   border: 1px solid var(--line); background: #fff; border-radius: 999px; padding: 6px 10px; font-size: 13px;

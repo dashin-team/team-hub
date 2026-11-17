@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117q 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117r 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon-32.png?v=20261117q" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117q">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117q">
+  <link rel="icon" href="./favicon-32.png?v=20261117r" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117r">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117r">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117q",
-      "@hub/guides": "./js/guides.js?v=20261117q",
-      "@hub/store": "./js/store.js?v=20261117q",
-      "@hub/metrics": "./js/metrics.js?v=20261117q",
-      "@hub/config": "./js/config.js?v=20261117q",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117q",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117q",
-      "@hub/safe": "./js/safe-browser.js?v=20261117q",
-      "@hub/contest": "./js/contest.js?v=20261117q",
-      "@hub/profile": "./js/client-profile.js?v=20261117q",
-      "@hub/calendar": "./js/calendar.js?v=20261117q",
-      "@hub/team": "./js/team-schedule.js?v=20261117q",
-      "@hub/roster": "./js/team-roster.js?v=20261117q",
-      "@hub/account": "./js/account.js?v=20261117q"
+      "@hub/app": "./js/app.js?v=20261117r",
+      "@hub/guides": "./js/guides.js?v=20261117r",
+      "@hub/store": "./js/store.js?v=20261117r",
+      "@hub/metrics": "./js/metrics.js?v=20261117r",
+      "@hub/config": "./js/config.js?v=20261117r",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117r",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117r",
+      "@hub/safe": "./js/safe-browser.js?v=20261117r",
+      "@hub/contest": "./js/contest.js?v=20261117r",
+      "@hub/profile": "./js/client-profile.js?v=20261117r",
+      "@hub/calendar": "./js/calendar.js?v=20261117r",
+      "@hub/team": "./js/team-schedule.js?v=20261117r",
+      "@hub/roster": "./js/team-roster.js?v=20261117r",
+      "@hub/account": "./js/account.js?v=20261117r"
     }
   }
   </script>
@@ -35,7 +35,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117q" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117r" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">南恩團隊</p>
     </div>
@@ -54,7 +54,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117q" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117r" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -92,7 +92,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117q" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117r" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -202,6 +202,8 @@
             </div>
           </article>
           <div class="metric-grid" id="homeStats"></div>
+          <div class="section-head"><h2>客戶生日</h2></div>
+          <div id="homeBirthdays"></div>
           <div class="section-head"><h2>近期行程</h2><button type="button" data-nav="tasks">行事曆</button></div>
           <div id="homeSchedule"></div>
           <div class="section-head"><h2>公告</h2><button type="button" class="manager-only" data-nav="announcements">管理</button></div>
@@ -223,7 +225,8 @@
             <input type="hidden" name="relation_business" id="relationBusiness">
             <label class="npss"><span>姓名</span><input name="display_name" required maxlength="80" placeholder="王先生（示範）"></label>
             <label class="npss manager-only"><span>負責人</span><select name="owner_id" id="customerOwner"></select></label>
-            <label class="npss"><span>暱稱</span><input name="nickname" maxlength="80"></label>
+            <input type="hidden" name="nickname" id="nicknameKeep">
+            <input type="hidden" name="referrer" id="referrerKeep">
             <div class="npss">
               <label for="birthRoc">生日</label>
               <input id="birthRoc" name="birth_roc" inputmode="numeric" maxlength="12" placeholder="92/03/15" autocomplete="off">
@@ -237,11 +240,26 @@
                 <label><input type="radio" name="gender" value="女"> 女</label>
               </div>
             </div>
-            <label class="npss"><span>手機1</span><input name="phone" maxlength="30" inputmode="tel"></label>
-            <label class="npss"><span>介紹人</span><input name="referrer" maxlength="80"></label>
-            <label class="npss"><span>聯絡方式</span><input name="contact_method" maxlength="120" placeholder="LINE、電話或見面"></label>
+            <label class="npss"><span>手機</span><input name="phone" maxlength="30" inputmode="tel"></label>
+            <div class="chip-field">
+              <span>聯絡方式</span>
+              <div class="type-pills" id="contactChips">
+                <button type="button" data-contact="LINE">LINE</button>
+                <button type="button" data-contact="IG">IG</button>
+                <button type="button" data-contact="FB">FB</button>
+                <button type="button" data-contact="Threads">Threads</button>
+              </div>
+              <p class="muted" id="contactLegacy" hidden></p>
+              <input type="hidden" name="contact_method" id="contactMethod">
+            </div>
             <label class="npss"><span>興趣/嗜好</span><input name="hobbies" maxlength="200"></label>
-            <label class="npss"><span>客戶來源</span><input name="lead_source" maxlength="80"></label>
+            <div class="chip-field">
+              <span>客戶來源</span>
+              <div class="type-pills" id="sourceChips"></div>
+              <input id="sourceCustom" class="source-custom" hidden maxlength="80" placeholder="輸入來源" aria-label="自訂客戶來源">
+              <p class="muted" id="sourceLegacy" hidden></p>
+              <input type="hidden" name="lead_source" id="leadSource">
+            </div>
             <button class="npss relation-open" id="relationOpen" type="button">
               <span>關係定位</span>
               <strong id="relationText">請選擇</strong>
@@ -505,6 +523,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117q"></script>
+  <script type="module" src="./js/app.js?v=20261117r"></script>
 </body>
 </html>

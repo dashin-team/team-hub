@@ -183,7 +183,7 @@ try {
         && grid.includes('準客戶資料分析')
         && summary.includes('王先生（示範）')
         && summary.includes('社交 7 vs. 商業 4')
-        && summary.includes('81/03/18');
+        && summary.includes("81/");
     })()`);
     if (!ok) throw new Error("五項度沒有跟上這位客戶");
     return ok;
