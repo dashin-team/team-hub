@@ -141,6 +141,22 @@ export function createCloudStore(url, anonKey) {
       if (error) throw new Error("密碼沒有更新。請用至少 8 個字元，且不要和現在的相同。");
     },
 
+    async setAvatar(blob) {
+      if (!profile?.id) throw new Error("請先登入");
+      const path = `${profile.id}/avatar.jpg`;
+      const { error: uploadError } = await sb.storage.from("avatars").upload(path, blob, {
+        upsert: true,
+        contentType: "image/jpeg",
+        cacheControl: "3600",
+      });
+      if (uploadError) throw new Error("頭像沒有上傳");
+      const { data } = sb.storage.from("avatars").getPublicUrl(path);
+      const avatarUrl = `${data.publicUrl}?v=${Date.now()}`;
+      const { error } = await sb.from("profiles").update({ avatar_url: avatarUrl }).eq("id", profile.id);
+      if (error) throw new Error("頭像沒有儲存");
+      profile.avatar_url = avatarUrl;
+    },
+
     async markPasswordChanged() {
       const { error } = await sb.rpc("mark_password_changed");
       if (error) throw new Error("新密碼已設定，但登入狀態沒有更新。請再試一次。");

@@ -212,14 +212,13 @@ function seed() {
   }));
 
   const announcements = [
-    announce("歡迎使用南恩團隊 TEAM HUB", "這裡集中每天會用到的工具、教材、客戶服務與社群紀錄。先從示範資料熟悉操作，公司核准前不要輸入真實客戶資料。", true),
-    announce("個資及資訊安全提醒", "請勿輸入身分證字號、病歷、完整保單號碼、銀行帳戶，也不要把可識別客戶的資料貼進未核准的 AI 工具。", true),
+    announce("歡迎使用南恩團隊 TEAM HUB", "這裡集中每天會用到的工具、教材、客戶服務與社群紀錄。", true),
     announce("素材使用原則", "對外發布前，請確認商品資訊、活動日期、費率及公司規範都是最新且已經核准。", true),
     announce("草稿：下週晨會", "這則還沒發布，一般夥伴不應該看到。", false),
   ];
 
   return {
-    version: 9,
+    version: 10,
     profiles,
     customers,
     policies,
@@ -361,7 +360,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 9 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 10 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -448,6 +447,20 @@ export function createDemoStore() {
     async updatePassword() {},
 
     async markPasswordChanged() {},
+
+    async setAvatar(blob) {
+      const me = requireProfile();
+      const dataUrl = await new Promise((resolve, reject) => {
+        const reader = new FileReader();
+        reader.onload = () => resolve(String(reader.result || ""));
+        reader.onerror = () => reject(new Error("頭像沒有存好"));
+        reader.readAsDataURL(blob);
+      });
+      const row = state.profiles.find((item) => item.id === me.id);
+      if (!row) throw new Error("找不到示範身分");
+      row.avatar_url = dataUrl;
+      persist();
+    },
 
     async listTeamRoster() {
       return [];
