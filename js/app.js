@@ -1,4 +1,13 @@
 import { CURRENT_CONTEST } from "@hub/contest";
+import {
+  ANALYSIS_SECTIONS,
+  filledCount,
+  gridCells,
+  parseRoc,
+  relationLabel,
+  renderAnalysisPng,
+  rocLabel,
+} from "@hub/profile";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
 import {
@@ -12,7 +21,6 @@ import {
   canManageTeam,
   esc,
   formatDate,
-  isBirthdayMd,
   isHttpsUrl,
   isLast4,
   isoDate,
@@ -112,10 +120,6 @@ function applyRoleChrome() {
 
 function readForm(form) {
   return Object.fromEntries(new FormData(form).entries());
-}
-
-function tagsFrom(value) {
-  return String(value || "").split(/[、,，]/).map((item) => item.trim()).filter(Boolean);
 }
 
 async function renderPage() {
@@ -307,6 +311,112 @@ async function renderTasks() {
     || `<div class="empty">目前沒有任務。先加一件今天想完成的事。</div>`;
 }
 
+function mountAnalysisFields() {
+  const root = $("analysisFields");
+  if (!root || root.dataset.ready) return;
+  root.innerHTML = ANALYSIS_SECTIONS.map((section) => {
+    if (section.auto) {
+      return `<div class="note-block" id="sec-${section.n}"><div class="note-title">${section.n}. ${esc(section.title)}</div><pre id="profileSummary" class="auto-summary"></pre></div>`;
+    }
+    const hint = section.hint ? `<span class="note-hint">${esc(section.hint)}</span>` : "";
+    const subs = (section.subs || []).map((sub) =>
+      `<label class="npss"><span>${esc(sub.label)}</span><input name="${sub.field}" maxlength="80"></label>`).join("");
+    return `<div class="note-block" id="sec-${section.n}"><div class="note-title">${section.n}. ${esc(section.title)}</div>${hint}<textarea name="${section.field}" rows="3" maxlength="4000" placeholder="${esc(section.hint || "")}"></textarea>${subs}</div>`;
+  }).join("");
+  root.dataset.ready = "1";
+}
+
+function paintAnalysis() {
+  mountAnalysisFields();
+  const cells = gridCells(readForm($("customerForm")));
+  $("analysisScore").textContent = `完成度 ${filledCount(cells)}/8`;
+  const summary = cells.find((cell) => cell.auto);
+  if ($("profileSummary")) $("profileSummary").textContent = summary?.text || "";
+  const html = `<div class="nine">${cells.map((cell) => {
+    const mark = cell.filled ? " filled" : "";
+    const body = `<b>${esc(cell.heading)}</b><small>${esc(cell.text)}</small>`;
+    if (!cell.editable) return `<div class="nine-cell center${mark}">${body}</div>`;
+    return `<button class="nine-cell${mark}" type="button" data-action="edit-cell" data-cell="${esc(cell.key)}">${body}</button>`;
+  }).join("")}</div>`;
+  $("analysisGrid").innerHTML = html;
+  if (!$("gridFull").hidden) $("gridFullBody").innerHTML = html;
+  const label = relationLabel($("relationSocial").value, $("relationBusiness").value);
+  $("relationText").textContent = label || "請選擇";
+}
+
+function fillCustomerForm(customer) {
+  const form = $("customerForm");
+  mountAnalysisFields();
+  form.elements.id.value = customer.id || "";
+  form.elements.display_name.value = customer.display_name || "";
+  form.elements.nickname.value = customer.nickname || "";
+  form.elements.birth_roc.value = rocLabel(customer.birth_date);
+  $("birthPicker").value = customer.birth_date ? String(customer.birth_date).slice(0, 10) : "";
+  form.elements.birthday_md_keep.value = customer.birth_date ? "" : (customer.birthday_md || "");
+  form.querySelectorAll('input[name="gender"]').forEach((radio) => {
+    radio.checked = radio.value === customer.gender;
+  });
+  form.elements.phone.value = customer.phone || "";
+  form.elements.referrer.value = customer.referrer || "";
+  form.elements.contact_method.value = customer.contact_method || "";
+  form.elements.hobbies.value = customer.hobbies || "";
+  form.elements.lead_source.value = customer.lead_source || "";
+  form.elements.notes.value = customer.notes || "";
+  form.elements.relation_social.value = customer.relation_social || "";
+  form.elements.relation_business.value = customer.relation_business || "";
+  for (const section of ANALYSIS_SECTIONS) {
+    if (section.field) form.elements[section.field].value = customer[section.field] || "";
+    for (const sub of section.subs || []) form.elements[sub.field].value = customer[sub.field] || "";
+  }
+  if (customer.owner_id) $("customerOwner").value = customer.owner_id;
+  $("customerFormTitle").textContent = customer.id ? "編輯名單" : "新增名單";
+  $("customerCancel").hidden = !customer.id;
+  paintAnalysis();
+}
+
+function scoreOptions(select, current) {
+  const options = ['<option value="">請選擇</option>'];
+  for (let score = 1; score <= 10; score += 1) {
+    options.push(`<option value="${score}" ${String(current) === String(score) ? "selected" : ""}>${score}</option>`);
+  }
+  select.innerHTML = options.join("");
+}
+
+function openRelation() {
+  scoreOptions($("relationSocialPick"), $("relationSocial").value);
+  scoreOptions($("relationBusinessPick"), $("relationBusiness").value);
+  $("relationSheet").classList.add("show");
+}
+
+function openCellSheet(key) {
+  const section = ANALYSIS_SECTIONS.find((item) => item.key === key);
+  if (!section || section.auto) return;
+  const form = $("customerForm");
+  $("cellSheetTitle").textContent = `${section.n}. ${section.title}`;
+  $("cellSheetHint").textContent = section.hint || "";
+  $("cellSheetBody").value = form.elements[section.field].value;
+  $("cellSheet").dataset.field = section.field;
+  $("cellSheetSubs").innerHTML = (section.subs || []).map((sub) =>
+    `<label class="npss"><span>${esc(sub.label)}</span><input data-sub="${esc(sub.field)}" maxlength="80"></label>`).join("");
+  for (const input of $("cellSheetSubs").querySelectorAll("[data-sub]")) {
+    input.value = form.elements[input.dataset.sub].value;
+  }
+  $("cellSheet").classList.add("show");
+  $("cellSheetBody").focus();
+}
+
+let pngUrl = "";
+async function downloadAnalysis() {
+  const draft = readForm($("customerForm"));
+  const blob = await renderAnalysisPng(gridCells(draft), draft.display_name || "");
+  if (pngUrl) URL.revokeObjectURL(pngUrl);
+  pngUrl = URL.createObjectURL(blob);
+  $("pngPreview").src = pngUrl;
+  $("pngDownload").href = pngUrl;
+  $("pngDownload").download = "客戶資料分析表.png";
+  $("pngSheet").classList.add("show");
+}
+
 async function renderClients() {
   const profile = me();
   const [customers, profiles, reminders] = await Promise.all([
@@ -318,9 +428,10 @@ async function renderClients() {
   const showArchived = $("showArchived").checked;
     const list = customers.filter((item) => {
     if (!showArchived && item.is_archived) return false;
-    const blob = `${item.display_name} ${item.ref_code || ""} ${(item.service_tags || []).join(" ")} ${item.notes || ""}`.toLowerCase();
+    const blob = `${item.display_name} ${item.nickname || ""} ${item.ref_code || ""} ${(item.service_tags || []).join(" ")} ${item.notes || ""} ${item.hobbies || ""} ${item.lead_source || ""} ${item.contact_method || ""}`.toLowerCase();
     return blob.includes(q);
   });
+  mountAnalysisFields();
   const keepOwner = $("customerForm").elements.id.value ? $("customerOwner").value : profile.id;
   $("customerOwner").innerHTML = profiles.map((item) =>
     `<option value="${esc(item.id)}">${esc(item.display_name)}</option>`).join("");
@@ -336,6 +447,7 @@ async function renderClients() {
   const emptyClients = `<div class="empty">沒有符合的客戶。</div>`;
   $("clientList").innerHTML = clientRows.length ? clientRows.map(({ item, tags, owner, code, follow }) =>
     `<button class="person" type="button" data-action="open-client" data-id="${esc(item.id)}"><span class="ava">${esc(item.display_name.slice(0, 1))}</span><span><b>${esc(item.display_name)}</b><small class="muted">${code} · ${owner}</small><div>${tags}</div>${follow}</span></button>`).join("") : emptyClients;
+  paintAnalysis();
   if (!selectedCustomerId || !customers.some((item) => item.id === selectedCustomerId)) {
     $("clientDetail").innerHTML = "";
     return;
@@ -384,8 +496,8 @@ async function renderClientDetail(customers, profiles) {
     ${coverageView === "gaps" ? `<div class="section-head"><h2>保障檢視</h2></div><div class="gap-grid">${areas.map((area) => `<div class="neo-tile ${area.covered ? "ok" : "gap"}"><span class="sym">${area.covered ? "●" : "○"}</span><b>${esc(area.label)}</b><small>${area.covered ? "已涵蓋" : "缺口"}</small></div>`).join("")}</div><p class="muted">依這位客戶的保單摘要歸類，不是完整需求分析。</p>` : ""}
   </section>`;
   $("clientDetail").innerHTML = `${coverageHtml}<div class="panel" style="margin-top:12px" ${coverageView === "gaps" ? "hidden" : ""}>
-    <div class="client-top"><div><h3>${esc(customer.display_name)}</h3><p class="sub">${esc(customer.ref_code || "")} · 負責人 ${esc(nameOf(customer.owner_id, profiles))} · ${esc(customer.preferred_contact || "未填聯絡偏好")}</p></div>
-    <div class="row">${canEdit ? `<button class="btn secondary small" type="button" data-action="edit-client" data-id="${esc(customer.id)}">編輯</button>` : ""}${canEdit ? `<button class="btn danger small" type="button" data-action="archive-client" data-id="${esc(customer.id)}" data-archived="${customer.is_archived ? "1" : "0"}">${customer.is_archived ? "取消封存" : "封存"}</button>` : ""}</div></div>
+    <div class="client-top"><div><h3>${esc(customer.display_name)}</h3><p class="sub">${esc([customer.ref_code, customer.nickname, customer.gender, rocLabel(customer.birth_date), customer.contact_method || customer.preferred_contact].filter(Boolean).join(" · "))} · 負責人 ${esc(nameOf(customer.owner_id, profiles))}</p></div>
+    <div class="row">${canEdit ? `<button class="btn secondary small" type="button" data-action="edit-client" data-id="${esc(customer.id)}">編輯</button>` : ""}<button class="btn secondary small" type="button" data-action="jump-analysis">五項度</button>${canEdit ? `<button class="btn danger small" type="button" data-action="archive-client" data-id="${esc(customer.id)}" data-archived="${customer.is_archived ? "1" : "0"}">${customer.is_archived ? "取消封存" : "封存"}</button>` : ""}</div></div>
     <p>${esc(customer.notes || "還沒有備註。")}</p>
     ${customer.birthday_md ? `<p class="muted">生日月日 ${esc(customer.birthday_md)}（不含年份）</p>` : ""}
     <h3>保單摘要</h3>
@@ -447,9 +559,11 @@ async function renderMembers() {
 function resetCustomerForm() {
   $("customerForm").reset();
   $("customerForm").elements.id.value = "";
-  $("customerFormTitle").textContent = "新增客戶";
+  $("birthPicker").value = "";
+  $("customerFormTitle").textContent = "新增名單";
   $("customerCancel").hidden = true;
   if (me()) $("customerOwner").value = me().id;
+  paintAnalysis();
 }
 
 async function handleAction(event) {
@@ -479,26 +593,24 @@ async function handleAction(event) {
     if (target.dataset.action === "open-client") {
       coverageView = "gaps";
       selectedCustomerId = id;
+      const customers = await store.listCustomers();
+      const customer = customers.find((item) => item.id === id);
+      if (customer) fillCustomerForm(customer);
       await renderClients();
       $("clientDetail").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (target.dataset.action === "jump-analysis") {
+      $("analysisBlock").scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+    if (target.dataset.action === "edit-cell") {
+      openCellSheet(target.dataset.cell);
     }
     if (target.dataset.action === "edit-client") {
       const customers = await store.listCustomers();
       const customer = customers.find((item) => item.id === id);
       if (!customer) return;
-      const form = $("customerForm");
-      form.elements.id.value = customer.id;
-      form.elements.display_name.value = customer.display_name;
-      form.elements.phone.value = customer.phone || "";
-      form.elements.email.value = customer.email || "";
-      form.elements.preferred_contact.value = customer.preferred_contact || "LINE";
-      form.elements.birthday_md.value = customer.birthday_md || "";
-      form.elements.service_tags.value = (customer.service_tags || []).join("、");
-      form.elements.notes.value = customer.notes || "";
-      $("customerOwner").value = customer.owner_id;
-      $("customerFormTitle").textContent = "編輯客戶";
-      $("customerCancel").hidden = false;
-      form.scrollIntoView({ behavior: "smooth", block: "start" });
+      fillCustomerForm(customer);
+      $("customerForm").scrollIntoView({ behavior: "smooth", block: "start" });
     }
     if (target.dataset.action === "archive-client") {
       const customers = await store.listCustomers();
@@ -565,6 +677,10 @@ function bind() {
     if (event.key === "Escape") {
       closeMenu();
       $("secretary").hidden = true;
+      $("relationSheet").classList.remove("show");
+      $("cellSheet").classList.remove("show");
+      $("pngSheet").classList.remove("show");
+      $("gridFull").hidden = true;
     }
   });
   $("secretaryBtn").onclick = () => { $("secretary").hidden = false; };
@@ -640,6 +756,64 @@ function bind() {
   $("assetForm").addEventListener("submit", onAsset);
   $("courseForm").addEventListener("submit", onCourse);
   $("customerForm").addEventListener("submit", onCustomer);
+  $("customerForm").addEventListener("input", paintAnalysis);
+  $("customerForm").addEventListener("change", paintAnalysis);
+  $("relationOpen").onclick = openRelation;
+  $("relationCancel").onclick = () => $("relationSheet").classList.remove("show");
+  $("relationOk").onclick = () => {
+    const social = $("relationSocialPick").value;
+    const business = $("relationBusinessPick").value;
+    if ((social && !business) || (!social && business)) {
+      toast("社交和商業請一起選，或都留空。");
+      return;
+    }
+    $("relationSocial").value = social;
+    $("relationBusiness").value = business;
+    $("relationSheet").classList.remove("show");
+    paintAnalysis();
+  };
+  $("birthBtn").onclick = () => {
+    const picker = $("birthPicker");
+    try {
+      if (typeof picker.showPicker === "function") picker.showPicker();
+      else picker.click();
+    } catch {
+      picker.click();
+    }
+  };
+  $("birthPicker").addEventListener("change", () => {
+    $("birthRoc").value = rocLabel($("birthPicker").value);
+    paintAnalysis();
+  });
+  $("birthRoc").addEventListener("change", () => {
+    const parsed = parseRoc($("birthRoc").value);
+    if (!parsed.error && parsed.iso) {
+      $("birthRoc").value = rocLabel(parsed.iso);
+      $("birthPicker").value = parsed.iso;
+    }
+    paintAnalysis();
+  });
+  $("cellSheetBody").addEventListener("input", () => {
+    const field = $("cellSheet").dataset.field;
+    if (!field) return;
+    $("customerForm").elements[field].value = $("cellSheetBody").value;
+    paintAnalysis();
+  });
+  $("cellSheetSubs").addEventListener("input", (event) => {
+    const input = event.target.closest("[data-sub]");
+    if (!input) return;
+    $("customerForm").elements[input.dataset.sub].value = input.value;
+    paintAnalysis();
+  });
+  $("cellSheetClose").onclick = () => $("cellSheet").classList.remove("show");
+  $("analysisFull").onclick = () => {
+    $("gridFull").hidden = false;
+    paintAnalysis();
+  };
+  $("gridFullClose").onclick = () => { $("gridFull").hidden = true; };
+  $("analysisDownload").onclick = () => downloadAnalysis().catch((error) => toast(error.message));
+  $("gridFullDownload").onclick = () => downloadAnalysis().catch((error) => toast(error.message));
+  $("pngClose").onclick = () => $("pngSheet").classList.remove("show");
   $("announcementForm").addEventListener("submit", onAnnouncement);
   $("inviteForm").addEventListener("submit", onInvite);
   document.body.addEventListener("submit", async (event) => {
@@ -695,28 +869,22 @@ async function onCourse(event) {
 async function onCustomer(event) {
   event.preventDefault();
   const data = readForm(event.target);
-  if (!isBirthdayMd(data.birthday_md)) return toast("生日請只填月日，例如 03-18。");
   try {
-    let archived = false;
-    if (data.id) {
-      const existing = (await store.listCustomers()).find((item) => item.id === data.id);
-      archived = Boolean(existing?.is_archived);
-    }
+    const existing = data.id ? (await store.listCustomers()).find((item) => item.id === data.id) : null;
     const saved = await store.saveCustomer({
+      ...data,
       id: data.id || null,
-      is_archived: archived,
+      is_archived: Boolean(existing?.is_archived),
       owner_id: canManageTeam(me().role) ? data.owner_id : me().id,
-      display_name: data.display_name,
-      phone: data.phone,
-      email: data.email,
-      preferred_contact: data.preferred_contact,
-      birthday_md: data.birthday_md.trim() || null,
-      service_tags: tagsFrom(data.service_tags),
-      notes: data.notes,
+      email: existing?.email || "",
+      preferred_contact: existing?.preferred_contact || "",
+      service_tags: existing?.service_tags || [],
+      birth_date: null,
+      birthday_md: String(data.birth_roc || "").trim() ? null : (data.birthday_md_keep || null),
     });
     selectedCustomerId = saved.id;
-    resetCustomerForm();
-    toast("客戶已儲存");
+    fillCustomerForm(saved);
+    toast("名單已儲存");
     await renderClients();
   } catch (error) { toast(error.message); }
 }

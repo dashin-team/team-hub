@@ -169,6 +169,33 @@ try {
     if (!text.includes("保障")) throw new Error("保障檢視沒打開");
     return text;
   }, "client detail");
+  await waitFor(async () => {
+    const ok = await evalJson(ws, `(() => {
+      const score = document.getElementById('analysisScore')?.textContent || '';
+      const grid = document.getElementById('analysisGrid')?.innerText || '';
+      const summary = document.getElementById('profileSummary')?.textContent || '';
+      return document.getElementById('customerFormTitle')?.textContent === '編輯名單'
+        && score === '完成度 8/8'
+        && grid.includes('擔心風險或負擔')
+        && grid.includes('準客戶資料分析')
+        && summary.includes('王先生（示範）')
+        && summary.includes('社交 7 vs. 商業 4')
+        && summary.includes('81/03/18');
+    })()`);
+    if (!ok) throw new Error("五項度沒有跟上這位客戶");
+    return ok;
+  }, "analysis");
+  await evalJson(ws, `(() => {
+    const field = document.querySelector('[name=analysis_worry]');
+    field.value += '（再補一句）';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
+  await waitFor(async () => {
+    const text = await evalJson(ws, "document.getElementById('analysisGrid').innerText");
+    if (!text.includes("再補一句")) throw new Error("分析表沒有跟著輸入更新");
+    return text;
+  }, "live grid");
+
   await evalJson(ws, "document.querySelector('[data-tab=policies]').click()");
   await waitFor(async () => {
     const text = await evalJson(ws, "document.getElementById('clientDetail').innerText");
