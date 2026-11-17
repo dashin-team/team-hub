@@ -452,3 +452,21 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 .wk-hours div { height: 48px; border-top: 1px solid #efe6d8; color: var(--muted); font-size: 10px; }
 .wk-col { position: relative; height: 1152px; border-left: 1px solid #efe6d8; }
 .wk-col .tl-block { font-size: 10px; padding: 1px 2px; }
+.roster-stats { display: flex; flex-wrap: wrap; gap: 8px; margin: 8px 0 12px; }
+.roster-stat {
+  background: var(--soft); border: 1px solid var(--line); border-radius: 999px; padding: 6px 12px; font-size: 13px;
+}
+.roster-stat b { font-size: 16px; margin-right: 4px; }
+.roster-card { margin: 0 0 12px; }
+.roster-card h2 { margin: 0 0 8px; font-size: 16px; letter-spacing: 0.04em; }
+.roster-row {
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  padding: 10px 0; border-top: 1px solid #efe6d8;
+}
+.roster-row b { font-weight: 650; }
+.rank {
+  flex: none; min-width: 36px; text-align: center; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700;
+}
+.rank.um { background: #f3e6d0; color: #6d4e2e; }
+.rank.sp { background: #e7eef3; color: #2c4a63; }
+.rank.ca { background: #e7f3ea; color: #24613d; }
