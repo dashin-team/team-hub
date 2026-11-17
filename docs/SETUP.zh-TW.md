@@ -27,6 +27,7 @@
 5. 再貼上 `supabase/migrations/202411170004_calendar.sql`，按 **Run**。這份是行事曆。
 6. 再貼上 `supabase/migrations/202411170005_calendar_times.sql`，按 **Run**。這份補上開始、結束、陪同和提醒。
 7. 五份都只要執行一次。不要把 `scripts/` 裡的測試檔貼進去。
+8. 已經上線的資料庫，再執行一次 `supabase/migrations/202411170007_strategy_grid.sql`。這份加上客戶策略分析圖。還沒執行時，其他名單欄位仍可儲存，策略圖要等欄位加上之後才會寫進雲端。
 
 左側 **Table Editor** 應看得到 `teams`、`profiles`、`customers` 和 `social_accounts` 等資料表。
 

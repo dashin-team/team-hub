@@ -169,6 +169,7 @@ export function normalizeCustomerInput(input) {
   if (!name) return { error: "請填姓名。" };
   fields.display_name = name;
   fields.phone = String(input.phone ?? "").trim();
+  fields.strategy_grid = strategyFrom(input);
   return { fields };
 }
 
@@ -296,4 +297,253 @@ export async function renderAnalysisPng(cells, clientName) {
   const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
   if (!blob) throw new Error("圖片沒有產生。");
   return blob;
+}
+
+export const STRATEGY_SLOTS = [
+  { key: "need", label: "需求", icon: "search" },
+  { key: "decision", label: "決策流程", icon: "bulb" },
+  { key: "resource", label: "資源分配", icon: "pie" },
+  { key: "compete", label: "競爭情報", icon: "people" },
+  { key: "goal", label: "目標", icon: "target" },
+];
+
+function fitWrapped(ctx, text, maxWidth, maxHeight, startSize, minSize) {
+  let size = startSize;
+  while (size >= minSize) {
+    ctx.font = canvasFont(400, size);
+    const lines = wrapLines(ctx, text, maxWidth);
+    const lineH = Math.round(size * 1.35);
+    if (lines.length * lineH <= maxHeight) return { lines, size, lineH };
+    size -= 1;
+  }
+  ctx.font = canvasFont(400, minSize);
+  const lineH = Math.round(minSize * 1.35);
+  const lines = wrapLines(ctx, text, maxWidth);
+  const maxLines = Math.max(1, Math.floor(maxHeight / lineH));
+  return { lines: lines.slice(0, maxLines), size: minSize, lineH };
+}
+
+function spacedWidth(ctx, text, gap) {
+  const chars = Array.from(text);
+  return chars.reduce((sum, ch, index) => sum + ctx.measureText(ch).width + (index ? gap : 0), 0);
+}
+
+function drawSpaced(ctx, text, x, y, gap) {
+  let cursor = x;
+  for (const ch of Array.from(text)) {
+    ctx.fillText(ch, cursor, y);
+    cursor += ctx.measureText(ch).width + gap;
+  }
+}
+
+function strokeIcon(ctx, draw) {
+  ctx.save();
+  ctx.strokeStyle = "#111";
+  ctx.fillStyle = "#111";
+  ctx.lineWidth = 2;
+  ctx.lineCap = "round";
+  ctx.lineJoin = "round";
+  draw();
+  ctx.restore();
+}
+
+const STRATEGY_ICONS = {
+  search(ctx, x, y, s) {
+    strokeIcon(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(x + s * 0.4, y + s * 0.4, s * 0.28, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + s * 0.6, y + s * 0.6);
+      ctx.lineTo(x + s * 0.92, y + s * 0.92);
+      ctx.stroke();
+    });
+  },
+  bulb(ctx, x, y, s) {
+    strokeIcon(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(x + s * 0.5, y + s * 0.38, s * 0.26, Math.PI * 0.15, Math.PI * 0.85, true);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + s * 0.34, y + s * 0.62);
+      ctx.lineTo(x + s * 0.66, y + s * 0.62);
+      ctx.moveTo(x + s * 0.38, y + s * 0.74);
+      ctx.lineTo(x + s * 0.62, y + s * 0.74);
+      ctx.moveTo(x + s * 0.42, y + s * 0.86);
+      ctx.lineTo(x + s * 0.58, y + s * 0.86);
+      ctx.stroke();
+    });
+  },
+  pie(ctx, x, y, s) {
+    strokeIcon(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(x + s * 0.5, y + s * 0.5, s * 0.38, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + s * 0.5, y + s * 0.5);
+      ctx.lineTo(x + s * 0.5, y + s * 0.14);
+      ctx.arc(x + s * 0.5, y + s * 0.5, s * 0.36, -Math.PI / 2, Math.PI * 0.35);
+      ctx.closePath();
+      ctx.stroke();
+    });
+  },
+  people(ctx, x, y, s) {
+    strokeIcon(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(x + s * 0.34, y + s * 0.3, s * 0.14, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + s * 0.68, y + s * 0.34, s * 0.11, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.moveTo(x + s * 0.08, y + s * 0.88);
+      ctx.quadraticCurveTo(x + s * 0.34, y + s * 0.52, x + s * 0.58, y + s * 0.88);
+      ctx.moveTo(x + s * 0.5, y + s * 0.7);
+      ctx.quadraticCurveTo(x + s * 0.72, y + s * 0.52, x + s * 0.92, y + s * 0.86);
+      ctx.stroke();
+    });
+  },
+  target(ctx, x, y, s) {
+    strokeIcon(ctx, () => {
+      ctx.beginPath();
+      ctx.arc(x + s * 0.5, y + s * 0.5, s * 0.38, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + s * 0.5, y + s * 0.5, s * 0.2, 0, Math.PI * 2);
+      ctx.stroke();
+      ctx.beginPath();
+      ctx.arc(x + s * 0.5, y + s * 0.5, s * 0.06, 0, Math.PI * 2);
+      ctx.fill();
+    });
+  },
+};
+
+function drawStrategyLabel(ctx, text, x, y, icon, iconFirst) {
+  const size = 22;
+  const gap = 8;
+  const padX = 12;
+  const padY = 7;
+  ctx.font = canvasFont(700, size);
+  const textW = spacedWidth(ctx, text, gap);
+  const boxW = textW + padX * 2;
+  const boxH = size + padY * 2;
+  const iconSize = 28;
+  const iconGap = 8;
+  const boxX = iconFirst ? x + iconSize + iconGap : x;
+  ctx.fillStyle = "#fff";
+  ctx.strokeStyle = "#111";
+  ctx.lineWidth = 2;
+  ctx.fillRect(boxX, y, boxW, boxH);
+  ctx.strokeRect(boxX + 0.5, y + 0.5, boxW - 1, boxH - 1);
+  ctx.fillStyle = "#111";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "middle";
+  ctx.font = canvasFont(700, size);
+  drawSpaced(ctx, text, boxX + padX, y + boxH / 2, gap);
+  const iconX = iconFirst ? x : boxX + boxW + iconGap;
+  STRATEGY_ICONS[icon](ctx, iconX, y + (boxH - iconSize) / 2, iconSize);
+  return boxW + iconGap + iconSize;
+}
+
+function paintStrategyText(ctx, text, x, y, width, height) {
+  if (!text || width < 8 || height < 8) return;
+  const fitted = fitWrapped(ctx, text, width, height, 22, 12);
+  ctx.fillStyle = "#222";
+  ctx.textAlign = "left";
+  ctx.textBaseline = "top";
+  ctx.font = canvasFont(400, fitted.size);
+  fitted.lines.forEach((line, index) => {
+    ctx.fillText(line, x, y + index * fitted.lineH);
+  });
+}
+
+export async function renderStrategyPng(grid, clientName, dateLabel) {
+  if (document.fonts?.ready) await document.fonts.ready;
+  const width = 1200;
+  const margin = 36;
+  const header = 84;
+  const boardW = width - margin * 2;
+  const boardH = Math.round(boardW * 10 / 16);
+  const height = margin + header + boardH + margin;
+  const scale = 2;
+  const canvas = document.createElement("canvas");
+  canvas.width = width * scale;
+  canvas.height = height * scale;
+  const ctx = canvas.getContext("2d");
+  ctx.scale(scale, scale);
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(0, 0, width, height);
+  ctx.fillStyle = "#111";
+  ctx.textAlign = "center";
+  ctx.textBaseline = "middle";
+  ctx.font = canvasFont(700, 32);
+  ctx.fillText("客戶策略分析圖", width / 2, margin + 24);
+  const stamp = [clientName, dateLabel].filter(Boolean).join(" · ");
+  if (stamp) {
+    ctx.font = canvasFont(400, 18);
+    ctx.fillText(stamp, width / 2, margin + 58);
+  }
+  const bx = margin;
+  const by = margin + header;
+  ctx.strokeStyle = "#111";
+  ctx.lineWidth = 3;
+  ctx.strokeRect(bx + 1.5, by + 1.5, boardW - 3, boardH - 3);
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(bx + boardW / 2, by);
+  ctx.lineTo(bx + boardW / 2, by + boardH);
+  ctx.moveTo(bx, by + boardH / 2);
+  ctx.lineTo(bx + boardW, by + boardH / 2);
+  ctx.stroke();
+  const cx = bx + boardW * 0.29;
+  const cy = by + boardH * 0.26;
+  const cw = boardW * 0.42;
+  const ch = boardH * 0.48;
+  ctx.fillStyle = "#fff";
+  ctx.fillRect(cx, cy, cw, ch);
+  ctx.strokeRect(cx + 1, cy + 1, cw - 2, ch - 2);
+
+  const side = boardW * 0.27;
+  drawStrategyLabel(ctx, "需求", bx + 16, by + 16, "search", false);
+  const decisionW = (() => {
+    ctx.font = canvasFont(700, 22);
+    return spacedWidth(ctx, "決策流程", 8) + 24 + 8 + 28;
+  })();
+  drawStrategyLabel(ctx, "決策流程", bx + boardW - 16 - decisionW, by + 16, "bulb", true);
+  drawStrategyLabel(ctx, "資源分配", bx + 16, by + boardH / 2 + 14, "pie", false);
+  const competeW = (() => {
+    ctx.font = canvasFont(700, 22);
+    return spacedWidth(ctx, "競爭情報", 8) + 24 + 8 + 28;
+  })();
+  drawStrategyLabel(ctx, "競爭情報", bx + boardW - 16 - competeW, by + boardH / 2 + 14, "people", true);
+  const goalW = (() => {
+    ctx.font = canvasFont(700, 22);
+    return spacedWidth(ctx, "目標", 8) + 24 + 8 + 28;
+  })();
+  drawStrategyLabel(ctx, "目標", cx + (cw - goalW) / 2, cy + 16, "target", false);
+
+  const values = grid || {};
+  paintStrategyText(ctx, values.need, bx + 18, by + 64, side - 28, boardH / 2 - 80);
+  paintStrategyText(ctx, values.decision, bx + boardW - side + 10, by + 64, side - 28, boardH / 2 - 80);
+  paintStrategyText(ctx, values.resource, bx + 18, by + boardH / 2 + 64, side - 28, boardH / 2 - 80);
+  paintStrategyText(ctx, values.compete, bx + boardW - side + 10, by + boardH / 2 + 64, side - 28, boardH / 2 - 80);
+  paintStrategyText(ctx, values.goal, cx + 16, cy + 68, cw - 32, ch - 86);
+
+  const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+  if (!blob) throw new Error("圖片沒有產生。");
+  return blob;
+}
+
+export function strategyFrom(input) {
+  const source = input?.strategy_grid && typeof input.strategy_grid === "object" && !Array.isArray(input.strategy_grid)
+    ? input.strategy_grid
+    : {};
+  const grid = {};
+  for (const slot of STRATEGY_SLOTS) {
+    const typed = input?.[`strategy_${slot.key}`];
+    const raw = typed === undefined || typed === null ? source[slot.key] : typed;
+    const text = String(raw ?? "").trim().slice(0, 4000);
+    if (text) grid[slot.key] = text;
+  }
+  return grid;
 }

@@ -29,7 +29,10 @@ import {
   relationLabel,
   upcomingBirthdays,
   renderAnalysisPng,
+  renderStrategyPng,
   rocLabel,
+  STRATEGY_SLOTS,
+  strategyFrom,
 } from "@hub/profile";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
@@ -741,6 +744,7 @@ function paintAnalysis() {
   }).join("")}</div>`;
   $("analysisGrid").innerHTML = html;
   if (!$("gridFull").hidden) $("gridFullBody").innerHTML = html;
+  paintStrategy();
   const label = relationLabel($("relationSocial").value, $("relationBusiness").value);
   $("relationText").textContent = label || "請選擇";
 }
@@ -854,6 +858,10 @@ function fillCustomerForm(customer) {
     if (section.field) form.elements[section.field].value = customer[section.field] || "";
     for (const sub of section.subs || []) form.elements[sub.field].value = customer[sub.field] || "";
   }
+  const strategy = strategyFrom(customer);
+  for (const slot of STRATEGY_SLOTS) {
+    form.elements[`strategy_${slot.key}`].value = strategy[slot.key] || "";
+  }
   if (customer.owner_id) $("customerOwner").value = customer.owner_id;
   $("customerFormTitle").textContent = customer.id ? "編輯名單" : "新增名單";
   $("customerCancel").hidden = !customer.id;
@@ -892,15 +900,47 @@ function openCellSheet(key) {
 }
 
 let pngUrl = "";
+function showPng(blob, title, filename) {
+  if (pngUrl) URL.revokeObjectURL(pngUrl);
+  pngUrl = URL.createObjectURL(blob);
+  $("pngSheetTitle").textContent = title;
+  $("pngPreview").alt = title;
+  $("pngPreview").src = pngUrl;
+  $("pngDownload").href = pngUrl;
+  $("pngDownload").download = filename;
+  $("pngSheet").classList.add("show");
+}
+
 async function downloadAnalysis() {
   const draft = readForm($("customerForm"));
   const blob = await renderAnalysisPng(gridCells(draft), draft.display_name || "");
-  if (pngUrl) URL.revokeObjectURL(pngUrl);
-  pngUrl = URL.createObjectURL(blob);
-  $("pngPreview").src = pngUrl;
-  $("pngDownload").href = pngUrl;
-  $("pngDownload").download = "客戶資料分析表.png";
-  $("pngSheet").classList.add("show");
+  showPng(blob, "客戶資料分析表", "客戶資料分析表.png");
+}
+
+function fitStrategyText(node) {
+  if (!node || node.clientHeight < 8) return;
+  let size = 15;
+  node.style.fontSize = `${size}px`;
+  while (size > 8 && node.scrollHeight > node.clientHeight + 1) {
+    size -= 1;
+    node.style.fontSize = `${size}px`;
+  }
+}
+
+function paintStrategy() {
+  const grid = strategyFrom(readForm($("customerForm")));
+  for (const slot of STRATEGY_SLOTS) {
+    const node = document.querySelector(`[data-strategy-text="${slot.key}"]`);
+    if (!node) continue;
+    node.textContent = grid[slot.key] || "";
+    fitStrategyText(node);
+  }
+}
+
+async function downloadStrategy() {
+  const draft = readForm($("customerForm"));
+  const blob = await renderStrategyPng(strategyFrom(draft), draft.display_name || "", isoDate().replace(/-/g, "/"));
+  showPng(blob, "客戶策略分析圖", "客戶策略分析圖.png");
 }
 
 async function renderClients() {
@@ -1411,6 +1451,7 @@ function bind() {
   };
   $("gridFullClose").onclick = () => { $("gridFull").hidden = true; };
   $("analysisDownload").onclick = () => downloadAnalysis().catch((error) => toast(error.message));
+  $("strategyDownload").onclick = () => downloadStrategy().catch((error) => toast(error.message));
   $("gridFullDownload").onclick = () => downloadAnalysis().catch((error) => toast(error.message));
   $("pngClose").onclick = () => $("pngSheet").classList.remove("show");
   $("announcementForm").addEventListener("submit", onAnnouncement);
@@ -1513,7 +1554,7 @@ async function onCustomer(event) {
     });
     selectedCustomerId = saved.id;
     fillCustomerForm(saved);
-    toast("名單已儲存");
+    toast(saved.strategy_pending ? "名單已儲存。策略分析圖要等資料欄位加上後才會留在雲端。" : "名單已儲存");
     await renderClients();
   } catch (error) { toast(error.message); }
 }

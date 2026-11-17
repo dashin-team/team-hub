@@ -69,6 +69,13 @@ function seed() {
       analysis_health: "目前沒有住院紀錄，偶發過敏。此為虛構描述。",
       analysis_next: "下週約訪，做一次保障檢視。",
       analysis_family: "配偶與一名小孩。",
+      strategy_grid: {
+        need: "小孩教育金不夠，也擔心突然的醫療支出。",
+        decision: "夫妻一起決定。先生先聽，太太點頭才會進行。",
+        resource: "每月可再撥約三千，不想動到房貸。",
+        compete: "目前沒有其他業務員，曾在銀行看過定存。",
+        goal: "五年內備好一筆教育基金。",
+      },
     }),
     customer("TH-1002", PEOPLE.lin, "李小姐（示範）", "0912-000-102", ["家庭保障"], "11-02", "虛構資料。準備年度保障檢視。", {
       birth_date: `1995-${soonDay.slice(5)}`,
@@ -208,7 +215,7 @@ function seed() {
   ];
 
   return {
-    version: 7,
+    version: 8,
     profiles,
     customers,
     policies,
@@ -252,6 +259,7 @@ function seed() {
     row.gender = extra.gender || null;
     row.relation_social = extra.relation_social ?? null;
     row.relation_business = extra.relation_business ?? null;
+    row.strategy_grid = extra.strategy_grid && typeof extra.strategy_grid === "object" ? extra.strategy_grid : {};
     return row;
   }
 
@@ -349,7 +357,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 7 || !Array.isArray(parsed.profiles)) return seed();
+    if (parsed?.version !== 8 || !Array.isArray(parsed.profiles)) return seed();
     return parsed;
   } catch {
     return seed();

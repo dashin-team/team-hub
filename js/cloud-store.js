@@ -58,6 +58,30 @@ export function createCloudStore(url, anonKey) {
     }
   });
 
+  function strategyColumnMissing(error) {
+    if (!error) return false;
+    const message = String(error.message || "");
+    if (!/strategy_grid/i.test(message)) return false;
+    return error.code === "PGRST204" || error.code === "42703" || /schema cache|does not exist|column/i.test(message);
+  }
+
+  async function writeCustomer(payload, id) {
+    const send = (body) => (id
+      ? sb.from("customers").update(body).eq("id", id).select().single()
+      : sb.from("customers").insert(body).select().single());
+    let result = await send(payload);
+    if (strategyColumnMissing(result.error)) {
+      const rest = { ...payload };
+      delete rest.strategy_grid;
+      result = await send(rest);
+      if (!result.error && result.data) {
+        result.data.strategy_grid = payload.strategy_grid || {};
+        result.data.strategy_pending = true;
+      }
+    }
+    return result;
+  }
+
   return {
     mode: "cloud",
     teamName: "南恩團隊",
@@ -281,13 +305,11 @@ export function createCloudStore(url, anonKey) {
         privacy_notice_recorded_at: new Date().toISOString(),
       };
       for (const key of PROFILE_TEXT_FIELDS) payload[key] = norm.fields[key] || null;
-      if (input.id) {
-        const { data, error } = await sb.from("customers").update(payload).eq("id", input.id).select().single();
-        fail(error, "客戶沒有更新");
-        return data;
-      }
-      const { data, error } = await sb.from("customers").insert(payload).select().single();
-      fail(error, "客戶沒有新增");
+      payload.strategy_grid = norm.fields.strategy_grid || {};
+      const written = await writeCustomer(payload, input.id || "");
+      fail(written.error, input.id ? "客戶沒有更新" : "客戶沒有新增");
+      const data = written.data;
+      if (input.id) return data;
       if (data && !data.ref_code) {
         const ref = `TH-${data.id.slice(0, 4).toUpperCase()}`;
         await sb.from("customers").update({ ref_code: ref }).eq("id", data.id);

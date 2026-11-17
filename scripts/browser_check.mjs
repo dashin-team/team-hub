@@ -198,6 +198,18 @@ try {
     if (!text.includes("再補一句")) throw new Error("分析表沒有跟著輸入更新");
     return text;
   }, "live grid");
+  await evalJson(ws, `(() => {
+    const field = document.querySelector('[name=strategy_need]');
+    field.value = '教育金與醫療支出';
+    field.dispatchEvent(new Event('input', { bubbles: true }));
+  })()`);
+  await waitFor(async () => {
+    const text = await evalJson(ws, "document.getElementById('strategyBoard').innerText");
+    if (!text.includes('需求') || !text.includes('教育金與醫療支出') || !text.includes('目標')) {
+      throw new Error('策略分析圖沒有跟著輸入更新');
+    }
+    return text;
+  }, "strategy grid");
 
   await evalJson(ws, "document.querySelector('[data-tab=policies]').click()");
   await waitFor(async () => {
