@@ -8,7 +8,7 @@ export const TEAM_SCHEDULE = [
   { date: "2026-11-02", morning: "體系時間", speaker: "各區主管", report: "宜瑾", important: "行銷大講堂", district: "壽險商品班" },
   { date: "2026-11-03", morning: "各區盤點", speaker: "各區主管", report: "宜瑾", district: "壽險商品班" },
   { date: "2026-11-04", morning: "從陌生人，到自己人", speaker: "柯文祥 業務經理", report: "宜瑾", important: "三新特訓班", district: "壽險商品班" },
-  { date: "2026-11-05", morning: "溫馨時刻(卡片)", speaker: "依宜老師", report: "宜瑾", training: "退休規劃", trainer: "秀蓮", important: "全省業輔會議/10工結構", district: "壽險商品班" },
+  { date: "2026-11-05", morning: "溫馨時刻(卡片)", speaker: "依宣老師", report: "宜瑾", training: "退休規劃", trainer: "秀蓮", important: "全省業輔會議/10工結構", district: "壽險商品班" },
   { date: "2026-11-06", morning: "晉升分享", speaker: "秀蓮 業務經理", report: "宜瑾", training: "客戶經營與延伸(5問)", trainer: "逸萍", important: "全省業輔會議" },
   { date: "2026-11-09", morning: "體系時間", speaker: "各區主管", report: "健弘", district: "外幣考衝班" },
   { date: "2026-11-10", morning: "產險宣導", speaker: "莉娟", report: "健弘", important: "處主管研習營", district: "壽險考衝班/外幣考照班" },
