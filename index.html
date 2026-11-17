@@ -5,29 +5,29 @@
   <meta name="viewport" content="width=device-width, initial-scale=1">
   <meta name="theme-color" content="#f6f1e7">
   <meta name="robots" content="noindex">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261117v 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261117w 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>TEAM HUB｜南恩團隊數位總部</title>
-  <link rel="icon" href="./favicon-32.png?v=20261117v" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117v">
-  <link rel="stylesheet" href="./css/styles.css?v=20261117v">
+  <link rel="icon" href="./favicon-32.png?v=20261117w" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261117w">
+  <link rel="stylesheet" href="./css/styles.css?v=20261117w">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261117v",
-      "@hub/guides": "./js/guides.js?v=20261117v",
-      "@hub/store": "./js/store.js?v=20261117v",
-      "@hub/metrics": "./js/metrics.js?v=20261117v",
-      "@hub/config": "./js/config.js?v=20261117v",
-      "@hub/demo-store": "./js/demo-store.js?v=20261117v",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261117v",
-      "@hub/safe": "./js/safe-browser.js?v=20261117v",
-      "@hub/contest": "./js/contest.js?v=20261117v",
-      "@hub/profile": "./js/client-profile.js?v=20261117v",
-      "@hub/calendar": "./js/calendar.js?v=20261117v",
-      "@hub/team": "./js/team-schedule.js?v=20261117v",
-      "@hub/roster": "./js/team-roster.js?v=20261117v",
-      "@hub/account": "./js/account.js?v=20261117v"
+      "@hub/app": "./js/app.js?v=20261117w",
+      "@hub/guides": "./js/guides.js?v=20261117w",
+      "@hub/store": "./js/store.js?v=20261117w",
+      "@hub/metrics": "./js/metrics.js?v=20261117w",
+      "@hub/config": "./js/config.js?v=20261117w",
+      "@hub/demo-store": "./js/demo-store.js?v=20261117w",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261117w",
+      "@hub/safe": "./js/safe-browser.js?v=20261117w",
+      "@hub/contest": "./js/contest.js?v=20261117w",
+      "@hub/profile": "./js/client-profile.js?v=20261117w",
+      "@hub/calendar": "./js/calendar.js?v=20261117w",
+      "@hub/team": "./js/team-schedule.js?v=20261117w",
+      "@hub/roster": "./js/team-roster.js?v=20261117w",
+      "@hub/account": "./js/account.js?v=20261117w"
     }
   }
   </script>
@@ -35,7 +35,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117v" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117w" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -54,7 +54,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117v" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261117w" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -92,7 +92,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117v" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261117w" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -352,9 +352,13 @@
         <section class="page" id="page-tasks">
           <h1 class="page-title">行事曆</h1>
           <p class="sub">規劃約訪、拜訪和送件，再盤點這週、這個月做了多少。原本的待辦仍留在這裡。</p>
-          <label class="field manager-only">看哪一位
-            <select id="calMember" aria-label="看哪一位夥伴"></select>
+          <label class="field manager-only" id="calSwitch">切換夥伴
+            <select id="calMember" aria-label="切換夥伴"></select>
           </label>
+          <div id="calReadonly" class="cal-readonly" hidden>
+            <p id="calReadonlyText"></p>
+            <button class="btn secondary small" id="calBack" type="button">回到自己的行事曆</button>
+          </div>
           <div class="cal-toolbar">
             <button class="icon-btn" id="calPrev" type="button" aria-label="上一個">‹</button>
             <strong id="calLabel"></strong>
@@ -578,6 +582,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261117v"></script>
+  <script type="module" src="./js/app.js?v=20261117w"></script>
 </body>
 </html>

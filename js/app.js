@@ -516,14 +516,18 @@ function hourRows() {
   return Array.from({ length: 24 }, (_, hour) => `<div class="tl-hour"><span>${pad(hour)}:00</span><div></div></div>`).join("");
 }
 
-function personalBlocks(items, date) {
+function personalBlocks(items, date, editable = true) {
   const layout = layoutDay(items, date);
   return layout.timed.map((item) => {
     const top = (item.startMin / 60) * HOUR_PX;
     const height = Math.max(22, ((item.endMin - item.startMin) / 60) * HOUR_PX - 2);
     const width = 100 / layout.columns;
     const left = item.column * width;
-    return `<button class="tl-block ${item.is_done ? "done" : ""}" type="button" style="top:${top}px;height:${height}px;left:${left}%;width:${width}%;background:${itemColor(item)}" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${date}"><b>${esc(item.title)}</b><small>${esc(timeRange(item))}</small></button>`;
+    const action = editable
+      ? `data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${date}"`
+      : `draggable="false"`;
+    const tag = editable ? "button" : "div";
+    return `<${tag} class="tl-block ${item.is_done ? "done" : ""}" ${editable ? `type="button"` : ""} style="top:${top}px;height:${height}px;left:${left}%;width:${width}%;background:${itemColor(item)}" ${action}><b>${esc(item.title)}</b><small>${esc(timeRange(item))}</small></${tag}>`;
   }).join("");
 }
 
@@ -534,25 +538,27 @@ function teamTimedHtml(day) {
   return `<div class="tl-block team" style="top:${top}px;height:${height}px;left:0;width:100%"><b>🔒 ${esc(day.title)}</b><small>08:30–10:00</small></div>`;
 }
 
-function allDayPersonal(items, date, customers) {
-  return items.filter((item) => item.allDay && item.date === date).map((item) =>
-    `<button class="all-chip" type="button" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${date}">${esc(chipText(item, customers))}</button>`).join("");
+function allDayPersonal(items, date, customers, editable = true) {
+  return items.filter((item) => item.allDay && item.date === date).map((item) => {
+    if (!editable) return `<span class="all-chip" draggable="false">${esc(chipText(item, customers))}</span>`;
+    return `<button class="all-chip" type="button" data-action="cal-edit" data-id="${esc(item.id)}" data-source="${esc(item.source)}" data-date="${date}">${esc(chipText(item, customers))}</button>`;
+  }).join("");
 }
 
-function renderTimeline(dates, customers) {
+function renderTimeline(dates, customers, editable = true) {
   if (dates.length === 1) {
     const date = dates[0];
     const day = teamDay(date);
-    return `<div class="tl"><div class="tl-all"><b>全天</b><div>${teamDetailHtml(day)}${allDayPersonal(calItems, date, customers)}</div></div><div class="tl-scroll" data-cal-scroll><div class="tl-grid">${hourRows()}<div class="tl-overlay">${teamTimedHtml(day)}${personalBlocks(calItems, date)}</div></div></div></div>`;
+    return `<div class="tl"><div class="tl-all"><b>全天</b><div>${teamDetailHtml(day)}${allDayPersonal(calItems, date, customers, editable)}</div></div><div class="tl-scroll" data-cal-scroll><div class="tl-grid">${hourRows()}<div class="tl-overlay">${teamTimedHtml(day)}${personalBlocks(calItems, date, editable)}</div></div></div></div>`;
   }
   const head = dates.map((date) => `<button type="button" class="${date === isoDate() ? "today" : ""}" data-action="cal-day" data-date="${date}">${Number(date.slice(8))}<br>${WEEKDAYS[weekdayIndex(date)]}</button>`).join("");
   const allday = dates.map((date) => {
     const day = teamDay(date);
     const holiday = day?.weekend ? teamChipHtml(day.chips[0]) : "";
     const morning = day && !day.weekend ? `<span class="team-chip">🔒 早會</span>` : "";
-    return `<div>${holiday}${morning}${allDayPersonal(calItems, date, customers)}</div>`;
+    return `<div>${holiday}${morning}${allDayPersonal(calItems, date, customers, editable)}</div>`;
   }).join("");
-  const cols = dates.map((date) => `<div class="wk-col">${teamTimedHtml(teamDay(date))}${personalBlocks(calItems, date)}</div>`).join("");
+  const cols = dates.map((date) => `<div class="wk-col">${teamTimedHtml(teamDay(date))}${personalBlocks(calItems, date, editable)}</div>`).join("");
   const hours = Array.from({ length: 24 }, (_, hour) => `<div>${pad(hour)}</div>`).join("");
   return `<div class="wk"><div class="wk-head"><span></span>${head}</div><div class="wk-all"><b>全天</b>${allday}</div><div class="wk-scroll" data-cal-scroll><div class="wk-body"><div class="wk-hours">${hours}</div>${cols}</div></div></div>`;
 }
@@ -622,6 +628,15 @@ function paintCalForm(item, date, preset = {}) {
   $("calSheetTitle").textContent = editingTask ? "編輯待辦" : (editing ? "編輯行程" : "新增行程");
 }
 
+function calendarPartners(profile, people, teammates) {
+  const allowed = new Map((people || [])
+    .filter((person) => person.id !== profile.id && person.is_active !== false && canViewPerson(profile, person))
+    .map((person) => [person.id, person]));
+  const fromDirectory = (teammates || []).filter((person) => allowed.has(person.id));
+  const rows = fromDirectory.length ? fromDirectory.map((person) => allowed.get(person.id)) : [...allowed.values()];
+  return rows.sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
+}
+
 function canEditCalendar() {
   return viewedOwnerId() === me()?.id;
 }
@@ -670,11 +685,15 @@ async function renderCalendar() {
   const activeOwner = viewedOwnerId();
   calItems = calendarItems(events, tasks, reminders, activeOwner);
   const owner = visibleProfiles.find((person) => person.id === activeOwner) || profile;
-  $("calMember").innerHTML = [`<option value="">我的行事曆</option>`].concat(visibleProfiles.filter((person) => person.id !== profile.id).map((person) =>
+  const partners = calendarPartners(profile, visibleProfiles, teammates);
+  $("calMember").innerHTML = [`<option value="">自己</option>`].concat(partners.map((person) =>
     `<option value="${esc(person.id)}">${esc(person.display_name)}</option>`)).join("");
   $("calMember").value = calOwner && calOwner !== profile.id ? calOwner : "";
-  $("calScope").textContent = canEditCalendar() ? "點一天看時間表，右下角 ＋ 可新增。" : `正在看${owner.display_name}的行事曆，不能改對方的活動。`;
-  $("calAdd").hidden = !canEditCalendar();
+  const editingSelf = activeOwner === profile.id;
+  $("calReadonly").hidden = editingSelf;
+  $("calReadonlyText").textContent = editingSelf ? "" : `正在查看 ${owner.display_name} 的行事曆（唯讀）`;
+  $("calScope").textContent = editingSelf ? "點一天看時間表，右下角 ＋ 可新增。" : "";
+  $("calAdd").hidden = !editingSelf;
   document.querySelectorAll("[data-cal-view]").forEach((button) => button.classList.toggle("on", button.dataset.calView === calView));
   $("calLegend").innerHTML = EVENT_TYPES.map((type) =>
     `<span><i class="dot" style="background:${type.color}"></i>${esc(type.label)}</span>`).join("")
@@ -693,11 +712,11 @@ async function renderCalendar() {
     const start = addDays(calCursor, -weekdayIndex(calCursor));
     $("calLabel").textContent = `${formatDate(start)} – ${formatDate(addDays(start, 6))}`;
     const dates = Array.from({ length: 7 }, (_, index) => addDays(start, index));
-    $("calBoard").innerHTML = renderTimeline(dates, customers);
+    $("calBoard").innerHTML = renderTimeline(dates, customers, activeOwner === profile.id);
     scrollTimeline();
   } else {
     $("calLabel").textContent = `${Number(calCursor.slice(5, 7))}月${Number(calCursor.slice(8))}日 ${WEEKDAYS[weekdayIndex(calCursor)]}`;
-    $("calBoard").innerHTML = renderTimeline([calCursor], customers);
+    $("calBoard").innerHTML = renderTimeline([calCursor], customers, activeOwner === profile.id);
     scrollTimeline();
   }
   const tally = stocktake(calItems, today);
@@ -1269,6 +1288,7 @@ async function handleAction(event) {
       await renderCalendar();
     }
     if (target.dataset.action === "cal-edit") {
+      if (!canEditCalendar()) return;
       const item = calItems.find((row) => row.id === id && row.source === (target.dataset.source || row.source));
       openEventForm(item, item?.date || target.dataset.date);
     }
@@ -1468,6 +1488,10 @@ function bind() {
   });
   $("calMember").onchange = () => {
     calOwner = $("calMember").value;
+    renderCalendar();
+  };
+  $("calBack").onclick = () => {
+    calOwner = "";
     renderCalendar();
   };
   $("calSheetClose").onclick = () => $("calSheet").classList.remove("show");
