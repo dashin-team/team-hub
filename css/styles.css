@@ -12,6 +12,7 @@
   --done-bg: #E5F4EB;
   --shadow: 0 10px 24px rgba(27, 42, 74, 0.08);
   --nav-w: 248px;
+  --title-font: "LXGW WenKai TC", "霞鶩文楷 TC", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
 }
 
 * { box-sizing: border-box; }
@@ -75,7 +76,7 @@ textarea { min-height: 110px; resize: vertical; }
   transform: translateX(-105%); transition: transform 0.22s ease;
   display: flex; flex-direction: column; padding: 16px 14px 12px;
   overflow: hidden;
-  font-family: "LXGW WenKai TC", "霞鶩文楷 TC", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
+  font-family: var(--title-font);
 }
 .drawer.open { transform: none; }
 .drawer-brand { display: flex; flex: none; flex-direction: column; align-items: flex-start; gap: 8px; padding: 4px 8px 10px; overflow: visible; }
@@ -239,6 +240,25 @@ body[data-page="learn"] .learn-pop { display: grid; color: var(--paper); }
 .notice b { display: block; }
 .notice small { color: var(--muted); }
 
+/* 頁內標題用霞鶩文楷；內文、表單、表格維持原本字體。側欄已用同一套標題字。 */
+.page-title,
+.greet,
+.morning-title,
+.section-head h2,
+.section-head h3,
+.content h1,
+.content h2,
+.content h3,
+.tool-card h3,
+.roster-card h2,
+.guide-card b,
+.cal-stock h2,
+.cal-stock h3,
+.form-head h3,
+.modal-head h1,
+.modal-head h3 {
+  font-family: var(--title-font);
+}
 .page-title { font-size: 28px; font-weight: 560; letter-spacing: 0.42em; margin: 12px 0 8px; color: var(--navy); box-shadow: inset 0 -3px 0 var(--gold); display: inline-block; }
 .page-title.car-title { letter-spacing: 0.08em; }
 .card { background: var(--soft); border: 1px solid var(--line); border-radius: 16px; padding: 12px; }
