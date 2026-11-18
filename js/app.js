@@ -51,13 +51,20 @@ import {
   CAR_TEMPLATE_HEADERS,
   CAR_TEMPLATE_SAMPLES,
   CAR_TEMPLATE_SHEET,
+  applyLineRenewal,
   dateGap,
   dayPhrase,
   daysUntil,
+  defaultCtRenewYears,
+  isFullyRenewed,
+  lineIsRenewed,
   minDays,
   normalizeCarInput,
   pickDataSheet as pickCarSheet,
+  renewalExportStatus,
   renewalStatus,
+  undoLineRenewal,
+  upcomingLines,
   withinWindow,
 } from "@hub/cars";
 import { linesFromTextItems, mergeByPlate, normalizePlate, parseFubonText, parseSpreadsheetRecords } from "@hub/intake";
@@ -379,11 +386,18 @@ function renderContest() {
   if (frame.src !== href) frame.src = href;
 }
 
-function carLine(label, iso, today) {
+function carLine(label, iso, today, row, kind) {
   if (!iso) return `<div class="car-line"><span class="car-kind">${label}</span><span class="muted">未投保/未辨識</span></div>`;
   const days = daysUntil(iso, today);
   const status = renewalStatus(days);
-  return `<div class="car-line"><span class="car-kind">${label}</span><span>${esc(String(iso).slice(0, 10).replace(/-/g, "/"))}</span><span>${esc(dayPhrase(days))}</span><span class="car-pill ${status.key}">${status.label}</span></div>`;
+  const renewed = lineIsRenewed(kind === "ct" ? row?.ct_renewed_at : row?.vo_renewed_at, iso, today);
+  const pill = renewed
+    ? `<span class="car-pill renewed">✅ 已續保</span>`
+    : `<span class="car-pill ${status.key}">${status.label}</span>`;
+  const action = renewed
+    ? `<button class="car-renew-btn" type="button" data-action="car-undo-renew" data-id="${esc(row.id)}" data-kind="${kind}">取消續保</button>`
+    : `<button class="car-renew-btn" type="button" data-action="car-renew" data-id="${esc(row.id)}" data-kind="${kind}">已續保 ✅</button>`;
+  return `<div class="car-line"><span class="car-kind">${label}</span><span>${esc(String(iso).slice(0, 10).replace(/-/g, "/"))}</span><span>${esc(dayPhrase(days))}</span>${pill}${action}</div>`;
 }
 
 function renewalCard(row, today) {
@@ -400,8 +414,8 @@ function renewalCard(row, today) {
         <button class="btn danger small" type="button" data-action="car-delete" data-id="${esc(row.id)}" data-name="${esc(row.name)}">刪除</button>
       </div>
     </div>
-    ${carLine("強制險", row.ct_date, today)}
-    ${carLine("任意險", row.vo_date, today)}
+    ${carLine("強制險", row.ct_date, today, row, "ct")}
+    ${carLine("任意險", row.vo_date, today, row, "vo")}
     ${gap}
     ${note}
   </article>`;
@@ -413,6 +427,37 @@ function showCarMessage(text, isError) {
   node.hidden = !text;
   node.textContent = text || "";
   node.className = isError ? "error" : "ok";
+}
+
+
+let carRenewId = "";
+
+function openCarRenewSheet(row) {
+  carRenewId = row?.id || "";
+  const years = defaultCtRenewYears(row?.car_type);
+  $("carRenewHint").textContent = /機車/.test(String(row?.car_type || ""))
+    ? "機車強制險常見是續保 2 年，也可改選 1 年。"
+    : "請選擇要把強制險到期日往後延多久。預設是 1 年。";
+  $("carRenewOne").className = years === 1 ? "btn" : "btn secondary";
+  $("carRenewTwo").className = years === 2 ? "btn" : "btn secondary";
+  $("carRenewSheet").classList.add("show");
+}
+
+async function commitLineRenewal(row, kind, years) {
+  const next = applyLineRenewal(row, kind, years);
+  if (next.error) throw new Error(next.error);
+  await store.saveCarRenewal(next);
+  toast(kind === "ct" ? `強制險已續保 ${years} 年` : "任意險已續保 1 年");
+  $("carRenewSheet").classList.remove("show");
+  await renderCars();
+}
+
+async function commitLineUndo(row, kind) {
+  const next = undoLineRenewal(row, kind);
+  if (next.error) throw new Error(next.error);
+  await store.saveCarRenewal(next);
+  toast(kind === "ct" ? "已取消強制險續保" : "已取消任意險續保");
+  await renderCars();
 }
 
 function openCarForm(row) {
@@ -444,6 +489,9 @@ async function renderCars() {
   let rows = carLimit ? all.filter((row) => withinWindow(row, today, Number(carLimit))) : all.slice();
   if (query) rows = rows.filter((row) => `${row.name} ${row.plate}`.toLowerCase().includes(query));
   rows.sort((a, b) => {
+    const aDone = isFullyRenewed(a, today);
+    const bDone = isFullyRenewed(b, today);
+    if (aDone !== bDone) return aDone ? 1 : -1;
     const left = minDays(a, today);
     const right = minDays(b, today);
     if (left == null && right == null) return String(a.name).localeCompare(String(b.name), "zh-Hant");
@@ -472,12 +520,7 @@ function renderHomeMorning(today) {
 }
 
 function policiesInTwoMonths(row, today) {
-  return [
-    ["強制險", row.ct_date],
-    ["任意險", row.vo_date],
-  ].map(([label, iso]) => ({ label, iso: String(iso || "").slice(0, 10), days: daysUntil(iso, today) }))
-    .filter((item) => item.days != null && item.days >= 0 && item.days <= 60)
-    .sort((a, b) => a.days - b.days || a.label.localeCompare(b.label, "zh-Hant"));
+  return upcomingLines(row, today, 60);
 }
 
 function renderHomeCars(cars, today) {
@@ -729,7 +772,8 @@ function carSheetDate(value) {
 
 async function exportCars() {
   const XLSX = await loadSheetJs();
-  const headers = ["姓名", "車牌", "車種", "強制險到期日", "任意險到期日", "備註"];
+  const today = isoDate();
+  const headers = ["姓名", "車牌", "車種", "強制險到期日", "任意險到期日", "續保狀態", "備註"];
   const rows = (await store.listCarRenewals()).slice().sort((a, b) =>
     String(a.name).localeCompare(String(b.name), "zh-Hant") || String(a.plate).localeCompare(String(b.plate), "zh-Hant"));
   const sheet = XLSX.utils.aoa_to_sheet([
@@ -740,6 +784,7 @@ async function exportCars() {
       row.car_type || "",
       carSheetDate(row.ct_date),
       carSheetDate(row.vo_date),
+      renewalExportStatus(row, today),
       row.note || "",
     ]),
   ]);
@@ -2253,6 +2298,20 @@ async function handleAction(event) {
       $("carDeleteName").textContent = target.dataset.name || "";
       $("carDelete").classList.add("show");
     }
+    if (target.dataset.action === "car-renew") {
+      const row = (await store.listCarRenewals()).find((item) => item.id === id);
+      if (!row) return;
+      if (target.dataset.kind === "vo") {
+        await commitLineRenewal(row, "vo", 1);
+      } else {
+        openCarRenewSheet(row);
+      }
+    }
+    if (target.dataset.action === "car-undo-renew") {
+      const row = (await store.listCarRenewals()).find((item) => item.id === id);
+      if (!row) return;
+      await commitLineUndo(row, target.dataset.kind);
+    }
     if (target.dataset.action === "toggle-course") {
       await store.setCourseComplete(id, target.dataset.done !== "1");
       await renderLearn();
@@ -2566,6 +2625,19 @@ function bind() {
   };
   $("carDeleteCancel").onclick = () => $("carDelete").classList.remove("show");
   $("carDeleteClose").onclick = () => $("carDelete").classList.remove("show");
+  $("carRenewClose").onclick = () => $("carRenewSheet").classList.remove("show");
+  $("carRenewCancel").onclick = () => $("carRenewSheet").classList.remove("show");
+  const chooseYears = async (years) => {
+    try {
+      const row = (await store.listCarRenewals()).find((item) => item.id === carRenewId);
+      if (!row) return;
+      await commitLineRenewal(row, "ct", years);
+    } catch (error) {
+      toast(error.message || "沒有續保");
+    }
+  };
+  $("carRenewOne").onclick = () => chooseYears(1);
+  $("carRenewTwo").onclick = () => chooseYears(2);
   $("carDeleteOk").onclick = async () => {
     const id = carDeleteId;
     $("carDelete").classList.remove("show");

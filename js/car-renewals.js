@@ -65,10 +65,99 @@ export function daysUntil(iso, today) {
   return Math.round((left - right) / 86400000);
 }
 
+export function lineIsRenewed(renewedAt, iso, today) {
+  if (!renewedAt) return false;
+  const days = daysUntil(iso, today);
+  return days != null && days > 90;
+}
+
+export function policyLines(row, today) {
+  return [
+    { kind: "ct", label: "強制險", iso: String(row?.ct_date || "").slice(0, 10), renewedAt: row?.ct_renewed_at || null },
+    { kind: "vo", label: "任意險", iso: String(row?.vo_date || "").slice(0, 10), renewedAt: row?.vo_renewed_at || null },
+  ].map((item) => ({
+    ...item,
+    days: daysUntil(item.iso, today),
+    renewed: lineIsRenewed(item.renewedAt, item.iso, today),
+  }));
+}
+
 export function minDays(row, today) {
-  const values = [daysUntil(row?.ct_date, today), daysUntil(row?.vo_date, today)].filter((days) => days != null);
+  const values = policyLines(row, today)
+    .filter((item) => !item.renewed && item.days != null)
+    .map((item) => item.days);
   if (!values.length) return null;
   return Math.min(...values);
+}
+
+export function upcomingLines(row, today, limit = 60) {
+  return policyLines(row, today)
+    .filter((item) => !item.renewed && item.days != null && item.days >= 0 && item.days <= limit)
+    .sort((a, b) => a.days - b.days || a.label.localeCompare(b.label, "zh-Hant"));
+}
+
+export function isFullyRenewed(row, today) {
+  const lines = policyLines(row, today).filter((item) => item.iso);
+  return lines.length > 0 && lines.every((item) => item.renewed);
+}
+
+export function defaultCtRenewYears(carType) {
+  return /機車/.test(String(carType || "")) ? 2 : 1;
+}
+
+export function addYearsIso(iso, years) {
+  const match = String(iso || "").match(/^(\d{4})-(\d{2})-(\d{2})/);
+  if (!match) return "";
+  const y = Number(match[1]) + Number(years);
+  const m = Number(match[2]);
+  const d = Number(match[3]);
+  const exact = validDate(y, m, d);
+  if (exact) return isoFromParts(exact.y, exact.m, exact.d);
+  const last = new Date(Date.UTC(y, m, 0)).getUTCDate();
+  return isoFromParts(y, m, Math.min(d, last));
+}
+
+export function applyLineRenewal(row, kind, years, at = new Date()) {
+  if (kind !== "ct" && kind !== "vo") return { error: "請選擇險種" };
+  const count = Number(years);
+  if (kind === "vo" && count !== 1) return { error: "任意險一次續保 1 年" };
+  if (count !== 1 && count !== 2) return { error: "請選擇續保 1 年或 2 年" };
+  const dateKey = kind === "ct" ? "ct_date" : "vo_date";
+  const prevKey = kind === "ct" ? "ct_prev_date" : "vo_prev_date";
+  const atKey = kind === "ct" ? "ct_renewed_at" : "vo_renewed_at";
+  const current = String(row?.[dateKey] || "").slice(0, 10);
+  const next = addYearsIso(current, count);
+  if (!next) return { error: "沒有到期日，無法續保" };
+  const stamped = at instanceof Date ? at.toISOString() : String(at || "");
+  if (!stamped) return { error: "續保時間不正確" };
+  return {
+    ...row,
+    [dateKey]: next,
+    [prevKey]: current,
+    [atKey]: stamped,
+  };
+}
+
+export function undoLineRenewal(row, kind) {
+  if (kind !== "ct" && kind !== "vo") return { error: "請選擇險種" };
+  const dateKey = kind === "ct" ? "ct_date" : "vo_date";
+  const prevKey = kind === "ct" ? "ct_prev_date" : "vo_prev_date";
+  const atKey = kind === "ct" ? "ct_renewed_at" : "vo_renewed_at";
+  if (!row?.[atKey] && !row?.[prevKey]) return { error: "這筆還沒有續保紀錄" };
+  return {
+    ...row,
+    [dateKey]: row[prevKey] || row[dateKey] || null,
+    [prevKey]: null,
+    [atKey]: null,
+  };
+}
+
+export function renewalExportStatus(row, today) {
+  return policyLines(row, today).map((item) => {
+    if (!item.iso) return `${item.label}未投保`;
+    if (item.renewed) return `${item.label}已續保（${item.iso.replace(/-/g, "/")}）`;
+    return `${item.label}未續保`;
+  }).join("；");
 }
 
 export function withinWindow(row, today, limit) {
@@ -173,6 +262,32 @@ export function normalizeCarInput(input) {
       note: note || null,
     },
   };
+}
+
+export const RENEWAL_FIELDS = ["ct_renewed_at", "ct_prev_date", "vo_renewed_at", "vo_prev_date"];
+
+export function carWriteFields(input, existing = null) {
+  const parsed = normalizeCarInput(input);
+  if (parsed.error) return parsed;
+  const fields = { ...parsed.fields };
+  for (const key of RENEWAL_FIELDS) {
+    if (key in (input || {})) fields[key] = input[key] || null;
+  }
+  if (existing) {
+    const oldCt = String(existing.ct_date || "").slice(0, 10);
+    const newCt = String(fields.ct_date || "").slice(0, 10);
+    const oldVo = String(existing.vo_date || "").slice(0, 10);
+    const newVo = String(fields.vo_date || "").slice(0, 10);
+    if (oldCt !== newCt && !("ct_renewed_at" in (input || {}))) {
+      fields.ct_renewed_at = null;
+      fields.ct_prev_date = null;
+    }
+    if (oldVo !== newVo && !("vo_renewed_at" in (input || {}))) {
+      fields.vo_renewed_at = null;
+      fields.vo_prev_date = null;
+    }
+  }
+  return { fields };
 }
 
 function fieldOf(header) {
