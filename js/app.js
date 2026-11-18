@@ -882,6 +882,15 @@ function mountAnalysisFields() {
   root.dataset.ready = "1";
 }
 
+function syncFieldClears() {
+  const form = $("customerForm");
+  if (!form) return;
+  form.querySelectorAll("[data-clear]").forEach((button) => {
+    const input = form.elements[button.dataset.clear];
+    button.hidden = !input || !String(input.value || "").trim();
+  });
+}
+
 function paintAnalysis() {
   mountAnalysisFields();
   const cells = gridCells(readForm($("customerForm")));
@@ -1004,6 +1013,10 @@ function fillCustomerForm(customer) {
   form.elements.hobbies.value = customer.hobbies || "";
   setLeadSource(customer.lead_source || "");
   form.elements.notes.value = customer.notes || "";
+  for (const key of ["work_role", "income", "expense", "debt", "decision_maker", "influence_factor", "competitor"]) {
+    form.elements[key].value = customer[key] || "";
+  }
+  syncFieldClears();
   form.elements.relation_social.value = customer.relation_social || "";
   form.elements.relation_business.value = customer.relation_business || "";
   for (const section of ANALYSIS_SECTIONS) {
@@ -1070,6 +1083,13 @@ const EXPORT_COLUMNS = [
   ["relation_business", "商業關係"],
   ["service_tags", "服務標籤"],
   ["notes", "備註"],
+  ["work_role", "工作"],
+  ["income", "收入"],
+  ["expense", "支出"],
+  ["debt", "負債"],
+  ["decision_maker", "決策者"],
+  ["influence_factor", "影響因子"],
+  ["competitor", "競爭者"],
   ["is_archived", "已封存"],
 ];
 
@@ -1470,7 +1490,7 @@ async function renderClientDetail(customers, profiles) {
   const canEdit = clientsAreEditable() && customer.owner_id === me().id;
   $("clientDetail").innerHTML = `<div class="panel" style="margin-top:12px">
     <div class="client-top"><div><h3>${esc(customer.display_name)}</h3><p class="sub">${esc([customer.ref_code, customer.nickname, customer.gender, rocLabel(customer.birth_date), customer.contact_method || customer.preferred_contact].filter(Boolean).join(" · "))} · 負責人 ${esc(nameOf(customer.owner_id, profiles))}</p></div>
-    <div class="row">${canEdit ? `<button class="btn secondary small" type="button" data-action="edit-client" data-id="${esc(customer.id)}">編輯</button>` : ""}<button class="btn secondary small" type="button" data-action="jump-analysis">五項度</button>${canEdit ? `<button class="btn danger small" type="button" data-action="archive-client" data-id="${esc(customer.id)}" data-archived="${customer.is_archived ? "1" : "0"}">${customer.is_archived ? "取消封存" : "封存"}</button>` : ""}</div></div>
+    <div class="row">${canEdit ? `<button class="btn secondary small" type="button" data-action="edit-client" data-id="${esc(customer.id)}">編輯</button>` : ""}<button class="btn secondary small" type="button" data-action="jump-analysis">五項度</button>${canEdit ? `<button class="btn danger small" type="button" data-action="archive-client" data-id="${esc(customer.id)}" data-archived="${customer.is_archived ? "1" : "0"}">${customer.is_archived ? "取消封存" : "封存"}</button><button class="btn danger small" type="button" data-action="delete-client" data-id="${esc(customer.id)}" data-name="${esc(customer.display_name)}">刪除</button>` : ""}</div></div>
     <p>${esc(customer.notes || "還沒有備註。")}</p>
     ${customer.birthday_md ? `<p class="muted">生日月日 ${esc(customer.birthday_md)}（不含年份）</p>` : ""}
     <section class="fbfli-block" id="fbfliHistory">
@@ -1580,6 +1600,7 @@ function resetCustomerForm() {
   setLeadSource("");
   $("customerFormTitle").textContent = "新增名單";
   $("customerCancel").hidden = true;
+  syncFieldClears();
   if (me()) $("customerOwner").value = me().id;
   paintAnalysis();
 }
@@ -1680,6 +1701,17 @@ async function handleAction(event) {
       toast(target.dataset.archived === "1" ? "已取消封存" : "已封存這位客戶");
       await renderClients();
     }
+    if (target.dataset.action === "delete-client") {
+      if (!clientsAreEditable()) return;
+      const name = target.dataset.name || "這位客戶";
+      if (!window.confirm(`確定要刪除${name}嗎？這位客戶會從名單消失，相關的保單摘要和服務紀錄也會一起刪除，不能復原。`)) return;
+      await store.deleteCustomer(id);
+      selectedCustomerId = null;
+      resetCustomerForm();
+      clientTab = "list";
+      toast("已刪除這位客戶");
+      await renderClients();
+    }
     if (target.dataset.action === "delete-policy") {
       if (!clientsAreEditable()) return;
       await store.deletePolicy(id);
@@ -1754,6 +1786,16 @@ function bind() {
     }
   });
   document.body.addEventListener("click", (event) => {
+    const clearer = event.target.closest("[data-clear]");
+    if (clearer && !$("customerForm").classList.contains("locked")) {
+      const input = $("customerForm").elements[clearer.dataset.clear];
+      if (input) {
+        input.value = "";
+        input.dispatchEvent(new Event("input", { bubbles: true }));
+        input.focus();
+      }
+      return;
+    }
     const chip = event.target.closest("[data-fbfli-action]");
     if (chip) {
       chip.setAttribute("aria-pressed", chip.getAttribute("aria-pressed") === "true" ? "false" : "true");
@@ -1986,7 +2028,10 @@ function bind() {
     }
   });
   $("sourceCustom").addEventListener("change", commitCustomSource);
-  $("customerForm").addEventListener("input", paintAnalysis);
+  $("customerForm").addEventListener("input", () => {
+    paintAnalysis();
+    syncFieldClears();
+  });
   $("customerForm").addEventListener("change", paintAnalysis);
   $("relationOpen").onclick = openRelation;
   $("relationCancel").onclick = () => $("relationSheet").classList.remove("show");
@@ -2166,7 +2211,9 @@ async function onCustomer(event) {
       birth_date: null,
       birthday_md: String(data.birth_roc || "").trim() ? null : (data.birthday_md_keep || null),
     });
-    const message = saved.strategy_pending ? "名單已儲存。策略分析圖要等資料欄位加上後才會留在雲端。" : "名單已儲存";
+    const message = saved.fields_pending
+      ? "名單已儲存。財務與決策欄位要等資料庫加上後才會留在雲端。"
+      : (saved.strategy_pending ? "名單已儲存。策略分析圖要等資料欄位加上後才會留在雲端。" : "名單已儲存");
     if (adding) {
       selectedCustomerId = null;
       resetCustomerForm();

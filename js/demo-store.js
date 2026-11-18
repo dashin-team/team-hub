@@ -67,6 +67,13 @@ function seed() {
       analysis_worry: "擔心小孩教育金不夠，也在意突然的醫療支出。",
       analysis_dream: "希望五年內準備一筆教育基金。",
       analysis_work: "業務工作，收入不固定。房貸每月約兩萬。",
+      work_role: "虛構。業務工作",
+      income: "虛構。收入不固定",
+      expense: "虛構。房貸每月約兩萬",
+      debt: "虛構。沒有其他貸款",
+      decision_maker: "虛構。夫妻一起決定",
+      influence_factor: "虛構。太太會先點頭",
+      competitor: "虛構。目前沒有其他業務員",
       analysis_existing: "已有實支實付與意外險。",
       analysis_insured: "本人",
       analysis_beneficiary: "配偶",
@@ -246,7 +253,7 @@ function seed() {
   ];
 
   return {
-    version: 12,
+    version: 13,
     profiles,
     customers,
     policies,
@@ -389,7 +396,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 12 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs)) return seed();
+    if (parsed?.version !== 13 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -777,6 +784,23 @@ export function createDemoStore() {
       const row = (state.calendar_events || []).find((item) => item.id === id);
       if (!row || row.owner_id !== me.id) throw new Error("只能刪除自己的活動");
       state.calendar_events = state.calendar_events.filter((item) => item.id !== id);
+      persist();
+    },
+
+    async deleteCustomer(id) {
+      const me = requireProfile();
+      const row = state.customers.find((item) => item.id === id && item.team_id === me.team_id);
+      if (!row || row.owner_id !== me.id) throw new Error("只能刪除自己的客戶");
+      state.customers = state.customers.filter((item) => item.id !== id);
+      state.policies = state.policies.filter((item) => item.customer_id !== id);
+      state.service_records = state.service_records.filter((item) => item.customer_id !== id);
+      state.reminders = state.reminders.filter((item) => item.customer_id !== id);
+      state.contact_logs = (state.contact_logs || []).filter((item) => item.customer_id !== id);
+      if (state.calendar_events) {
+        state.calendar_events.forEach((item) => {
+          if (item.customer_id === id) item.customer_id = null;
+        });
+      }
       persist();
     },
 

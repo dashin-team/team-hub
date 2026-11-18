@@ -412,7 +412,7 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 }
 
 .client-form { margin-top: 16px; }
-#customerForm.locked :is(input, textarea, select, .choice, #sourceChips button, .nine-cell) { pointer-events: none; }
+#customerForm.locked :is(input, textarea, select, .choice, #sourceChips button, .nine-cell, .field-clear) { pointer-events: none; }
 #customerForm.locked :is([type="submit"], #customerCancel, #birthBtn) { display: none !important; }
 .npss {
   position: relative;
@@ -430,9 +430,18 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
   text-align: left;
 }
 .npss > span, .npss > label { flex: 0 0 6.5em; color: var(--muted); font-size: 14px; }
+.clear-wrap { position: relative; flex: 1; min-width: 0; }
+.clear-wrap input { width: 100%; padding-right: 36px; }
+.field-clear {
+  position: absolute; right: 2px; top: 50%; transform: translateY(-50%);
+  width: 32px; height: 32px; border: 0; border-radius: 50%; background: transparent; color: var(--navy);
+}
+.mini-section { margin: 8px 0 4px; }
+.mini-section h3 { margin: 12px 0 4px; font-size: 15px; letter-spacing: 0.08em; color: var(--navy); border-bottom: 2px solid var(--gold); display: inline-block; }
 .npss input, .npss select {
   flex: 1; min-width: 0; border: 0; background: transparent; padding: 8px 10px; border-radius: 999px;
 }
+.npss .clear-wrap input { padding-right: 36px; }
 .npss strong { margin-left: auto; padding-right: 12px; font-weight: 650; }
 .choice { display: flex; gap: 16px; padding-right: 12px; }
 .choice label { display: flex; gap: 6px; align-items: center; }

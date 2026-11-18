@@ -9,34 +9,34 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="大心團隊">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261118f 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261118g 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>大心團隊</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./favicon.ico?v=20261118f" sizes="any">
-  <link rel="icon" href="./favicon.svg?v=20261118f" type="image/svg+xml">
-  <link rel="icon" href="./favicon-32.png?v=20261118f" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118f">
-  <link rel="stylesheet" href="./css/styles.css?v=20261118f">
+  <link rel="icon" href="./favicon.ico?v=20261118g" sizes="any">
+  <link rel="icon" href="./favicon.svg?v=20261118g" type="image/svg+xml">
+  <link rel="icon" href="./favicon-32.png?v=20261118g" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118g">
+  <link rel="stylesheet" href="./css/styles.css?v=20261118g">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261118f",
-      "@hub/guides": "./js/guides.js?v=20261118f",
-      "@hub/store": "./js/store.js?v=20261118f",
-      "@hub/metrics": "./js/metrics.js?v=20261118f",
-      "@hub/config": "./js/config.js?v=20261118f",
-      "@hub/demo-store": "./js/demo-store.js?v=20261118f",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261118f",
-      "@hub/safe": "./js/safe-browser.js?v=20261118f",
-      "@hub/contest": "./js/contest.js?v=20261118f",
-      "@hub/profile": "./js/client-profile.js?v=20261118f",
-      "@hub/calendar": "./js/calendar.js?v=20261118f",
-      "@hub/team": "./js/team-schedule.js?v=20261118f",
-      "@hub/roster": "./js/team-roster.js?v=20261118f",
-      "@hub/account": "./js/account.js?v=20261118f",
-      "@hub/contact": "./js/contact-log.js?v=20261118f",
-      "@hub/quotes": "./js/quotes.js?v=20261118f"
+      "@hub/app": "./js/app.js?v=20261118g",
+      "@hub/guides": "./js/guides.js?v=20261118g",
+      "@hub/store": "./js/store.js?v=20261118g",
+      "@hub/metrics": "./js/metrics.js?v=20261118g",
+      "@hub/config": "./js/config.js?v=20261118g",
+      "@hub/demo-store": "./js/demo-store.js?v=20261118g",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261118g",
+      "@hub/safe": "./js/safe-browser.js?v=20261118g",
+      "@hub/contest": "./js/contest.js?v=20261118g",
+      "@hub/profile": "./js/client-profile.js?v=20261118g",
+      "@hub/calendar": "./js/calendar.js?v=20261118g",
+      "@hub/team": "./js/team-schedule.js?v=20261118g",
+      "@hub/roster": "./js/team-roster.js?v=20261118g",
+      "@hub/account": "./js/account.js?v=20261118g",
+      "@hub/contact": "./js/contact-log.js?v=20261118g",
+      "@hub/quotes": "./js/quotes.js?v=20261118g"
     }
   }
   </script>
@@ -44,7 +44,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118f" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118g" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -63,7 +63,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118f" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118g" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -101,7 +101,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118f" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118g" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -203,7 +203,7 @@
     <div class="main">
       <header class="topbar">
         <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
-        <img class="top-logo" src="./favicon.svg?v=20261118f" alt="" width="28" height="28">
+        <img class="top-logo" src="./favicon.svg?v=20261118g" alt="" width="28" height="28">
         <div class="top-title" id="crumb">總覽</div>
         <a id="learnPop" class="learn-pop" href="https://dashin-team.github.io/nanen-newbie-training/" target="_blank" rel="noopener" aria-label="新視窗開啟" title="新視窗開啟">↗</a>
       </header>
@@ -314,6 +314,19 @@
               <strong id="relationText">請選擇</strong>
             </button>
             <label class="notes-field">備註<textarea name="notes" maxlength="4000"></textarea></label>
+            <section class="mini-section" id="financeFields">
+              <h3>財務</h3>
+              <label class="npss"><span>工作：</span><span class="clear-wrap"><input name="work_role" maxlength="200"><button class="field-clear" type="button" data-clear="work_role" aria-label="清除工作" hidden>✕</button></span></label>
+              <label class="npss"><span>收入：</span><span class="clear-wrap"><input name="income" maxlength="200"><button class="field-clear" type="button" data-clear="income" aria-label="清除收入" hidden>✕</button></span></label>
+              <label class="npss"><span>支出：</span><span class="clear-wrap"><input name="expense" maxlength="200"><button class="field-clear" type="button" data-clear="expense" aria-label="清除支出" hidden>✕</button></span></label>
+              <label class="npss"><span>負債：</span><span class="clear-wrap"><input name="debt" maxlength="200"><button class="field-clear" type="button" data-clear="debt" aria-label="清除負債" hidden>✕</button></span></label>
+            </section>
+            <section class="mini-section">
+              <h3>決策</h3>
+              <label class="npss"><span>決策者：</span><span class="clear-wrap"><input name="decision_maker" maxlength="200"><button class="field-clear" type="button" data-clear="decision_maker" aria-label="清除決策者" hidden>✕</button></span></label>
+              <label class="npss"><span>影響因子：</span><span class="clear-wrap"><input name="influence_factor" maxlength="200"><button class="field-clear" type="button" data-clear="influence_factor" aria-label="清除影響因子" hidden>✕</button></span></label>
+              <label class="npss"><span>競爭者：</span><span class="clear-wrap"><input name="competitor" maxlength="200"><button class="field-clear" type="button" data-clear="competitor" aria-label="清除競爭者" hidden>✕</button></span></label>
+            </section>
             <section id="analysisBlock">
               <div class="section-head">
                 <h3>五項度客戶分析</h3>
@@ -676,6 +689,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261118f"></script>
+  <script type="module" src="./js/app.js?v=20261118g"></script>
 </body>
 </html>
