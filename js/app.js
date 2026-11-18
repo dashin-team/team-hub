@@ -47,25 +47,34 @@ import {
 import { FBFLI_ACTIONS } from "@hub/contact";
 import { dailyQuote } from "@hub/quotes";
 import {
+  CAR_TEMPLATE_GUIDE,
+  CAR_TEMPLATE_HEADERS,
+  CAR_TEMPLATE_SAMPLES,
+  CAR_TEMPLATE_SHEET,
   dateGap,
   dayPhrase,
   daysUntil,
   minDays,
   normalizeCarInput,
+  pickDataSheet as pickCarSheet,
   renewalStatus,
   withinWindow,
 } from "@hub/cars";
 import { linesFromTextItems, mergeByPlate, normalizePlate, parseFubonText, parseSpreadsheetRecords } from "@hub/intake";
 import { createTesseractProvider } from "@hub/ocr";
 import {
+  CLIENT_TEMPLATE_GUIDE,
   CLIENT_TEMPLATE_HEADERS,
-  CLIENT_TEMPLATE_SAMPLE,
+  CLIENT_TEMPLATE_SAMPLES,
+  CLIENT_TEMPLATE_SHEET,
   clientKey,
   mapClientRecords,
   mapClientTypes,
   markDuplicates,
+  pickDataSheet as pickClientSheet,
   typesText,
 } from "@hub/clientimport";
+import { QUOTE_EMPTY_TEXT, quoteCardHtml, visibleQuoteLinks } from "@hub/quickquote";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
 import {
@@ -89,6 +98,7 @@ const PAGE_NAMES = {
   learn: "訓練",
   ai: "工具",
   cars: "車險續保通知",
+  quickquote: "快速報價",
   roster: "同仁名單",
   announcements: "管理",
 };
@@ -290,6 +300,7 @@ async function renderPage() {
   if (page === "tasks") await renderCalendar();
   if (page === "clients") await renderClients();
   if (page === "cars") await renderCars();
+  if (page === "quickquote") renderQuickQuote();
   if (page === "social") renderContest();
   if (page === "roster") await loadRoster();
   if (page === "announcements") {
@@ -544,12 +555,12 @@ async function spreadsheetRows(file) {
   const XLSX = await loadSheetJs();
   const csv = fileKind(file) === "csv";
   const book = csv ? XLSX.read(await file.text(), { type: "string" }) : XLSX.read(await file.arrayBuffer(), { type: "array" });
-  const sheet = book.Sheets[book.SheetNames[0]];
+  const sheet = book.Sheets[pickCarSheet(book.SheetNames, CAR_TEMPLATE_SHEET)];
   if (!sheet) throw new Error("這個檔案沒有讀到資料");
   const records = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: true });
   const mapped = parseSpreadsheetRecords(records);
   if (mapped.error) throw new Error(mapped.error);
-  return { rows: mapped.rows, raw: "" };
+  return { rows: mapped.rows, raw: "", samples: mapped.samples || 0 };
 }
 
 let pdfjsPromise;
@@ -616,6 +627,7 @@ async function intakeFiles(files) {
   $("ocrSheet").classList.add("show");
   const rows = [];
   const raw = [];
+  let samples = 0;
   try {
     for (let index = 0; index < list.length; index += 1) {
       const file = list[index];
@@ -628,9 +640,11 @@ async function intakeFiles(files) {
       else if (kind === "pdf") result = await pdfRows(file, (label, ratio) => paintIntakeProgress(`${prefix} · ${label}`, ratio));
       else result = await imageRows(file, (label, ratio) => paintIntakeProgress(`${prefix} · ${label}`, ratio));
       rows.push(...result.rows);
+      samples += result.samples || 0;
       if (result.raw) raw.push(result.raw);
     }
     const merged = mergeByPlate(rows);
+    if (!merged.length && samples) throw new Error("這份檔案的列都是範例，請刪除範例後填上真實資料再匯入。");
     openIntakeReview(merged, raw.join("\n\n"));
   } catch (error) {
     $("ocrSheet").classList.remove("show");
@@ -712,13 +726,23 @@ async function exportCars() {
 
 async function downloadCarTemplate() {
   const XLSX = await loadSheetJs();
-  const sheet = XLSX.utils.aoa_to_sheet([
-    ["姓名", "車牌", "車種", "強制險到期日", "任意險到期日"],
-    ["王小明（示範）", "ABC-1688", "轎車", "2027/03/01", "2027/03/01"],
-  ]);
+  const data = XLSX.utils.aoa_to_sheet([CAR_TEMPLATE_HEADERS, ...CAR_TEMPLATE_SAMPLES]);
+  data["!cols"] = CAR_TEMPLATE_HEADERS.map((header) => ({ wch: header === "備註" ? 16 : header.length + 4 }));
+  const guide = XLSX.utils.aoa_to_sheet(CAR_TEMPLATE_GUIDE);
+  guide["!cols"] = [{ wch: 16 }, { wch: 10 }, { wch: 56 }];
   const book = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(book, sheet, "車險客戶");
+  XLSX.utils.book_append_sheet(book, data, CAR_TEMPLATE_SHEET);
+  XLSX.utils.book_append_sheet(book, guide, "填寫說明");
   XLSX.writeFile(book, "車險客戶匯入範本.xlsx");
+}
+
+function renderQuickQuote() {
+  const list = $("quoteList");
+  if (!list) return;
+  const links = visibleQuoteLinks();
+  list.innerHTML = links.length
+    ? links.map((item) => quoteCardHtml(item, esc)).join("")
+    : `<div class="empty">${QUOTE_EMPTY_TEXT}</div>`;
 }
 
 async function renderHome() {
@@ -755,7 +779,7 @@ async function renderHome() {
   );
   $("homeBirthdays").innerHTML = birthdays.length ? birthdays.map((item) => `
     <button class="bday-row ${item.today ? "today" : ""}${item.passed ? " passed" : ""}" type="button" data-action="open-birthday" data-id="${esc(item.id)}">
-      <span><b>${esc(item.name)}</b><small> ${item.label}${item.age != null ? ` · 滿 ${item.age} 歲` : ""}</small></span>
+      <span class="bday-main"><b>${esc(item.name)}</b><small>${item.label}${item.age != null ? ` · 滿 ${item.age} 歲` : ""}</small></span>
       ${item.today ? `<b class="bday-today">今天生日 🎉</b>` : ""}
     </button>`).join("") : `<div class="empty">這個月沒有客戶壽星</div>`;
   $("homeSchedule").innerHTML = agenda.slice(0, 2).map((item) =>
@@ -1551,10 +1575,13 @@ function showClientImportMessage(text, isError) {
 
 async function downloadClientTemplate() {
   const XLSX = await loadSheetJs();
-  const sheet = XLSX.utils.aoa_to_sheet([CLIENT_TEMPLATE_HEADERS, CLIENT_TEMPLATE_SAMPLE]);
-  sheet["!cols"] = CLIENT_TEMPLATE_HEADERS.map((header) => ({ wch: header === "備註" ? 24 : header === "客戶類型" ? 18 : 12 }));
+  const sheet = XLSX.utils.aoa_to_sheet([CLIENT_TEMPLATE_HEADERS, ...CLIENT_TEMPLATE_SAMPLES]);
+  sheet["!cols"] = CLIENT_TEMPLATE_HEADERS.map((header) => ({ wch: header === "備註" ? 16 : header === "客戶類型" ? 18 : 12 }));
+  const guide = XLSX.utils.aoa_to_sheet(CLIENT_TEMPLATE_GUIDE);
+  guide["!cols"] = [{ wch: 16 }, { wch: 10 }, { wch: 56 }];
   const book = XLSX.utils.book_new();
-  XLSX.utils.book_append_sheet(book, sheet, "名單");
+  XLSX.utils.book_append_sheet(book, sheet, CLIENT_TEMPLATE_SHEET);
+  XLSX.utils.book_append_sheet(book, guide, "填寫說明");
   XLSX.writeFile(book, "名單匯入範本.xlsx");
 }
 
@@ -1565,7 +1592,7 @@ async function readClientFile(file) {
   const book = kind === "csv"
     ? XLSX.read(await file.text(), { type: "string", raw: true })
     : XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
-  const sheet = book.Sheets[book.SheetNames[0]];
+  const sheet = book.Sheets[pickClientSheet(book.SheetNames, CLIENT_TEMPLATE_SHEET)];
   if (!sheet) throw new Error("這個檔案沒有讀到資料");
   const records = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: true });
   const mapped = mapClientRecords(records, CLIENT_TYPES);
@@ -1655,6 +1682,9 @@ async function importClientFile(file) {
   showClientImportMessage("");
   try {
     const mapped = await readClientFile(file);
+    if (!mapped.rows.length && mapped.samples) {
+      throw new Error("這份檔案的列都是範例，請刪除範例後填上真實資料再匯入。");
+    }
     const profile = me();
     const existing = (await store.listCustomers()).filter((item) => item.owner_id === profile?.id);
     openClientImportReview(markDuplicates(mapped.rows, existing), mapped.blank);

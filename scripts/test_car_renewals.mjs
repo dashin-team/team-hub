@@ -1,10 +1,16 @@
 import {
+  CAR_TEMPLATE_GUIDE,
+  CAR_TEMPLATE_HEADERS,
+  CAR_TEMPLATE_SAMPLES,
+  CAR_TEMPLATE_SHEET,
+  carTemplateSheets,
   dateGap,
   dayPhrase,
   excelSerialToIso,
   mapImportRecords,
   minDays,
   parseImportDate,
+  pickDataSheet,
   renewalStatus,
   withinWindow,
 } from "../js/car-renewals.js";
@@ -90,4 +96,36 @@ if (lines.length !== 2 || !lines[0].includes("王小明") || !lines[0].includes(
 if (mergeByPlate([{ plate: "ABC1234", name: "甲", ct_date: "2026-01-01", vo_date: "" }, { plate: "ABC-1234", name: "", ct_date: "", vo_date: "2026-02-01" }])[0].vo_date !== "2026-02-01") {
   throw new Error("merge");
 }
+function aoaToRecords(aoa) {
+  const [headers, ...rows] = aoa;
+  return rows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])));
+}
+
+const sheets = carTemplateSheets();
+if (!sheets[CAR_TEMPLATE_SHEET] || !sheets["填寫說明"]) throw new Error("car template sheets");
+if (sheets[CAR_TEMPLATE_SHEET][0].join() !== CAR_TEMPLATE_HEADERS.join()) throw new Error("car header");
+if (sheets[CAR_TEMPLATE_SHEET].length !== 1 + CAR_TEMPLATE_SAMPLES.length) throw new Error("car sample count");
+if (!CAR_TEMPLATE_SAMPLES.every((row) => String(row.at(-1)).includes("範例"))) throw new Error("car sample note");
+if (!CAR_TEMPLATE_GUIDE.flat().some((cell) => String(cell).includes("身分證字號"))) throw new Error("car guide id");
+if (pickDataSheet(["填寫說明", "車險客戶"], CAR_TEMPLATE_SHEET) !== "車險客戶") throw new Error("pick preferred");
+if (pickDataSheet(["填寫說明", "其他"], CAR_TEMPLATE_SHEET) !== "其他") throw new Error("pick skip guide");
+
+const onlySamples = mapImportRecords(aoaToRecords(sheets[CAR_TEMPLATE_SHEET]));
+if (onlySamples.rows.length !== 0 || onlySamples.samples !== CAR_TEMPLATE_SAMPLES.length) {
+  throw new Error(JSON.stringify(onlySamples));
+}
+const intakeSamples = parseSpreadsheetRecords(aoaToRecords(sheets[CAR_TEMPLATE_SHEET]));
+if (intakeSamples.rows.length !== 0 || intakeSamples.samples !== CAR_TEMPLATE_SAMPLES.length) {
+  throw new Error(JSON.stringify(intakeSamples));
+}
+const mixedAoa = [CAR_TEMPLATE_HEADERS, ...CAR_TEMPLATE_SAMPLES, ["測試丙（虛構）", "XYZ-7788", "轎車", "116/08/01", "2027/08/01", "正式資料"]];
+const mixed = mapImportRecords(aoaToRecords(mixedAoa));
+if (mixed.rows.length !== 1 || mixed.samples !== CAR_TEMPLATE_SAMPLES.length || mixed.rows[0].name !== "測試丙（虛構）" || mixed.rows[0].plate !== "XYZ-7788" || mixed.rows[0].ct_date !== "2027-08-01") {
+  throw new Error(JSON.stringify(mixed));
+}
+const intakeMixed = parseSpreadsheetRecords(aoaToRecords(mixedAoa));
+if (intakeMixed.rows.length !== 1 || intakeMixed.rows[0].name !== "測試丙（虛構）") {
+  throw new Error(JSON.stringify(intakeMixed));
+}
+
 console.log("car renewal checks passed");

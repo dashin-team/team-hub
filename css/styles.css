@@ -664,7 +664,12 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
   padding: 10px 12px; margin-bottom: 8px;
 }
 .bday-row.today { background: #fff6e8; border-color: #e4c98a; }
-.bday-row small { color: var(--muted); }
+.bday-main {
+  display: flex; flex-direction: column; align-items: flex-start; gap: 2px;
+  min-width: 0; flex: 1;
+}
+.bday-row small { color: var(--muted); white-space: nowrap; }
+.bday-today { flex: none; }
 .chip-field > span { display: block; color: var(--muted); font-size: 13px; margin-bottom: 6px; }
 .type-pills { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
 .type-pills button {
@@ -834,6 +839,9 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 .morning-time { margin: 0; color: var(--gold-deep); font-weight: 700; letter-spacing: 0.04em; }
 .morning-title { margin: 4px 0 10px; font-size: 18px; font-weight: 650; color: var(--navy); line-height: 1.45; }
 #homeCarCard .section-head button { color: var(--navy); font-weight: 700; }
+#homeMorningCard,
+#homeBdayCard,
+#homeCarCard { grid-column: 1 / -1; }
 .home-car-row {
   display: flex; flex-direction: column; align-items: flex-start; gap: 6px;
   width: 100%; text-align: left; background: #fff; border: 1px solid var(--line);
@@ -855,6 +863,17 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
   .home-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
 }
 #homeBdayCard .section-head button { color: var(--navy); font-weight: 700; }
+.page-title.quote-title { letter-spacing: 0.08em; }
+#quoteList .empty {
+  grid-column: 1 / -1;
+  margin: 8px 0 0;
+  background: var(--soft);
+  border: 1px dashed var(--line);
+  border-radius: 16px;
+  padding: 28px 16px;
+  text-align: center;
+  color: var(--muted);
+}
 .bday-row.passed { opacity: 0.6; }
 .bday-today { color: var(--gold-deep); white-space: nowrap; }
 @media (min-width: 1100px) {
@@ -868,3 +887,4 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
   .car-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
 #homeBirthdays .bday-row { background: #fff; }
+#homeBirthdays .bday-row.today { background: #fff6e8; }

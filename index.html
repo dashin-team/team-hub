@@ -9,38 +9,39 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="大心團隊">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261118m 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261118n 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>大心團隊</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./favicon.ico?v=20261118m" sizes="any">
-  <link rel="icon" href="./favicon.svg?v=20261118m" type="image/svg+xml">
-  <link rel="icon" href="./favicon-32.png?v=20261118m" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118m">
-  <link rel="stylesheet" href="./css/styles.css?v=20261118m">
+  <link rel="icon" href="./favicon.ico?v=20261118n" sizes="any">
+  <link rel="icon" href="./favicon.svg?v=20261118n" type="image/svg+xml">
+  <link rel="icon" href="./favicon-32.png?v=20261118n" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118n">
+  <link rel="stylesheet" href="./css/styles.css?v=20261118n">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261118m",
-      "@hub/guides": "./js/guides.js?v=20261118m",
-      "@hub/store": "./js/store.js?v=20261118m",
-      "@hub/metrics": "./js/metrics.js?v=20261118m",
-      "@hub/config": "./js/config.js?v=20261118m",
-      "@hub/demo-store": "./js/demo-store.js?v=20261118m",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261118m",
-      "@hub/safe": "./js/safe-browser.js?v=20261118m",
-      "@hub/contest": "./js/contest.js?v=20261118m",
-      "@hub/profile": "./js/client-profile.js?v=20261118m",
-      "@hub/calendar": "./js/calendar.js?v=20261118m",
-      "@hub/team": "./js/team-schedule.js?v=20261118m",
-      "@hub/roster": "./js/team-roster.js?v=20261118m",
-      "@hub/account": "./js/account.js?v=20261118m",
-      "@hub/contact": "./js/contact-log.js?v=20261118m",
-      "@hub/quotes": "./js/quotes.js?v=20261118m",
-      "@hub/cars": "./js/car-renewals.js?v=20261118m",
-      "@hub/intake": "./js/car-intake.js?v=20261118m",
-      "@hub/ocr": "./js/car-ocr.js?v=20261118m",
-      "@hub/clientimport": "./js/client-import.js?v=20261118m"
+      "@hub/app": "./js/app.js?v=20261118n",
+      "@hub/guides": "./js/guides.js?v=20261118n",
+      "@hub/store": "./js/store.js?v=20261118n",
+      "@hub/metrics": "./js/metrics.js?v=20261118n",
+      "@hub/config": "./js/config.js?v=20261118n",
+      "@hub/demo-store": "./js/demo-store.js?v=20261118n",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261118n",
+      "@hub/safe": "./js/safe-browser.js?v=20261118n",
+      "@hub/contest": "./js/contest.js?v=20261118n",
+      "@hub/profile": "./js/client-profile.js?v=20261118n",
+      "@hub/calendar": "./js/calendar.js?v=20261118n",
+      "@hub/team": "./js/team-schedule.js?v=20261118n",
+      "@hub/roster": "./js/team-roster.js?v=20261118n",
+      "@hub/account": "./js/account.js?v=20261118n",
+      "@hub/contact": "./js/contact-log.js?v=20261118n",
+      "@hub/quotes": "./js/quotes.js?v=20261118n",
+      "@hub/cars": "./js/car-renewals.js?v=20261118n",
+      "@hub/intake": "./js/car-intake.js?v=20261118n",
+      "@hub/ocr": "./js/car-ocr.js?v=20261118n",
+      "@hub/clientimport": "./js/client-import.js?v=20261118n",
+      "@hub/quickquote": "./js/quick-quote.js?v=20261118n"
     }
   }
   </script>
@@ -48,7 +49,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118m" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118n" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -67,7 +68,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118m" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118n" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -105,7 +106,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118m" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118n" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -179,6 +180,7 @@
         <button type="button" data-nav="home">總覽</button>
         <button type="button" class="not-admin" data-nav="clients">名單</button>
         <button type="button" data-nav="cars">車險續保通知</button>
+        <button type="button" data-nav="quickquote">⚡ 快速報價</button>
         <button type="button" data-nav="tasks" hidden>行事曆</button>
         <button type="button" data-nav="social">競賽</button>
         <button type="button" data-nav="learn">訓練</button>
@@ -208,7 +210,7 @@
     <div class="main">
       <header class="topbar">
         <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
-        <img class="top-logo" src="./favicon.svg?v=20261118m" alt="" width="28" height="28">
+        <img class="top-logo" src="./favicon.svg?v=20261118n" alt="" width="28" height="28">
         <div class="top-title" id="crumb">總覽</div>
         <a id="learnPop" class="learn-pop" href="https://dashin-team.github.io/nanen-newbie-training/" target="_blank" rel="noopener" aria-label="新視窗開啟" title="新視窗開啟">↗</a>
       </header>
@@ -223,13 +225,13 @@
               <div class="section-head"><h2>今天早會課程</h2></div>
               <div id="homeMorning"></div>
             </section>
-            <section class="home-card" id="homeCarCard">
-              <div class="section-head"><h2>🚗 車險續保通知</h2><button type="button" data-nav="cars">查看全部</button></div>
-              <div id="homeCars"></div>
-            </section>
             <section class="home-card not-admin" id="homeBdayCard">
               <div class="section-head"><h2>🎂 本月壽星</h2><button type="button" data-nav="clients">名單</button></div>
               <div id="homeBirthdays"></div>
+            </section>
+            <section class="home-card" id="homeCarCard">
+              <div class="section-head"><h2>🚗 車險續保通知</h2><button type="button" data-nav="cars">查看全部</button></div>
+              <div id="homeCars"></div>
             </section>
             <article class="advice" hidden>
               <div class="mini" id="adviceAvatar">南</div>
@@ -267,7 +269,7 @@
           <div id="clientListPane">
             <div class="client-tools">
               <button class="btn secondary small" id="clientImportBtn" type="button">📥 匯入 Excel</button>
-              <button class="btn secondary small" id="clientTemplate" type="button">📄 下載範本</button>
+              <button class="btn secondary small" id="clientTemplate" type="button">📄 下載範本（含範例）</button>
               <button class="btn secondary small" id="exportClients" type="button">匯出 Excel</button>
               <input id="clientFile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
             </div>
@@ -468,12 +470,18 @@
           <div class="car-tools">
             <button class="btn secondary small" id="carImportBtn" type="button">📎 上傳檔案（PDF / Excel / 圖片）</button>
             <button class="btn secondary small" id="carExport" type="button">📤 匯出 Excel</button>
-            <button class="btn secondary small" id="carTemplate" type="button">📄 下載範本</button>
+            <button class="btn secondary small" id="carTemplate" type="button">📄 下載範本（含範例）</button>
             <input id="carFile" type="file" accept=".pdf,.xlsx,.xls,.csv,image/*,application/pdf,text/csv" multiple hidden>
           </div>
           <p class="intake-note">檔案只在你的裝置上辨識，不會上傳；身分證字號不會儲存</p>
           <p id="carMessage" class="ok" hidden></p>
           <div id="carList" class="car-list"></div>
+        </section>
+
+        <section class="page" id="page-quickquote">
+          <h1 class="page-title quote-title">⚡ 快速報價</h1>
+          <p class="sub">常用報價網站，點一下就會另開頁面。</p>
+          <div id="quoteList" class="guide-grid"></div>
         </section>
 
         <section class="page" id="page-tasks">
@@ -838,6 +846,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261118m"></script>
+  <script type="module" src="./js/app.js?v=20261118n"></script>
 </body>
 </html>

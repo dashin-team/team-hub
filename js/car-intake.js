@@ -1,4 +1,4 @@
-import { compactHeader, normalizeCarInput, parseImportDate } from "./car-renewals.js";
+import { compactHeader, isCarSampleRow, normalizeCarInput, parseImportDate } from "./car-renewals.js";
 
 const SKIP_WORDS = new Set([
   "被保人", "要保人", "被保險", "要保險", "被保險人", "要保人姓",
@@ -163,6 +163,7 @@ const HEADER_ALIASES = {
   period: ["保期"],
   ctdate: ["強制險到期日", "強制險"],
   vodate: ["任意險到期日", "任意險"],
+  note: ["備註", "備考", "附註"],
 };
 
 function headerMap(record) {
@@ -194,40 +195,52 @@ export function parseSpreadsheetRecords(records) {
   if (map.kind && map.plate && map.period) {
     const parsed = [];
     let skipped = 0;
+    let samples = 0;
     for (const record of records) {
+      const draft = {
+        name: map.name ? record[map.name] : "",
+        note: map.note ? record[map.note] : "",
+      };
+      if (isCarSampleRow(draft)) {
+        samples += 1;
+        skipped += 1;
+        continue;
+      }
       const row = parseFubonRow([record[map.name], record[map.kind], record[map.plate], record[map.period]].filter(Boolean).join(" "));
       if (!row || (!row.plate && !row.name)) skipped += 1;
       else parsed.push(row);
     }
-    return { rows: mergeByPlate(parsed), skipped };
+    return { rows: mergeByPlate(parsed), skipped, samples };
   }
   if (!map.name || !map.plate) {
     return { error: "找不到姓名或車牌欄位。請用範本或產險總覽的欄位名稱。", rows: [], skipped: 0 };
   }
   const rows = [];
   let skipped = 0;
+  let samples = 0;
   for (const record of records) {
-    const parsed = normalizeCarInput({
+    const draft = {
       name: record[map.name],
       plate: record[map.plate],
       car_type: map.cartype ? record[map.cartype] : "",
       ct_date: parseImportDate(map.ctdate ? record[map.ctdate] : ""),
       vo_date: parseImportDate(map.vodate ? record[map.vodate] : ""),
-    });
+      note: map.note ? record[map.note] : "",
+    };
+    if (isCarSampleRow(draft)) {
+      samples += 1;
+      skipped += 1;
+      continue;
+    }
+    const parsed = normalizeCarInput(draft);
     if (parsed.error) {
       skipped += 1;
-      rows.push(draftFromFields({
-        name: record[map.name],
-        plate: record[map.plate],
-        car_type: map.cartype ? record[map.cartype] : "",
-        ct_date: parseImportDate(map.ctdate ? record[map.ctdate] : ""),
-        vo_date: parseImportDate(map.vodate ? record[map.vodate] : ""),
-      }));
+      rows.push(draftFromFields(draft));
       continue;
     }
     rows.push(draftFromFields(parsed.fields));
   }
-  return { rows: mergeByPlate(rows), skipped };
+  return { rows: mergeByPlate(rows), skipped, samples };
 }
 
 export function containsIdentityNumber(value) {
