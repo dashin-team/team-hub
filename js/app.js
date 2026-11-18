@@ -395,8 +395,8 @@ function carLine(label, iso, today, row, kind) {
     ? `<span class="car-pill renewed">✅ 已續保</span>`
     : `<span class="car-pill ${status.key}">${status.label}</span>`;
   const action = renewed
-    ? `<button class="car-renew-btn" type="button" data-action="car-undo-renew" data-id="${esc(row.id)}" data-kind="${kind}">取消續保</button>`
-    : `<button class="car-renew-btn" type="button" data-action="car-renew" data-id="${esc(row.id)}" data-kind="${kind}">已續保 ✅</button>`;
+    ? `<button class="btn secondary small car-renew-btn" type="button" data-action="car-undo-renew" data-id="${esc(row.id)}" data-kind="${kind}">取消續保</button>`
+    : `<button class="btn secondary small car-renew-btn" type="button" data-action="car-renew" data-id="${esc(row.id)}" data-kind="${kind}"><span>已完成</span><span>續保✅</span></button>`;
   return `<div class="car-line"><span class="car-kind">${label}</span><span>${esc(String(iso).slice(0, 10).replace(/-/g, "/"))}</span><span>${esc(dayPhrase(days))}</span>${pill}${action}</div>`;
 }
 
@@ -831,7 +831,7 @@ async function renderHome() {
     ? `近期有一件事：${nearest.title}，${formatDate(nearest.date)} 前處理即可。`
     : "這幾天沒有到期的提醒。按自己的拜訪節奏進行即可。";
   $("greetDate").textContent = weekdayLabel(today);
-  $("greetLine").textContent = `${greeting(new Date())}，${profile.display_name}。`;
+  $("greetLine").textContent = `${greeting(new Date())}～${profile.display_name || ""}`;
   $("dailyQuote").textContent = dailyQuote(taipeiDay());
   $("dailyAdvice").textContent = advice;
   const newNames = customers.filter((item) => !item.is_archived && String(item.created_at).slice(0, 10) >= since).length;
