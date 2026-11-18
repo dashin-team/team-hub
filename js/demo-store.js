@@ -2,7 +2,7 @@ import { normalizeEvent } from "@hub/calendar";
 import { MEMBER_GRADES, addDays, canViewPerson, isoDate } from "@hub/metrics";
 import { cleanActions, redactNote, summarizeNoteLocal } from "@hub/contact";
 import { normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
-import { normalizeCarInput } from "@hub/cars";
+import { carWriteFields, normalizeCarInput } from "@hub/cars";
 import { randomId, safeLocal, safeSession } from "@hub/safe";
 
 const STORAGE_KEY = "naneun-team-hub-demo-v1";
@@ -329,6 +329,10 @@ function seed() {
       car_type: carType,
       ct_date: addDays(today, ctOffset),
       vo_date: addDays(today, voOffset),
+      ct_renewed_at: null,
+      ct_prev_date: null,
+      vo_renewed_at: null,
+      vo_prev_date: null,
       note: note || null,
       created_at: nowIso(),
       updated_at: nowIso(),
@@ -1067,16 +1071,18 @@ export function createDemoStore() {
 
     async saveCarRenewal(input) {
       const me = requireProfile();
-      const norm = normalizeCarInput(input);
-      if (norm.error) throw new Error(norm.error);
       if (!state.car_renewals) state.car_renewals = [];
       if (input.id) {
         const row = state.car_renewals.find((item) => item.id === input.id);
         if (!row || row.owner_id !== me.id) throw new Error("只能修改自己的車險資料");
+        const norm = carWriteFields(input, row);
+        if (norm.error) throw new Error(norm.error);
         Object.assign(row, norm.fields, { updated_at: nowIso() });
         persist();
         return row;
       }
+      const norm = carWriteFields(input);
+      if (norm.error) throw new Error(norm.error);
       const row = {
         id: uid(),
         owner_id: me.id,

@@ -4,7 +4,7 @@ import { canViewPerson } from "@hub/metrics";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/+esm";
 import { cleanActions, redactNote, summarizeNoteLocal } from "@hub/contact";
 import { FINANCE_FIELDS, normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
-import { normalizeCarInput } from "@hub/cars";
+import { carWriteFields, normalizeCarInput } from "@hub/cars";
 
 function fail(error, fallback) {
   if (!error) return;
@@ -547,7 +547,14 @@ export function createCloudStore(url, anonKey) {
     },
 
     async saveCarRenewal(input) {
-      const norm = normalizeCarInput(input);
+      let existing = null;
+      if (input.id) {
+        const found = await sb.from("car_renewals").select("*").eq("id", input.id).eq("owner_id", profile.id).maybeSingle();
+        fail(found.error, "讀取車險資料時發生問題");
+        existing = found.data;
+        if (!existing) throw new Error("找不到這筆車險資料");
+      }
+      const norm = carWriteFields(input, existing);
       if (norm.error) throw new Error(norm.error);
       const payload = { ...norm.fields, owner_id: profile.id };
       if (input.id) {

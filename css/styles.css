@@ -863,6 +863,7 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 .car-tools { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 10px; align-items: center; }
 .car-tools .search { flex: 1 1 180px; min-width: 0; }
 .car-tools .btn { flex: none; }
+.car-tools a.btn { display: inline-flex; align-items: center; text-decoration: none; box-sizing: border-box; }
 .car-list { display: grid; grid-template-columns: 1fr; gap: 10px; }
 .car-card { background: #fff; border: 1px solid var(--line); border-radius: 16px; padding: 14px; }
 .car-card-top { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; align-items: flex-start; }
@@ -875,6 +876,11 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 .car-pill.contact { background: #F8E3C4; color: #7A4208; }
 .car-pill.prep { background: #F4E7C4; color: var(--navy); }
 .car-pill.later { background: #E5F4EB; color: #1F7A45; }
+.car-pill.renewed { background: #E5F4EB; color: #1F7A45; }
+.car-renew-btn {
+  margin-left: auto; border: 0; background: transparent; color: var(--gold-deep);
+  min-height: 32px; padding: 0 2px; font-size: 13px; font-weight: 700;
+}
 .car-warn { margin: 10px 0 0; background: #F4E7C4; color: var(--navy); border-radius: 10px; padding: 6px 8px; font-size: 13px; }
 .home-board { display: grid; grid-template-columns: 1fr; gap: 12px; align-items: stretch; }
 .home-card {

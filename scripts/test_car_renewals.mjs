@@ -4,14 +4,22 @@ import {
   CAR_TEMPLATE_SAMPLES,
   CAR_TEMPLATE_SHEET,
   carTemplateSheets,
+  addYearsIso,
+  applyLineRenewal,
   dateGap,
   dayPhrase,
+  defaultCtRenewYears,
   excelSerialToIso,
+  isFullyRenewed,
+  lineIsRenewed,
   mapImportRecords,
   minDays,
   parseImportDate,
   pickDataSheet,
+  renewalExportStatus,
   renewalStatus,
+  undoLineRenewal,
+  upcomingLines,
   withinWindow,
 } from "../js/car-renewals.js";
 import {
@@ -128,4 +136,60 @@ if (intakeMixed.rows.length !== 1 || intakeMixed.rows[0].name !== "測試丙（�
   throw new Error(JSON.stringify(intakeMixed));
 }
 
+
+const halfRenewed = {
+  ct_date: "2026-11-23",
+  vo_date: "2027-11-18",
+  vo_renewed_at: "2026-11-18T01:00:00Z",
+  vo_prev_date: "2026-11-18",
+};
+if (minDays(halfRenewed, today) !== 5) throw new Error("exclude renewed vo from minDays");
+if (!withinWindow(halfRenewed, today, 7) || upcomingLines(halfRenewed, today, 60).length !== 1 || upcomingLines(halfRenewed, today, 60)[0].kind !== "ct") {
+  throw new Error("upcoming should ignore renewed vo");
+}
+if (renewalExportStatus(halfRenewed, today) !== "強制險未續保；任意險已續保（2027/11/18）") {
+  throw new Error(renewalExportStatus(halfRenewed, today));
+}
+
+const both = {
+  name: "測試丁（虛構）",
+  ct_date: "2027-11-18",
+  vo_date: "2028-11-18",
+  ct_renewed_at: "2026-11-18T01:00:00Z",
+  vo_renewed_at: "2026-11-18T01:00:00Z",
+  ct_prev_date: "2026-11-18",
+  vo_prev_date: "2026-11-18",
+};
+if (minDays(both, today) != null || withinWindow(both, today, 60) || upcomingLines(both, today, 60).length) {
+  throw new Error("fully renewed should drop out of counts");
+}
+if (!isFullyRenewed(both, today)) throw new Error("fully renewed");
+
+const faded = { ct_date: "2027-02-16", ct_renewed_at: "2026-05-01T00:00:00Z", ct_prev_date: "2026-02-16" };
+if (lineIsRenewed(faded.ct_renewed_at, faded.ct_date, today)) throw new Error("pill should hide at 90 days");
+if (minDays(faded, today) !== 90 || !withinWindow(faded, today, 90)) throw new Error("90-day line counts again");
+
+if (addYearsIso("2026-12-15", 2) !== "2028-12-15") throw new Error("add 2 years");
+if (addYearsIso("2024-02-29", 1) !== "2025-02-28") throw new Error("leap day");
+if (defaultCtRenewYears("機車") !== 2 || defaultCtRenewYears("轎車") !== 1) throw new Error("default years");
+
+const stamped = "2026-11-18T03:00:00.000Z";
+const renewed = applyLineRenewal({ name: "林小華（示範）", car_type: "機車", ct_date: "2026-12-15", vo_date: "2026-12-22" }, "ct", 2, new Date(stamped));
+if (renewed.error || renewed.ct_date !== "2028-12-15" || renewed.ct_prev_date !== "2026-12-15" || renewed.ct_renewed_at !== stamped || renewed.vo_date !== "2026-12-22") {
+  throw new Error(JSON.stringify(renewed));
+}
+if (!lineIsRenewed(renewed.ct_renewed_at, renewed.ct_date, today) || minDays(renewed, today) !== 34) {
+  throw new Error(`2-year renew exclusion ${minDays(renewed, today)}`);
+}
+const undone = undoLineRenewal(renewed, "ct");
+if (undone.error || undone.ct_date !== "2026-12-15" || undone.ct_prev_date != null || undone.ct_renewed_at != null || undone.vo_date !== "2026-12-22") {
+  throw new Error(JSON.stringify(undone));
+}
+if (minDays(undone, today) !== 27) throw new Error(`undo days ${minDays(undone, today)}`);
+
+const voOnly = applyLineRenewal({ vo_date: "2026-12-01" }, "vo", 1, new Date(stamped));
+if (voOnly.vo_date !== "2027-12-01" || voOnly.vo_prev_date !== "2026-12-01") throw new Error(JSON.stringify(voOnly));
+if (!applyLineRenewal({ vo_date: "2026-12-01" }, "vo", 2).error) throw new Error("vo must be 1 year");
+
 console.log("car renewal checks passed");
+
