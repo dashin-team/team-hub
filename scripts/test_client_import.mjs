@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { clientHeaderMap, cleanBirth, mapClientRecords, mapClientTypes, markDuplicates } from "../js/client-import.js";
+import { CLIENT_TEMPLATE_GUIDE, CLIENT_TEMPLATE_HEADERS, CLIENT_TEMPLATE_SAMPLES, CLIENT_TEMPLATE_SHEET, clientHeaderMap, clientTemplateSheets, cleanBirth, mapClientRecords, mapClientTypes, markDuplicates, pickDataSheet } from "../js/client-import.js";
 
 const TYPES = ["🏃人壽險客戶", "📈投資型客戶", "🛵機車險客戶", "🚗汽車險客戶", "✈️旅平險客戶", "💳信用卡客戶", "🏭團險客戶", "📓產險健康險客戶"];
 
@@ -22,4 +22,34 @@ assert.ok(!JSON.stringify(mapped).includes("A123456789"));
 const marked = markDuplicates(mapped.rows, [{ display_name: "測試甲（虛構）", phone: "0912-345-678" }]);
 assert.equal(marked[0].exists, true);
 assert.equal(marked[1].exists, false);
+function aoaToRecords(aoa) {
+  const [headers, ...rows] = aoa;
+  return rows.map((row) => Object.fromEntries(headers.map((header, index) => [header, row[index] ?? ""])));
+}
+
+const sheets = clientTemplateSheets();
+if (!sheets[CLIENT_TEMPLATE_SHEET] || !sheets["填寫說明"]) throw new Error("client template sheets");
+if (sheets[CLIENT_TEMPLATE_SHEET][0].join() !== CLIENT_TEMPLATE_HEADERS.join()) throw new Error("client header");
+if (sheets[CLIENT_TEMPLATE_SHEET].length !== 1 + CLIENT_TEMPLATE_SAMPLES.length) throw new Error("client sample count");
+if (!CLIENT_TEMPLATE_SAMPLES.every((row) => String(row.at(-1)).includes("範例"))) throw new Error("client sample note");
+if (!CLIENT_TEMPLATE_GUIDE.flat().some((cell) => String(cell).includes("身分證字號"))) throw new Error("client guide id");
+assert.equal(pickDataSheet(["填寫說明", "名單"], CLIENT_TEMPLATE_SHEET), "名單");
+assert.equal(pickDataSheet(["填寫說明", "其他"], CLIENT_TEMPLATE_SHEET), "其他");
+assert.equal(pickDataSheet(["名單", "填寫說明"], CLIENT_TEMPLATE_SHEET), "名單");
+
+const onlySamples = mapClientRecords(aoaToRecords(sheets[CLIENT_TEMPLATE_SHEET]), TYPES);
+assert.equal(onlySamples.rows.length, 0);
+assert.equal(onlySamples.samples, CLIENT_TEMPLATE_SAMPLES.length);
+
+const mixedAoa = [CLIENT_TEMPLATE_HEADERS, ...CLIENT_TEMPLATE_SAMPLES, ["測試乙（虛構）", "0911000111", "A", "汽車險", "1992/01/02", "女", "LINE", "", "", "", "正式資料"]];
+const mixed = mapClientRecords(aoaToRecords(mixedAoa), TYPES);
+assert.equal(mixed.samples, CLIENT_TEMPLATE_SAMPLES.length);
+assert.equal(mixed.rows.length, 1);
+assert.equal(mixed.rows[0].display_name, "測試乙（虛構）");
+assert.deepEqual(mixed.rows[0].client_types, ["🚗汽車險客戶"]);
+assert.equal(mixed.rows[0].birth, "1992-01-02");
+
+const guideMapped = mapClientRecords(aoaToRecords(sheets["填寫說明"]), TYPES);
+assert.ok(guideMapped.error);
+
 console.log("client import checks passed");

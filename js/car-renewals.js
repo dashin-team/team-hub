@@ -4,7 +4,55 @@ export const CAR_ALIASES = {
   cartype: ["車種"],
   ctdate: ["強制險到期日", "強制險"],
   vodate: ["任意險到期日", "任意險"],
+  note: ["備註", "備考", "附註"],
 };
+
+export const CAR_TEMPLATE_HEADERS = ["姓名", "車牌", "車種", "強制險到期日", "任意險到期日", "備註"];
+export const CAR_TEMPLATE_SHEET = "車險客戶";
+export const GUIDE_SHEET_NAME = "填寫說明";
+export const CAR_SAMPLE_NOTE = "範例，請刪除";
+export const CAR_SAMPLE_NAMES = ["陳範例", "林示範"];
+
+export const CAR_TEMPLATE_SAMPLES = [
+  ["王小明", "ABC-1234", "轎車", "116/03/01", "2027/03/01", CAR_SAMPLE_NOTE],
+  ["陳範例", "DEF-5678", "機車", "115/12/15", "", CAR_SAMPLE_NOTE],
+  ["林示範", "GHI-9012", "休旅車", "2027/06/30", "2027/06/30", CAR_SAMPLE_NOTE],
+];
+
+export const CAR_TEMPLATE_GUIDE = [
+  ["欄位", "是否必填", "說明"],
+  ["姓名", "必填", "客戶姓名"],
+  ["車牌", "必填", "車牌號碼，例如 ABC-1234"],
+  ["車種", "選填", "例如：轎車、機車、休旅車"],
+  ["強制險到期日", "擇一必填", "與任意險到期日至少填一個。可填民國（116/03/01）或西元（2027/03/01）"],
+  ["任意險到期日", "擇一必填", "同上。沒有投保可留空"],
+  ["備註", "選填", "自由註記。範例列請保留「範例，請刪除」，匯入時會自動略過"],
+  ["", "", ""],
+  ["注意事項", "", ""],
+  ["1", "", "身分證字號不需要填，也不會儲存。請不要把身分證字號放進檔案。"],
+  ["2", "", "請在第一個工作表「車險客戶」填資料；本「填寫說明」工作表匯入時會被忽略。"],
+  ["3", "", "範例列（備註含「範例」，或姓名正好是陳範例、林示範）匯入時會自動略過。請刪除範例後再填真實資料。"],
+  ["4", "", "同一車牌若已存在，匯入後會更新原資料，不會再新增一筆。"],
+];
+
+export function pickDataSheet(sheetNames, preferred = CAR_TEMPLATE_SHEET) {
+  const names = Array.isArray(sheetNames) ? sheetNames : [];
+  if (preferred && names.includes(preferred)) return preferred;
+  return names.find((name) => name !== GUIDE_SHEET_NAME) || names[0] || "";
+}
+
+export function isCarSampleRow(row) {
+  const note = String(row?.note ?? row?.notes ?? row?.["備註"] ?? "");
+  const name = String(row?.name ?? row?.["姓名"] ?? row?.["客戶姓名"] ?? "").trim();
+  return note.includes("範例") || CAR_SAMPLE_NAMES.includes(name);
+}
+
+export function carTemplateSheets() {
+  return {
+    [CAR_TEMPLATE_SHEET]: [CAR_TEMPLATE_HEADERS, ...CAR_TEMPLATE_SAMPLES],
+    [GUIDE_SHEET_NAME]: CAR_TEMPLATE_GUIDE,
+  };
+}
 
 export function compactHeader(value) {
   return String(value ?? "").replace(/[\s\u3000]/g, "");
@@ -149,19 +197,27 @@ export function mapImportRecords(records) {
   }
   const rows = [];
   let skipped = 0;
+  let samples = 0;
   for (const record of records) {
-    const parsed = normalizeCarInput({
+    const draft = {
       name: record[map.name],
       plate: record[map.plate],
       car_type: map.cartype ? record[map.cartype] : "",
       ct_date: parseImportDate(map.ctdate ? record[map.ctdate] : ""),
       vo_date: parseImportDate(map.vodate ? record[map.vodate] : ""),
-    });
+      note: map.note ? record[map.note] : "",
+    };
+    if (isCarSampleRow(draft)) {
+      samples += 1;
+      skipped += 1;
+      continue;
+    }
+    const parsed = normalizeCarInput(draft);
     if (parsed.error) {
       skipped += 1;
       continue;
     }
     rows.push(parsed.fields);
   }
-  return { rows, skipped };
+  return { rows, skipped, samples };
 }

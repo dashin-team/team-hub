@@ -2,7 +2,60 @@
 
 export const CLIENT_TEMPLATE_HEADERS = ["姓名", "手機", "客戶分級", "客戶類型", "生日", "性別", "聯絡方式", "客戶來源", "介紹人", "興趣/嗜好", "備註"];
 
-export const CLIENT_TEMPLATE_SAMPLE = ["王小明（示範）", "0912-345-678", "B", "人壽險、機車險", "80/05/20", "男", "LINE", "朋友介紹", "", "登山", "示範資料，可刪除"];
+export const CLIENT_TEMPLATE_SHEET = "名單";
+export const GUIDE_SHEET_NAME = "填寫說明";
+export const CLIENT_SAMPLE_NOTE = "範例，請刪除";
+export const CLIENT_SAMPLE_NAMES = ["陳範例", "林示範"];
+
+// 範例列僅供同仁對照格式；匯入時會略過（備註含「範例」，或姓名為陳範例／林示範）。
+export const CLIENT_TEMPLATE_SAMPLES = [
+  ["王小明", "0912-345-678", "B", "人壽險、機車險", "80/05/20", "男", "LINE", "朋友介紹", "", "登山", CLIENT_SAMPLE_NOTE],
+  ["陳範例", "0987-654-321", "A", "汽車險", "1990/03/15", "女", "手機", "轉介紹", "王小明", "瑜珈", CLIENT_SAMPLE_NOTE],
+  ["林示範", "0911-222-333", "C", "旅平險、信用卡", "75/11/08", "男", "LINE", "陌生開發", "", "", CLIENT_SAMPLE_NOTE],
+];
+
+// 舊名稱保留，給只取一列示範的地方用。
+export const CLIENT_TEMPLATE_SAMPLE = CLIENT_TEMPLATE_SAMPLES[0];
+
+export const CLIENT_TEMPLATE_GUIDE = [
+  ["欄位", "是否必填", "說明"],
+  ["姓名", "必填", "客戶姓名"],
+  ["手機", "選填", "例如 0912-345-678"],
+  ["客戶分級", "選填", "只可填 A、B、C、D"],
+  ["客戶類型", "選填", "可填多個，用、或，分開。可用：人壽險、投資型、機車險、汽車險、旅平險、信用卡、團險、產險健康險"],
+  ["生日", "選填", "民國（80/05/20）或西元（1990/03/15）都可以"],
+  ["性別", "選填", "男 或 女"],
+  ["聯絡方式", "選填", "例如 LINE、手機"],
+  ["客戶來源", "選填", "例如 朋友介紹、轉介紹、陌生開發"],
+  ["介紹人", "選填", "轉介紹人姓名，沒有可留空"],
+  ["興趣/嗜好", "選填", "沒有可留空"],
+  ["備註", "選填", "自由註記。範例列請保留「範例，請刪除」，匯入時會自動略過"],
+  ["", "", ""],
+  ["注意事項", "", ""],
+  ["1", "", "身分證字號不需要填，也不會儲存。請不要把身分證字號放進檔案。"],
+  ["2", "", "請在第一個工作表「名單」填資料；本「填寫說明」工作表匯入時會被忽略。"],
+  ["3", "", "範例列（備註含「範例」，或姓名正好是陳範例、林示範）匯入時會自動略過。請刪除範例後再填真實資料。"],
+  ["4", "", "已存在的客戶（同姓名＋手機）匯入時會標成「已存在」並略過，不會重複新增。"],
+];
+
+export function pickDataSheet(sheetNames, preferred = CLIENT_TEMPLATE_SHEET) {
+  const names = Array.isArray(sheetNames) ? sheetNames : [];
+  if (preferred && names.includes(preferred)) return preferred;
+  return names.find((name) => name !== GUIDE_SHEET_NAME) || names[0] || "";
+}
+
+export function isClientSampleRow(row) {
+  const note = String(row?.notes ?? row?.note ?? row?.["備註"] ?? "");
+  const name = String(row?.display_name ?? row?.name ?? row?.["姓名"] ?? "").trim();
+  return note.includes("範例") || CLIENT_SAMPLE_NAMES.includes(name);
+}
+
+export function clientTemplateSheets() {
+  return {
+    [CLIENT_TEMPLATE_SHEET]: [CLIENT_TEMPLATE_HEADERS, ...CLIENT_TEMPLATE_SAMPLES],
+    [GUIDE_SHEET_NAME]: CLIENT_TEMPLATE_GUIDE,
+  };
+}
 
 const ALIASES = {
   display_name: ["姓名", "客戶姓名", "客戶名稱", "名字", "客戶"],
@@ -173,6 +226,7 @@ export function mapClientRecords(records, clientTypes) {
   if (!map.display_name) return { error: "找不到「姓名」欄位。請用「下載範本」的欄位名稱。", rows: [], blank: 0 };
   const rows = [];
   let blank = 0;
+  let samples = 0;
   for (const record of records) {
     if (!record || blankRecord(record, map)) {
       blank += 1;
@@ -192,9 +246,13 @@ export function mapClientRecords(records, clientTypes) {
     for (const field of ["contact_method", "lead_source", "referrer", "hobbies", "nickname", "email", "notes"]) {
       row[field] = cleanText(get(field), LIMITS[field]);
     }
+    if (isClientSampleRow(row)) {
+      samples += 1;
+      continue;
+    }
     rows.push(row);
   }
-  return { rows, blank, columns: Object.keys(map) };
+  return { rows, blank, samples, columns: Object.keys(map) };
 }
 
 // 標記已存在（同姓名＋手機）與檔案內重複。
