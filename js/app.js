@@ -95,7 +95,7 @@ const PAGE_NAMES = {
   home: "總覽",
   clients: "名單",
   tasks: "行事曆",
-  social: "競賽",
+  social: "競賽獎勵",
   learn: "訓練",
   ai: "工具",
   cars: "車險續保通知",
@@ -235,38 +235,59 @@ function paintAvatar(profile, name) {
   }
 }
 
-function cropAvatar(file) {
+function squareFromSource(source) {
+  const width = source.width;
+  const height = source.height;
+  const side = Math.min(width, height);
+  const canvas = document.createElement("canvas");
+  canvas.width = 256;
+  canvas.height = 256;
+  canvas.getContext("2d").drawImage(
+    source,
+    (width - side) / 2,
+    (height - side) / 2,
+    side,
+    side,
+    0,
+    0,
+    256,
+    256,
+  );
   return new Promise((resolve, reject) => {
+    canvas.toBlob((blob) => {
+      if (blob) resolve(blob);
+      else reject(new Error("圖片沒有處理好"));
+    }, "image/jpeg", 0.86);
+  });
+}
+
+function cropAvatar(file) {
+  return (async () => {
+    if (typeof createImageBitmap === "function") {
+      try {
+        const bitmap = await createImageBitmap(file, { imageOrientation: "from-image" });
+        try {
+          return await squareFromSource(bitmap);
+        } finally {
+          bitmap.close?.();
+        }
+      } catch {
+        // 舊版瀏覽器或不支援 imageOrientation 時改走 Image。
+      }
+    }
     const image = new Image();
     const url = URL.createObjectURL(file);
-    image.onload = () => {
-      const side = Math.min(image.width, image.height);
-      const canvas = document.createElement("canvas");
-      canvas.width = 256;
-      canvas.height = 256;
-      canvas.getContext("2d").drawImage(
-        image,
-        (image.width - side) / 2,
-        (image.height - side) / 2,
-        side,
-        side,
-        0,
-        0,
-        256,
-        256,
-      );
+    try {
+      await new Promise((resolve, reject) => {
+        image.onload = resolve;
+        image.onerror = () => reject(new Error("這張圖片打不開"));
+        image.src = url;
+      });
+      return await squareFromSource(image);
+    } finally {
       URL.revokeObjectURL(url);
-      canvas.toBlob((blob) => {
-        if (blob) resolve(blob);
-        else reject(new Error("圖片沒有處理好"));
-      }, "image/jpeg", 0.86);
-    };
-    image.onerror = () => {
-      URL.revokeObjectURL(url);
-      reject(new Error("這張圖片打不開"));
-    };
-    image.src = url;
-  });
+    }
+  })();
 }
 
 async function onAvatarFile(event) {
