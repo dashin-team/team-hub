@@ -9,37 +9,38 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="大心團隊">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261118l 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261118m 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>大心團隊</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./favicon.ico?v=20261118l" sizes="any">
-  <link rel="icon" href="./favicon.svg?v=20261118l" type="image/svg+xml">
-  <link rel="icon" href="./favicon-32.png?v=20261118l" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118l">
-  <link rel="stylesheet" href="./css/styles.css?v=20261118l">
+  <link rel="icon" href="./favicon.ico?v=20261118m" sizes="any">
+  <link rel="icon" href="./favicon.svg?v=20261118m" type="image/svg+xml">
+  <link rel="icon" href="./favicon-32.png?v=20261118m" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118m">
+  <link rel="stylesheet" href="./css/styles.css?v=20261118m">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261118l",
-      "@hub/guides": "./js/guides.js?v=20261118l",
-      "@hub/store": "./js/store.js?v=20261118l",
-      "@hub/metrics": "./js/metrics.js?v=20261118l",
-      "@hub/config": "./js/config.js?v=20261118l",
-      "@hub/demo-store": "./js/demo-store.js?v=20261118l",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261118l",
-      "@hub/safe": "./js/safe-browser.js?v=20261118l",
-      "@hub/contest": "./js/contest.js?v=20261118l",
-      "@hub/profile": "./js/client-profile.js?v=20261118l",
-      "@hub/calendar": "./js/calendar.js?v=20261118l",
-      "@hub/team": "./js/team-schedule.js?v=20261118l",
-      "@hub/roster": "./js/team-roster.js?v=20261118l",
-      "@hub/account": "./js/account.js?v=20261118l",
-      "@hub/contact": "./js/contact-log.js?v=20261118l",
-      "@hub/quotes": "./js/quotes.js?v=20261118l",
-      "@hub/cars": "./js/car-renewals.js?v=20261118l",
-      "@hub/intake": "./js/car-intake.js?v=20261118l",
-      "@hub/ocr": "./js/car-ocr.js?v=20261118l"
+      "@hub/app": "./js/app.js?v=20261118m",
+      "@hub/guides": "./js/guides.js?v=20261118m",
+      "@hub/store": "./js/store.js?v=20261118m",
+      "@hub/metrics": "./js/metrics.js?v=20261118m",
+      "@hub/config": "./js/config.js?v=20261118m",
+      "@hub/demo-store": "./js/demo-store.js?v=20261118m",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261118m",
+      "@hub/safe": "./js/safe-browser.js?v=20261118m",
+      "@hub/contest": "./js/contest.js?v=20261118m",
+      "@hub/profile": "./js/client-profile.js?v=20261118m",
+      "@hub/calendar": "./js/calendar.js?v=20261118m",
+      "@hub/team": "./js/team-schedule.js?v=20261118m",
+      "@hub/roster": "./js/team-roster.js?v=20261118m",
+      "@hub/account": "./js/account.js?v=20261118m",
+      "@hub/contact": "./js/contact-log.js?v=20261118m",
+      "@hub/quotes": "./js/quotes.js?v=20261118m",
+      "@hub/cars": "./js/car-renewals.js?v=20261118m",
+      "@hub/intake": "./js/car-intake.js?v=20261118m",
+      "@hub/ocr": "./js/car-ocr.js?v=20261118m",
+      "@hub/clientimport": "./js/client-import.js?v=20261118m"
     }
   }
   </script>
@@ -47,7 +48,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118l" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118m" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -66,7 +67,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118l" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118m" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -104,7 +105,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118l" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118m" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -207,7 +208,7 @@
     <div class="main">
       <header class="topbar">
         <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
-        <img class="top-logo" src="./favicon.svg?v=20261118l" alt="" width="28" height="28">
+        <img class="top-logo" src="./favicon.svg?v=20261118m" alt="" width="28" height="28">
         <div class="top-title" id="crumb">總覽</div>
         <a id="learnPop" class="learn-pop" href="https://dashin-team.github.io/nanen-newbie-training/" target="_blank" rel="noopener" aria-label="新視窗開啟" title="新視窗開啟">↗</a>
       </header>
@@ -226,6 +227,10 @@
               <div class="section-head"><h2>🚗 車險續保通知</h2><button type="button" data-nav="cars">查看全部</button></div>
               <div id="homeCars"></div>
             </section>
+            <section class="home-card not-admin" id="homeBdayCard">
+              <div class="section-head"><h2>🎂 本月壽星</h2><button type="button" data-nav="clients">名單</button></div>
+              <div id="homeBirthdays"></div>
+            </section>
             <article class="advice" hidden>
               <div class="mini" id="adviceAvatar">南</div>
               <div>
@@ -234,10 +239,6 @@
               </div>
             </article>
             <div class="metric-grid" id="homeStats" hidden></div>
-            <section class="home-card not-admin" hidden>
-              <div class="section-head"><h2>客戶生日</h2></div>
-              <div id="homeBirthdays"></div>
-            </section>
             <section class="home-card" hidden>
               <div class="section-head"><h2>近期行程</h2><button type="button" data-nav="tasks">行事曆</button></div>
               <div id="homeSchedule"></div>
@@ -265,8 +266,13 @@
           </div>
           <div id="clientListPane">
             <div class="client-tools">
+              <button class="btn secondary small" id="clientImportBtn" type="button">📥 匯入 Excel</button>
+              <button class="btn secondary small" id="clientTemplate" type="button">📄 下載範本</button>
               <button class="btn secondary small" id="exportClients" type="button">匯出 Excel</button>
+              <input id="clientFile" type="file" accept=".xlsx,.xls,.csv,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel,text/csv" hidden>
             </div>
+            <p class="intake-note client-import-note" id="clientImportNote">Excel 只在你的裝置上讀取；身分證字號不會儲存</p>
+            <p class="ok" id="clientImportMsg" hidden></p>
             <details class="grade-legend">
               <summary>客戶分級 ABCD</summary>
               <p>A,B＝專業信任（議題銷售：如何精準銷售議題？就有機會直接銷售商品）</p>
@@ -774,6 +780,18 @@
     </div>
   </div>
 
+  <div id="clientImportSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="clientImportTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="clientImportTitle">確認匯入名單</h3>
+        <button class="sheet-close" id="clientImportClose" type="button" aria-label="關閉">✕</button>
+      </div>
+      <p class="intake-note" id="clientImportInfo">請確認後再儲存。缺姓名的列不會儲存；已存在的客戶預設略過。</p>
+      <div id="clientImportRows"></div>
+      <button class="btn" id="clientImportSave" type="button">確認儲存</button>
+    </div>
+  </div>
+
   <div id="carSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="carSheetTitle">
     <form class="modal" id="carForm">
       <div class="modal-head">
@@ -820,6 +838,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261118l"></script>
+  <script type="module" src="./js/app.js?v=20261118m"></script>
 </body>
 </html>
