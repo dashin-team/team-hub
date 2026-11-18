@@ -6,9 +6,14 @@ import {
   carTemplateSheets,
   addYearsIso,
   applyLineRenewal,
+  CAR_TYPES,
+  carTypeSelectOptions,
   dateGap,
   dayPhrase,
   defaultCtRenewYears,
+  isMotorcycleType,
+  mapCarType,
+  resolvedCarType,
   excelSerialToIso,
   isFullyRenewed,
   lineIsRenewed,
@@ -190,6 +195,31 @@ if (minDays(undone, today) !== 27) throw new Error(`undo days ${minDays(undone, 
 const voOnly = applyLineRenewal({ vo_date: "2026-12-01" }, "vo", 1, new Date(stamped));
 if (voOnly.vo_date !== "2027-12-01" || voOnly.vo_prev_date !== "2026-12-01") throw new Error(JSON.stringify(voOnly));
 if (!applyLineRenewal({ vo_date: "2026-12-01" }, "vo", 2).error) throw new Error("vo must be 1 year");
+
+
+if (CAR_TYPES.length !== 8 || CAR_TYPES[0] !== "01 普通重型機車" || CAR_TYPES.at(-1) !== "35 微型電動二輪車") {
+  throw new Error("official car types");
+}
+if (mapCarType("自小客車") !== "03 自用小客車" || mapCarType("轎車") !== "03 自用小客車" || mapCarType("03") !== "03 自用小客車") {
+  throw new Error("map 03");
+}
+if (mapCarType("01") !== "01 普通重型機車" || mapCarType("機車") !== "" || mapCarType("休旅車") !== "") {
+  throw new Error("map keep raw");
+}
+if (resolvedCarType("機車") !== "機車" || resolvedCarType("自用小客車") !== "03 自用小客車") throw new Error("resolved");
+const bikeOpts = carTypeSelectOptions("機車");
+if (!bikeOpts.some((item) => item.value === "機車") || bikeOpts.some((item) => item.label.includes("不確定"))) {
+  throw new Error("legacy 機車 extra option");
+}
+if (!bikeOpts.some((item) => item.value === "03 自用小客車") || bikeOpts.filter((item) => /^\d{2} /.test(item.value)).length !== 8) {
+  throw new Error("eight coded options");
+}
+if (!isMotorcycleType("機車") || !isMotorcycleType("01 普通重型機車") || !isMotorcycleType("35 微型電動二輪車") || isMotorcycleType("03 自用小客車") || isMotorcycleType("轎車")) {
+  throw new Error("motorcycle default");
+}
+if (defaultCtRenewYears("機車") !== 2 || defaultCtRenewYears("32 大型重型機車") !== 2 || defaultCtRenewYears("03 自用小客車") !== 1 || defaultCtRenewYears("轎車") !== 1) {
+  throw new Error("default years codes");
+}
 
 console.log("car renewal checks passed");
 

@@ -996,7 +996,7 @@ export function createDemoStore() {
         team_id: me.team_id,
         owner_id: me.id,
         customer_id: customer.id,
-        log_date: taipeiDay(),
+        log_date: /^\d{4}-\d{2}-\d{2}$/.test(String(input.log_date || "").slice(0, 10)) ? String(input.log_date).slice(0, 10) : taipeiDay(),
         actions,
         note,
         summary,
@@ -1006,6 +1006,14 @@ export function createDemoStore() {
       state.contact_logs.unshift(row);
       persist();
       return row;
+    },
+
+    async deleteContactLog(id) {
+      const me = requireProfile();
+      const row = (state.contact_logs || []).find((item) => item.id === id);
+      if (!row || row.owner_id !== me.id) throw new Error("只能刪除自己的紀錄");
+      state.contact_logs = state.contact_logs.filter((item) => item.id !== id);
+      persist();
     },
 
     async summarizeContactNote(note, customer) {
