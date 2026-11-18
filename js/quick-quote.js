@@ -3,8 +3,9 @@
 // url 請用 https；卡片會另開分頁。
 
 export const QUOTE_LINKS = [
-  // 範例（先保留註解，之後取消註解或直接加新的即可）：
-  // { title: "富邦產險網路投保", url: "https://example.com", description: "車險、旅平線上試算", icon: "🚗" },
+  { title: "旅平險報價", url: "https://gbnetwork168.github.io/nanen-travel-quote/editor.html" },
+  { title: "骨折險", url: "https://dashin-team.github.io/accident-insurance/" },
+  { title: "CIA&CIB", url: "https://dashin-team.github.io/cia-cib-cancer/" },
 ];
 
 export function visibleQuoteLinks(links = QUOTE_LINKS) {
@@ -21,9 +22,9 @@ export function visibleQuoteLinks(links = QUOTE_LINKS) {
 }
 
 export function quoteCardHtml(item, esc) {
-  const icon = item.icon || "⚡";
+  const icon = item.icon ? `<span class="guide-icon" aria-hidden="true">${esc(item.icon)}</span>` : "";
   const desc = item.description ? `<small>${esc(item.description)}</small>` : "";
-  return `<a class="guide-card" href="${esc(item.url)}" target="_blank" rel="noopener"><span class="guide-icon" aria-hidden="true">${icon}</span><b>${esc(item.title)}</b>${desc}</a>`;
+  return `<a class="guide-card" href="${esc(item.url)}" target="_blank" rel="noopener">${icon}<b>${esc(item.title)}</b>${desc}</a>`;
 }
 
 export const QUOTE_EMPTY_TEXT = "報價網站整理中，之後會陸續加入";
