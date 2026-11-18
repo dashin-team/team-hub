@@ -35,6 +35,8 @@ import {
   STRATEGY_SLOTS,
   strategyFrom,
   taipeiDay,
+  GRADE_TEXT,
+  gradeTrust,
 } from "@hub/profile";
 import { FBFLI_ACTIONS } from "@hub/contact";
 import { dailyQuote } from "@hub/quotes";
@@ -75,6 +77,7 @@ let page = "home";
 let assetCat = "全部";
 let selectedCustomerId = null;
 let clientTab = "list";
+let clientGradeFilter = "";
 let coverageView = "gaps";
 let calView = "month";
 let calCursor = "";
@@ -1009,6 +1012,7 @@ function fillCustomerForm(customer) {
     radio.checked = radio.value === customer.gender;
   });
   form.elements.phone.value = customer.phone || "";
+  paintGrade(customer.grade || "");
   setContactChips(customer.contact_method || "");
   form.elements.hobbies.value = customer.hobbies || "";
   setLeadSource(customer.lead_source || "");
@@ -1069,6 +1073,7 @@ const EXPORT_COLUMNS = [
   ["display_name", "姓名"],
   ["ref_code", "編號"],
   ["phone", "手機"],
+  ["grade", "客戶分級"],
   ["email", "電子信箱"],
   ["nickname", "暱稱"],
   ["gender", "性別"],
@@ -1193,7 +1198,23 @@ async function downloadStrategy() {
 }
 
 function nameButton(item) {
-  return `<button class="name-line" type="button" data-action="open-client" data-id="${esc(item.id)}">${esc(item.display_name)}</button>`;
+  const badge = item.grade ? `<span class="grade-badge grade-${esc(String(item.grade).toLowerCase())}">${esc(item.grade)}</span>` : "";
+  return `<button class="name-line" type="button" data-action="open-client" data-id="${esc(item.id)}"><span>${esc(item.display_name)}</span>${badge}</button>`;
+}
+
+function paintGrade(grade) {
+  const value = ["A", "B", "C", "D"].includes(grade) ? grade : "";
+  const input = $("clientGrade");
+  if (input) input.value = value;
+  document.querySelectorAll("#gradeChips [data-grade]").forEach((button) => {
+    button.classList.toggle("on", button.dataset.grade === value);
+    button.setAttribute("aria-pressed", button.dataset.grade === value ? "true" : "false");
+  });
+  const note = $("gradeNote");
+  if (!note) return;
+  note.hidden = !value;
+  $("gradeText").textContent = value ? `${value}：${GRADE_TEXT[value]}` : "";
+  $("gradeTag").textContent = gradeTrust(value);
 }
 
 function taipeiLabel(iso = taipeiDay()) {
@@ -1404,6 +1425,7 @@ async function renderClients() {
   const showArchived = $("showArchived").checked;
   const list = scoped.filter((item) => {
     if (!showArchived && item.is_archived) return false;
+    if (clientGradeFilter && item.grade !== clientGradeFilter) return false;
     const blob = `${item.display_name} ${item.nickname || ""} ${item.ref_code || ""} ${(item.service_tags || []).join(" ")} ${item.notes || ""} ${item.hobbies || ""} ${item.lead_source || ""} ${item.contact_method || ""}`.toLowerCase();
     return blob.includes(q);
   }).sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
@@ -1413,6 +1435,9 @@ async function renderClients() {
   $("customerOwner").innerHTML = owners.map((item) =>
     `<option value="${esc(item.id)}">${esc(item.display_name)}</option>`).join("");
   $("customerOwner").value = owners.some((item) => item.id === keepOwner) ? keepOwner : profile.id;
+  document.querySelectorAll("#gradeFilter [data-grade-filter]").forEach((button) => {
+    button.classList.toggle("on", (button.dataset.gradeFilter || "") === clientGradeFilter);
+  });
   $("clientList").innerHTML = list.length
     ? list.map(nameButton).join("")
     : `<div class="empty">沒有符合的客戶。</div>`;
@@ -1600,6 +1625,7 @@ function resetCustomerForm() {
   setLeadSource("");
   $("customerFormTitle").textContent = "新增名單";
   $("customerCancel").hidden = true;
+  paintGrade("");
   syncFieldClears();
   if (me()) $("customerOwner").value = me().id;
   paintAnalysis();
@@ -1786,6 +1812,18 @@ function bind() {
     }
   });
   document.body.addEventListener("click", (event) => {
+    const gradeButton = event.target.closest("#gradeChips [data-grade]");
+    if (gradeButton && !$("customerForm").classList.contains("locked")) {
+      const next = gradeButton.dataset.grade;
+      paintGrade($("clientGrade").value === next ? "" : next);
+      return;
+    }
+    const gradeFilter = event.target.closest("[data-grade-filter]");
+    if (gradeFilter) {
+      clientGradeFilter = gradeFilter.dataset.gradeFilter || "";
+      renderClients();
+      return;
+    }
     const clearer = event.target.closest("[data-clear]");
     if (clearer && !$("customerForm").classList.contains("locked")) {
       const input = $("customerForm").elements[clearer.dataset.clear];
