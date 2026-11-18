@@ -330,11 +330,37 @@ body[data-page="home"] .schedule-item { padding-right: 76px; }
   background: var(--soft); border-radius: 18px; padding: 16px; border: 1px solid var(--line); box-shadow: var(--shadow);
 }
 .modal-bg {
-  position: fixed; inset: 0; background: rgba(44, 38, 31, 0.45); display: none;
+  position: fixed; inset: 0; background: rgba(27, 42, 74, 0.45); display: none;
   align-items: center; justify-content: center; padding: 16px; z-index: 40;
 }
 .modal-bg.show { display: flex; }
-.modal { background: var(--soft); width: min(640px, 100%); border-radius: 18px; padding: 18px; max-height: 90vh; overflow: auto; }
+.modal {
+  background: var(--soft); width: min(640px, 100%); border-radius: 18px;
+  padding: 0 18px 18px; max-height: min(90vh, 100%); overflow: auto;
+}
+.modal-head, .form-head {
+  position: sticky; top: 0; z-index: 2;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  background: var(--soft);
+}
+.modal-head {
+  margin: 0 -18px 12px; padding: 8px 8px 8px 18px;
+  border-bottom: 1px solid var(--line); border-radius: 18px 18px 0 0;
+}
+.modal-head h1, .modal-head h3, .form-head h3 { margin: 0; flex: 1; min-width: 0; }
+.sheet-close {
+  width: 44px; height: 44px; min-width: 44px; min-height: 44px; flex: none;
+  border: 0; border-radius: 50%; background: transparent; color: var(--navy);
+  font-size: 22px; line-height: 1; display: grid; place-items: center;
+}
+.client-form .form-head {
+  top: calc(58px + env(safe-area-inset-top, 0px));
+  margin: 0 -16px 12px; padding: 8px 8px 8px 16px; background: var(--bg);
+}
+.grid-full .form-head {
+  top: 0; margin: -12px -12px 12px; padding: 8px 8px 8px 12px; background: var(--bg);
+}
+.gate-card .modal-head { margin: 0 0 8px; padding: 0; background: transparent; border: 0; }
 .toast {
   position: fixed; left: 50%; bottom: 86px; transform: translateX(-50%) translateY(12px);
   background: var(--ink); color: #fff; border-radius: 12px; padding: 12px 14px; opacity: 0; pointer-events: none;

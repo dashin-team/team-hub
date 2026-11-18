@@ -1319,7 +1319,7 @@ async function saveFbfli(root) {
   }
   await store.saveContactLog({ customer_id: root.dataset.customer, actions, note, summary });
   toast("已記下今天的 FBFLI");
-  if (root.id === "fbfliSheet") root.hidden = true;
+  if (root.id === "fbfliSheet") root.classList.remove("show");
   await renderClients();
 }
 
@@ -1333,7 +1333,7 @@ function openFbfliSheet(customerId) {
   $("fbfliDate").textContent = taipeiLabel();
   resetFbfli(sheet);
   bindFbfli(sheet);
-  sheet.hidden = false;
+  sheet.classList.add("show");
 }
 
 function clientFocusId() {
@@ -1433,6 +1433,14 @@ function syncClientPanes() {
   document.querySelectorAll("#clientTabs [data-client-tab]").forEach((button) => {
     button.classList.toggle("on", button.dataset.clientTab === clientTab);
   });
+}
+
+function closeCustomerForm() {
+  selectedCustomerId = null;
+  resetCustomerForm();
+  if ($("clientDetail")) $("clientDetail").innerHTML = "";
+  clientTab = "list";
+  syncClientPanes();
 }
 
 function showClientTab(tab) {
@@ -1730,7 +1738,7 @@ function bind() {
     const nav = event.target.closest("[data-nav]");
     if (nav) {
       event.preventDefault();
-      $("secretary").hidden = true;
+      $("secretary").classList.remove("show");
       go(nav.dataset.nav);
       return;
     }
@@ -1766,19 +1774,42 @@ function bind() {
   });
   $("backdrop").onclick = closeMenu;
   document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape") {
-      closeMenu();
-      $("secretary").hidden = true;
-      $("relationSheet").classList.remove("show");
-      $("cellSheet").classList.remove("show");
-      $("pngSheet").classList.remove("show");
-      $("calSheet").classList.remove("show");
+    if (event.key !== "Escape") return;
+    const overlay = document.querySelector(".modal-bg.show");
+    if (!$("gridFull").hidden) {
       $("gridFull").hidden = true;
+      return;
+    }
+    if (overlay) {
+      overlay.classList.remove("show");
+      return;
+    }
+    if ($("drawer").classList.contains("open")) {
+      closeMenu();
+      return;
+    }
+    if ($("customerForm") && !$("customerForm").hidden) {
+      closeCustomerForm();
+      return;
+    }
+    if (!$("passwordView").hidden && !passwordFirst) {
+      show("app");
+      return;
+    }
+    if (!$("recoveryView").hidden) show("loginView");
+  });
+  document.body.addEventListener("click", (event) => {
+    if (event.target.classList && event.target.classList.contains("modal-bg")) {
+      event.target.classList.remove("show");
     }
   });
-  $("secretaryBtn").onclick = () => { $("secretary").hidden = false; };
-  $("secretaryClose").onclick = () => { $("secretary").hidden = true; };
-  $("fbfliClose").onclick = () => { $("fbfliSheet").hidden = true; };
+  $("secretaryBtn").onclick = () => { $("secretary").classList.add("show"); };
+  $("secretaryClose").onclick = () => { $("secretary").classList.remove("show"); };
+  $("fbfliClose").onclick = () => { $("fbfliSheet").classList.remove("show"); };
+  $("relationClose").onclick = () => { $("relationSheet").classList.remove("show"); };
+  $("cellClose").onclick = () => { $("cellSheet").classList.remove("show"); };
+  $("pngCloseX").onclick = () => { $("pngSheet").classList.remove("show"); };
+  $("customerFormClose").onclick = () => closeCustomerForm();
   bindFbfli($("fbfliSheet"));
   if ($("assetSearch")) $("assetSearch").addEventListener("input", () => renderAssets());
   $("clientSearch").addEventListener("input", () => renderClients());
@@ -1919,6 +1950,8 @@ function bind() {
     if (passwordFirst) return;
     show("app");
   };
+  $("passwordClose").onclick = () => $("passwordCancel").click();
+  $("recoveryClose").onclick = () => show("loginView");
   $("passwordForm").addEventListener("submit", onPassword);
 
   if ($("assetForm")) $("assetForm").addEventListener("submit", onAsset);
@@ -2246,6 +2279,7 @@ function openPassword(first) {
     ? "新密碼至少 8 個字元，而且要和現在的不一樣。"
     : "輸入目前密碼，再設定一組至少 8 個字元的新密碼。";
   $("passwordCancel").hidden = Boolean(first);
+  $("passwordClose").hidden = Boolean(first);
   $("passwordError").textContent = "";
   $("passwordForm").reset();
   show("passwordView");
