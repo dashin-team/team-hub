@@ -96,6 +96,7 @@ import {
   canViewPerson,
   esc,
   gradeTitle,
+  MEMBER_GRADES,
   formatDate,
   isHttpsUrl,
   isoDate,
@@ -864,7 +865,7 @@ async function renderHome() {
     ? `近期有一件事：${nearest.title}，${formatDate(nearest.date)} 前處理即可。`
     : "這幾天沒有到期的提醒。按自己的拜訪節奏進行即可。";
   $("greetDate").textContent = weekdayLabel(today);
-  $("greetLine").textContent = `${greeting(new Date())}～${profile.display_name || ""}`;
+  $("greetLine").textContent = `${greeting(new Date())}～${shownName(profile)}`;
   $("dailyQuote").textContent = dailyQuote(taipeiDay());
   $("dailyAdvice").textContent = advice;
   const newNames = customers.filter((item) => !item.is_archived && String(item.created_at).slice(0, 10) >= since).length;
@@ -2285,7 +2286,7 @@ async function renderMembers() {
     const email = item.email ? `<div class="muted">${esc(item.email)}</div>` : "";
     const signedIn = activityById.has(item.id) ? activityById.get(item.id) : item.last_sign_in_at;
     const controls = profile.role === "admin" && item.id !== profile.id && item.role !== "admin" && item.is_active !== false
-      ? `<div class="member-actions"><select data-role-for="${esc(item.id)}">${["member", "manager", "admin"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${esc(ROLE_LABEL[role])} (${role})</option>`).join("")}</select><button class="btn secondary small" type="button" data-action="save-member" data-id="${esc(item.id)}">更新</button><button class="btn danger small" type="button" data-action="reset-password" data-id="${esc(item.id)}" data-name="${esc(item.display_name)}">重設密碼</button><button class="btn danger small" type="button" data-action="remove-member" data-id="${esc(item.id)}" data-name="${esc(item.display_name)}">刪除夥伴</button></div>`
+      ? `<div class="member-actions"><select data-grade-for="${esc(item.id)}" aria-label="職級">${MEMBER_GRADES.map((grade) => `<option value="${grade}" ${item.grade === grade ? "selected" : ""}>${esc(gradeTitle(grade))}</option>`).join("")}${item.grade && !MEMBER_GRADES.includes(item.grade) ? `<option value="${esc(item.grade)}" selected>${esc(gradeTitle(item.grade) || item.grade)}</option>` : ""}</select><select data-role-for="${esc(item.id)}" aria-label="角色">${["member", "manager", "admin"].map((role) => `<option value="${role}" ${item.role === role ? "selected" : ""}>${esc(ROLE_LABEL[role])} (${role})</option>`).join("")}</select><button class="btn secondary small" type="button" data-action="save-member" data-id="${esc(item.id)}">更新</button><button class="btn danger small" type="button" data-action="reset-password" data-id="${esc(item.id)}" data-name="${esc(item.display_name)}">重設密碼</button><button class="btn danger small" type="button" data-action="remove-member" data-id="${esc(item.id)}" data-name="${esc(item.display_name)}">刪除夥伴</button></div>`
       : "";
     return `<div class="list-item member-card"><div><b>${esc(item.display_name)}</b><div class="muted">${esc(account)}${esc(grade)} · ${esc(ROLE_LABEL[item.role] || item.role)}${item.is_active === false ? " · 已刪除" : ""}</div>${email}<div class="muted">上次登入 ${esc(formatLastSignIn(signedIn))}</div><span class="pw-badge ${changedPw ? "ok" : "wait"}">${changedPw ? "已改密碼" : "未改密碼"}</span></div>${controls}</div>`;
   }).join("");
@@ -2457,8 +2458,9 @@ async function handleAction(event) {
     }
     if (target.dataset.action === "save-member") {
       const role = document.querySelector(`[data-role-for="${CSS.escape(id)}"]`).value;
-      await store.updateMember({ user_id: id, role });
-      toast("已更新角色");
+      const grade = document.querySelector(`[data-grade-for="${CSS.escape(id)}"]`)?.value;
+      await store.updateMember({ user_id: id, role, grade });
+      toast("已更新職級與角色");
       await renderMembers();
     }
     if (target.dataset.action === "toggle-member") {

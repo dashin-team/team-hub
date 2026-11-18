@@ -1087,8 +1087,25 @@ export function createDemoStore() {
         .map((item) => ({ id: item.id, last_sign_in_at: item.last_sign_in_at || null }));
     },
 
-    async updateMember() {
-      throw new Error("示範模式的角色切換只影響這台瀏覽器，不會真的變更權限。");
+    async updateMember(input) {
+      const me = requireProfile();
+      if (me.role !== "admin") throw new Error("只有管理員可以調整帳號");
+      const row = state.profiles.find((item) => item.id === input.user_id && item.team_id === me.team_id);
+      if (!row) throw new Error("找不到這位夥伴");
+      if (row.id === me.id) throw new Error("不能在這裡改自己的帳號");
+      if (row.role === "admin") throw new Error("不能調整其他管理員");
+      if (input.role != null) {
+        if (!["member", "manager", "admin"].includes(input.role)) throw new Error("角色不正確");
+        row.role = input.role;
+      }
+      if (input.grade != null && String(input.grade).trim()) {
+        const grade = String(input.grade).trim().toUpperCase();
+        if (!MEMBER_GRADES.includes(grade) && grade !== "ADMIN") throw new Error("職級請選 CA、SP、AM、UM 或 DM");
+        row.grade = grade;
+      }
+      row.updated_at = nowIso();
+      persist();
+      return row;
     },
 
     async listCarRenewals() {
