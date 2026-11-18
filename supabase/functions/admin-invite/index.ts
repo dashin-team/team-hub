@@ -11,6 +11,7 @@ const corsHeaders: Record<string, string> = {
 };
 
 const ROLES = new Set(["admin", "manager", "member"]);
+const GRADES = new Set(["CA", "SP", "AM", "UM", "DM", "ADMIN"]);
 
 function json(body: unknown, status = 200) {
   return new Response(JSON.stringify(body), {
@@ -104,16 +105,18 @@ Deno.serve(async (req) => {
 
   const userId = String(body.user_id ?? "");
   const role = body.role == null ? null : String(body.role);
+  const grade = body.grade == null || body.grade === "" ? null : String(body.grade).trim().toUpperCase();
   const isActive = body.is_active;
   if (!/^[0-9a-f-]{36}$/i.test(userId)) return json({ error: "找不到這位夥伴" }, 400);
   if (role != null && !ROLES.has(role)) return json({ error: "角色不正確" }, 400);
+  if (grade != null && !GRADES.has(grade)) return json({ error: "職級不正確" }, 400);
   if (isActive != null && typeof isActive !== "boolean") {
     return json({ error: "啟用狀態不正確" }, 400);
   }
 
   const { data: target, error: targetError } = await admin
     .from("profiles")
-    .select("id, team_id, role, is_active")
+    .select("id, team_id, role, is_active, grade")
     .eq("id", userId)
     .maybeSingle();
   if (targetError || !target || target.team_id !== me.team_id) {
@@ -134,9 +137,11 @@ Deno.serve(async (req) => {
     if (!count) return json({ error: "團隊至少要留一位啟用中的管理員" }, 400);
   }
 
+  const patch: Record<string, unknown> = { role: nextRole, is_active: nextActive };
+  if (grade != null) patch.grade = grade;
   const { error: updateError } = await admin
     .from("profiles")
-    .update({ role: nextRole, is_active: nextActive })
+    .update(patch)
     .eq("id", target.id);
   if (updateError) return json({ error: "沒有更新成功" }, 400);
 
