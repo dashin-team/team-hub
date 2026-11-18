@@ -9,35 +9,37 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="大心團隊">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261118k 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261118l 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>大心團隊</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./favicon.ico?v=20261118k" sizes="any">
-  <link rel="icon" href="./favicon.svg?v=20261118k" type="image/svg+xml">
-  <link rel="icon" href="./favicon-32.png?v=20261118k" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118k">
-  <link rel="stylesheet" href="./css/styles.css?v=20261118k">
+  <link rel="icon" href="./favicon.ico?v=20261118l" sizes="any">
+  <link rel="icon" href="./favicon.svg?v=20261118l" type="image/svg+xml">
+  <link rel="icon" href="./favicon-32.png?v=20261118l" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118l">
+  <link rel="stylesheet" href="./css/styles.css?v=20261118l">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261118k",
-      "@hub/guides": "./js/guides.js?v=20261118k",
-      "@hub/store": "./js/store.js?v=20261118k",
-      "@hub/metrics": "./js/metrics.js?v=20261118k",
-      "@hub/config": "./js/config.js?v=20261118k",
-      "@hub/demo-store": "./js/demo-store.js?v=20261118k",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261118k",
-      "@hub/safe": "./js/safe-browser.js?v=20261118k",
-      "@hub/contest": "./js/contest.js?v=20261118k",
-      "@hub/profile": "./js/client-profile.js?v=20261118k",
-      "@hub/calendar": "./js/calendar.js?v=20261118k",
-      "@hub/team": "./js/team-schedule.js?v=20261118k",
-      "@hub/roster": "./js/team-roster.js?v=20261118k",
-      "@hub/account": "./js/account.js?v=20261118k",
-      "@hub/contact": "./js/contact-log.js?v=20261118k",
-      "@hub/quotes": "./js/quotes.js?v=20261118k",
-      "@hub/cars": "./js/car-renewals.js?v=20261118k"
+      "@hub/app": "./js/app.js?v=20261118l",
+      "@hub/guides": "./js/guides.js?v=20261118l",
+      "@hub/store": "./js/store.js?v=20261118l",
+      "@hub/metrics": "./js/metrics.js?v=20261118l",
+      "@hub/config": "./js/config.js?v=20261118l",
+      "@hub/demo-store": "./js/demo-store.js?v=20261118l",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261118l",
+      "@hub/safe": "./js/safe-browser.js?v=20261118l",
+      "@hub/contest": "./js/contest.js?v=20261118l",
+      "@hub/profile": "./js/client-profile.js?v=20261118l",
+      "@hub/calendar": "./js/calendar.js?v=20261118l",
+      "@hub/team": "./js/team-schedule.js?v=20261118l",
+      "@hub/roster": "./js/team-roster.js?v=20261118l",
+      "@hub/account": "./js/account.js?v=20261118l",
+      "@hub/contact": "./js/contact-log.js?v=20261118l",
+      "@hub/quotes": "./js/quotes.js?v=20261118l",
+      "@hub/cars": "./js/car-renewals.js?v=20261118l",
+      "@hub/intake": "./js/car-intake.js?v=20261118l",
+      "@hub/ocr": "./js/car-ocr.js?v=20261118l"
     }
   }
   </script>
@@ -45,7 +47,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118k" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118l" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -64,7 +66,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118k" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118l" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -102,7 +104,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118k" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118l" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -205,7 +207,7 @@
     <div class="main">
       <header class="topbar">
         <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
-        <img class="top-logo" src="./favicon.svg?v=20261118k" alt="" width="28" height="28">
+        <img class="top-logo" src="./favicon.svg?v=20261118l" alt="" width="28" height="28">
         <div class="top-title" id="crumb">總覽</div>
         <a id="learnPop" class="learn-pop" href="https://dashin-team.github.io/nanen-newbie-training/" target="_blank" rel="noopener" aria-label="新視窗開啟" title="新視窗開啟">↗</a>
       </header>
@@ -458,11 +460,12 @@
             <button class="btn" id="carAdd" type="button">＋新增</button>
           </div>
           <div class="car-tools">
-            <button class="btn secondary small" id="carImportBtn" type="button">📥 匯入 Excel</button>
+            <button class="btn secondary small" id="carImportBtn" type="button">📎 上傳檔案（PDF / Excel / 圖片）</button>
             <button class="btn secondary small" id="carExport" type="button">📤 匯出 Excel</button>
             <button class="btn secondary small" id="carTemplate" type="button">📄 下載範本</button>
-            <input id="carFile" type="file" accept=".xlsx,.xls,.csv,text/csv,application/vnd.ms-excel,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet" hidden>
+            <input id="carFile" type="file" accept=".pdf,.xlsx,.xls,.csv,image/*,application/pdf,text/csv" multiple hidden>
           </div>
+          <p class="intake-note">檔案只在你的裝置上辨識，不會上傳；身分證字號不會儲存</p>
           <p id="carMessage" class="ok" hidden></p>
           <div id="carList" class="car-list"></div>
         </section>
@@ -754,6 +757,23 @@
     </div>
   </div>
 
+  <div id="ocrSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="ocrTitle">
+    <div class="modal">
+      <div class="modal-head">
+        <h3 id="ocrTitle">確認辨識結果</h3>
+        <button class="sheet-close" id="ocrClose" type="button" aria-label="關閉">✕</button>
+      </div>
+      <p class="intake-note">免費辨識可能有誤，請確認後再儲存</p>
+      <div id="ocrProgress" class="ocr-progress" hidden></div>
+      <div id="ocrRows"></div>
+      <details class="ocr-raw">
+        <summary>辨識原文</summary>
+        <pre id="ocrRaw"></pre>
+      </details>
+      <button class="btn" id="ocrSave" type="button">確認儲存</button>
+    </div>
+  </div>
+
   <div id="carSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="carSheetTitle">
     <form class="modal" id="carForm">
       <div class="modal-head">
@@ -771,11 +791,12 @@
         <input id="carType" name="car_type" maxlength="40">
       </label>
       <label class="field">強制險到期日
-        <input id="carCt" name="ct_date" type="date" required>
+        <input id="carCt" name="ct_date" type="date">
       </label>
       <label class="field">任意險到期日
-        <input id="carVo" name="vo_date" type="date" required>
+        <input id="carVo" name="vo_date" type="date">
       </label>
+      <p class="muted">兩個到期日至少填一個。空白會顯示未投保/未辨識。</p>
       <label class="field">備註
         <textarea id="carNote" name="note" maxlength="2000"></textarea>
       </label>
@@ -799,6 +820,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261118k"></script>
+  <script type="module" src="./js/app.js?v=20261118l"></script>
 </body>
 </html>

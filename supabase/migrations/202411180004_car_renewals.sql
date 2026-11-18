@@ -7,15 +7,16 @@ create table if not exists public.car_renewals (
   name text not null,
   plate text not null,
   car_type text,
-  ct_date date not null,
-  vo_date date not null,
+  ct_date date,
+  vo_date date,
   note text,
   created_at timestamptz not null default now(),
   updated_at timestamptz not null default now(),
   constraint car_renewals_name_len check (char_length(btrim(name)) between 1 and 80),
   constraint car_renewals_plate_len check (char_length(btrim(plate)) between 1 and 20),
   constraint car_renewals_type_len check (car_type is null or char_length(car_type) <= 40),
-  constraint car_renewals_note_len check (note is null or char_length(note) <= 2000)
+  constraint car_renewals_note_len check (note is null or char_length(note) <= 2000),
+  constraint car_renewals_one_date_chk check (ct_date is not null or vo_date is not null)
 );
 
 create index if not exists car_renewals_owner_idx on public.car_renewals (owner_id, ct_date);

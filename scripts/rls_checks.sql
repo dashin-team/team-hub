@@ -276,6 +276,27 @@ begin
   if n <> 1 then raise exception '夥伴應看到自己的車險，實際 %', n; end if;
 end $$;
 
+savepoint car_one_date;
+insert into public.car_renewals (name, plate, car_type, vo_date)
+values ('只任意（示範）', 'ZZ-1001', '汽車', '2026-12-01');
+do $$
+declare n int;
+begin
+  select count(*) into n from public.car_renewals where plate = 'ZZ-1001' and ct_date is null;
+  if n <> 1 then raise exception '只填任意險應可儲存，實際 %', n; end if;
+end $$;
+do $$
+begin
+  insert into public.car_renewals (name, plate) values ('沒日期', 'ZZ-1002');
+  raise exception '兩個到期日都空不該寫入';
+exception
+  when check_violation then
+    null;
+  when others then
+    if sqlerrm like '%都空%' then raise; end if;
+end $$;
+rollback to savepoint car_one_date;
+
 do $$
 begin
   insert into public.car_renewals (owner_id, name, plate, ct_date, vo_date)

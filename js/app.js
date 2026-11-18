@@ -48,11 +48,13 @@ import {
   dateGap,
   dayPhrase,
   daysUntil,
-  mapImportRecords,
   minDays,
+  normalizeCarInput,
   renewalStatus,
   withinWindow,
 } from "@hub/cars";
+import { linesFromTextItems, mergeByPlate, normalizePlate, parseFubonText, parseSpreadsheetRecords } from "@hub/intake";
+import { createTesseractProvider } from "@hub/ocr";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
 import {
@@ -332,14 +334,15 @@ function renderContest() {
 }
 
 function carLine(label, iso, today) {
-  const days = Math.round((Date.parse(`${iso}T00:00:00Z`) - Date.parse(`${today}T00:00:00Z`)) / 86400000);
+  if (!iso) return `<div class="car-line"><span class="car-kind">${label}</span><span class="muted">未投保/未辨識</span></div>`;
+  const days = daysUntil(iso, today);
   const status = renewalStatus(days);
-  return `<div class="car-line"><span class="car-kind">${label}</span><span>${esc(String(iso).replace(/-/g, "/"))}</span><span>${esc(dayPhrase(days))}</span><span class="car-pill ${status.key}">${status.label}</span></div>`;
+  return `<div class="car-line"><span class="car-kind">${label}</span><span>${esc(String(iso).slice(0, 10).replace(/-/g, "/"))}</span><span>${esc(dayPhrase(days))}</span><span class="car-pill ${status.key}">${status.label}</span></div>`;
 }
 
 function renewalCard(row, today) {
   const type = row.car_type ? ` · ${esc(row.car_type)}` : "";
-  const gap = String(row.ct_date) !== String(row.vo_date)
+  const gap = row.ct_date && row.vo_date && String(row.ct_date).slice(0, 10) !== String(row.vo_date).slice(0, 10)
     ? `<p class="car-warn">⚠️ 強制險與任意險不同期，相差 ${dateGap(row.ct_date, row.vo_date)} 天</p>`
     : "";
   const note = row.note ? `<p class="muted">${esc(row.note)}</p>` : "";
@@ -394,7 +397,14 @@ async function renderCars() {
     `<button class="car-stat${carLimit === limit ? " on" : ""}" type="button" data-car-limit="${limit}"><b>${count}</b><span>${esc(label)}</span></button>`).join("");
   let rows = carLimit ? all.filter((row) => withinWindow(row, today, Number(carLimit))) : all.slice();
   if (query) rows = rows.filter((row) => `${row.name} ${row.plate}`.toLowerCase().includes(query));
-  rows.sort((a, b) => minDays(a, today) - minDays(b, today) || String(a.name).localeCompare(String(b.name), "zh-Hant"));
+  rows.sort((a, b) => {
+    const left = minDays(a, today);
+    const right = minDays(b, today);
+    if (left == null && right == null) return String(a.name).localeCompare(String(b.name), "zh-Hant");
+    if (left == null) return 1;
+    if (right == null) return -1;
+    return left - right || String(a.name).localeCompare(String(b.name), "zh-Hant");
+  });
   $("carList").innerHTML = rows.length ? rows.map((row) => renewalCard(row, today)).join("") : `<div class="empty">沒有符合的客戶資料</div>`;
 }
 
@@ -444,20 +454,220 @@ function renderHomeCars(cars, today) {
   }).join("");
 }
 
-async function importCarFile(file) {
-  showCarMessage("");
+const ocrProvider = createTesseractProvider();
+let intakeRaw = "";
+let intakeExisting = [];
+
+function fileKind(file) {
+  const name = String(file?.name || "").toLowerCase();
+  const type = String(file?.type || "").toLowerCase();
+  if (type.startsWith("image/") || /\.(png|jpe?g|webp|gif|bmp|heic)$/.test(name)) return "image";
+  if (type === "application/pdf" || name.endsWith(".pdf")) return "pdf";
+  if (name.endsWith(".csv") || type.includes("csv")) return "csv";
+  if (/\.xlsx?$/.test(name) || type.includes("sheet") || type.includes("excel")) return "excel";
+  return "";
+}
+
+function paintIntakeProgress(text, ratio) {
+  const node = $("ocrProgress");
+  if (!node) return;
+  node.hidden = false;
+  node.innerHTML = `<span>${esc(text)}</span><i style="width:${Math.max(4, Math.round((ratio || 0) * 100))}%"></i>`;
+}
+
+function reviewValue(card, field) {
+  return card.querySelector(`[data-field="${field}"]`)?.value || "";
+}
+
+function paintReviewState() {
+  let blocked = false;
+  document.querySelectorAll("#ocrRows .ocr-card").forEach((card) => {
+    const name = reviewValue(card, "name").trim();
+    const plate = reviewValue(card, "plate").trim();
+    const ct = reviewValue(card, "ct");
+    const vo = reviewValue(card, "vo");
+    card.querySelector('[data-field="name"]').classList.toggle("missing", !name);
+    card.querySelector('[data-field="plate"]').classList.toggle("missing", !plate);
+    const datesMissing = !ct && !vo;
+    card.querySelector('[data-field="ct"]').classList.toggle("missing", datesMissing);
+    card.querySelector('[data-field="vo"]').classList.toggle("missing", datesMissing);
+    card.querySelector('[data-hint="ct"]').textContent = ct ? "" : "未投保/未辨識";
+    card.querySelector('[data-hint="vo"]').textContent = vo ? "" : "未投保/未辨識";
+    if (!name || !plate || datesMissing) blocked = true;
+  });
+  if (!document.querySelector("#ocrRows .ocr-card")) blocked = true;
+  $("ocrSave").disabled = blocked;
+}
+
+function openIntakeReview(rows, raw) {
+  intakeRaw = raw || "";
+  $("ocrRaw").textContent = intakeRaw || "（沒有文字）";
+  $("ocrProgress").hidden = true;
+  const prepared = rows.map((row) => {
+    const found = intakeExisting.find((item) => normalizePlate(item.plate) === normalizePlate(row.plate));
+    if (!found) return { ...row, updating: false };
+    return {
+      ...row,
+      updating: true,
+      name: row.name || found.name || "",
+      car_type: row.car_type || found.car_type || "",
+      ct_date: row.ct_date || (found.ct_date ? String(found.ct_date).slice(0, 10) : ""),
+      vo_date: row.vo_date || (found.vo_date ? String(found.vo_date).slice(0, 10) : ""),
+    };
+  });
+  $("ocrRows").innerHTML = prepared.length ? prepared.map((row, index) => {
+    return `<article class="ocr-card">
+      <div class="row spread"><b>第 ${index + 1} 筆</b>${row.updating ? `<span class="ocr-update">更新</span>` : ""}</div>
+      <label class="field">姓名<input data-field="name" value="${esc(row.name || "")}" maxlength="80"></label>
+      <label class="field">車牌<input data-field="plate" value="${esc(row.plate || "")}" maxlength="20"></label>
+      <label class="field">車種<input data-field="type" value="${esc(row.car_type || "")}" maxlength="40"></label>
+      <label class="field">強制險到期日<input data-field="ct" type="date" value="${esc(row.ct_date || "")}"><span class="muted" data-hint="ct"></span></label>
+      <label class="field">任意險到期日<input data-field="vo" type="date" value="${esc(row.vo_date || "")}"><span class="muted" data-hint="vo"></span></label>
+    </article>`;
+  }).join("") : `<div class="empty">沒有辨識到車險資料</div>`;
+  $("ocrSheet").classList.add("show");
+  paintReviewState();
+}
+
+async function spreadsheetRows(file) {
   const XLSX = await loadSheetJs();
-  const csv = file.name.toLowerCase().endsWith(".csv");
-  const book = csv
-    ? XLSX.read(await file.text(), { type: "string" })
-    : XLSX.read(await file.arrayBuffer(), { type: "array" });
+  const csv = fileKind(file) === "csv";
+  const book = csv ? XLSX.read(await file.text(), { type: "string" }) : XLSX.read(await file.arrayBuffer(), { type: "array" });
   const sheet = book.Sheets[book.SheetNames[0]];
   if (!sheet) throw new Error("這個檔案沒有讀到資料");
   const records = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: true });
-  const mapped = mapImportRecords(records);
+  const mapped = parseSpreadsheetRecords(records);
   if (mapped.error) throw new Error(mapped.error);
-  if (mapped.rows.length) await store.insertCarRenewals(mapped.rows);
-  const text = `✅ 匯入完成：新增 ${mapped.rows.length} 筆，略過 ${mapped.skipped} 筆`;
+  return { rows: mapped.rows, raw: "" };
+}
+
+let pdfjsPromise;
+function loadPdfJs() {
+  if (!pdfjsPromise) {
+    pdfjsPromise = import("https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.min.mjs").then((lib) => {
+      lib.GlobalWorkerOptions.workerSrc = "https://cdn.jsdelivr.net/npm/pdfjs-dist@4.10.38/build/pdf.worker.min.mjs";
+      return lib;
+    });
+  }
+  return pdfjsPromise;
+}
+
+async function pdfRows(file, onProgress) {
+  const pdfjs = await loadPdfJs();
+  const doc = await pdfjs.getDocument({ data: new Uint8Array(await file.arrayBuffer()) }).promise;
+  const texts = [];
+  const rows = [];
+  for (let pageNo = 1; pageNo <= doc.numPages; pageNo += 1) {
+    onProgress?.(`讀取 PDF 第 ${pageNo}/${doc.numPages} 頁`, pageNo / doc.numPages);
+    const page = await doc.getPage(pageNo);
+    const content = await page.getTextContent();
+    const lines = linesFromTextItems(content.items.map((item) => ({
+      str: item.str,
+      x: item.transform?.[4] || 0,
+      y: item.transform?.[5] || 0,
+    })));
+    const joined = lines.join("\n");
+    const parsed = parseFubonText(joined);
+    if (parsed.length) {
+      texts.push(joined);
+      rows.push(...parsed);
+      continue;
+    }
+    onProgress?.(`第 ${pageNo} 頁沒有文字，改辨識畫面`, 0);
+    const viewport = page.getViewport({ scale: 2 });
+    const canvas = document.createElement("canvas");
+    canvas.width = viewport.width;
+    canvas.height = viewport.height;
+    await page.render({ canvasContext: canvas.getContext("2d"), viewport }).promise;
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    const recognized = await ocrProvider.recognize(blob, {
+      onProgress: ({ ratio, label }) => onProgress?.(`第 ${pageNo} 頁 ${label}`, ratio),
+    });
+    texts.push(recognized.text || "");
+    rows.push(...parseFubonText(recognized.text || ""));
+  }
+  return { rows, raw: texts.join("\n\n") };
+}
+
+async function imageRows(file, onProgress) {
+  const recognized = await ocrProvider.recognize(file, {
+    onProgress: ({ ratio, label }) => onProgress?.(label, ratio),
+  });
+  return { rows: parseFubonText(recognized.text || ""), raw: recognized.text || "" };
+}
+
+async function intakeFiles(files) {
+  const list = [...files];
+  if (!list.length) return;
+  intakeExisting = await store.listCarRenewals();
+  $("ocrRows").innerHTML = "";
+  $("ocrRaw").textContent = "";
+  $("ocrSheet").classList.add("show");
+  const rows = [];
+  const raw = [];
+  try {
+    for (let index = 0; index < list.length; index += 1) {
+      const file = list[index];
+      const kind = fileKind(file);
+      if (!kind) throw new Error(`不支援 ${file.name || "這個檔案"}`);
+      const prefix = `第 ${index + 1}/${list.length} 個檔案`;
+      paintIntakeProgress(`${prefix} · 讀取中`, index / list.length);
+      let result;
+      if (kind === "excel" || kind === "csv") result = await spreadsheetRows(file);
+      else if (kind === "pdf") result = await pdfRows(file, (label, ratio) => paintIntakeProgress(`${prefix} · ${label}`, ratio));
+      else result = await imageRows(file, (label, ratio) => paintIntakeProgress(`${prefix} · ${label}`, ratio));
+      rows.push(...result.rows);
+      if (result.raw) raw.push(result.raw);
+    }
+    const merged = mergeByPlate(rows);
+    openIntakeReview(merged, raw.join("\n\n"));
+  } catch (error) {
+    $("ocrSheet").classList.remove("show");
+    const text = error.message || "檔案沒有讀取";
+    showCarMessage(text, true);
+    toast(text);
+  }
+}
+
+async function saveIntakeReview() {
+  paintReviewState();
+  if ($("ocrSave").disabled) {
+    toast("還有欄位沒填");
+    return;
+  }
+  let created = 0;
+  let updated = 0;
+  const cards = [...document.querySelectorAll("#ocrRows .ocr-card")];
+  for (const card of cards) {
+    const norm = normalizeCarInput({
+      name: reviewValue(card, "name"),
+      plate: reviewValue(card, "plate"),
+      car_type: reviewValue(card, "type"),
+      ct_date: reviewValue(card, "ct"),
+      vo_date: reviewValue(card, "vo"),
+    });
+    if (norm.error) throw new Error(norm.error);
+    const plate = normalizePlate(norm.fields.plate);
+    const found = intakeExisting.find((row) => normalizePlate(row.plate) === plate);
+    if (found) {
+      await store.saveCarRenewal({
+        id: found.id,
+        name: norm.fields.name,
+        plate: norm.fields.plate,
+        car_type: norm.fields.car_type || found.car_type,
+        ct_date: norm.fields.ct_date || found.ct_date || "",
+        vo_date: norm.fields.vo_date || found.vo_date || "",
+        note: found.note || "",
+      });
+      updated += 1;
+    } else {
+      const saved = await store.saveCarRenewal(norm.fields);
+      intakeExisting.push(saved);
+      created += 1;
+    }
+  }
+  $("ocrSheet").classList.remove("show");
+  const text = `已儲存 ${created} 筆，更新 ${updated} 筆`;
   showCarMessage(text);
   toast(text);
   await renderCars();
@@ -2092,18 +2302,14 @@ function bind() {
     }
   });
   $("carImportBtn").onclick = () => $("carFile").click();
-  $("carFile").addEventListener("change", async (event) => {
-    const file = event.target.files?.[0];
+  $("carFile").addEventListener("change", (event) => {
+    const files = [...(event.target.files || [])];
     event.target.value = "";
-    if (!file) return;
-    try {
-      await importCarFile(file);
-    } catch (error) {
-      const text = error.message || "匯入沒有完成";
-      showCarMessage(text, true);
-      toast(text);
-    }
+    if (files.length) intakeFiles(files);
   });
+  $("ocrRows").addEventListener("input", () => paintReviewState());
+  $("ocrClose").onclick = () => $("ocrSheet").classList.remove("show");
+  $("ocrSave").onclick = () => saveIntakeReview().catch((error) => toast(error.message || "沒有儲存"));
   $("carExport").onclick = async () => {
     try {
       await exportCars();

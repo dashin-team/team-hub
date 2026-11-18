@@ -18,10 +18,9 @@ export function daysUntil(iso, today) {
 }
 
 export function minDays(row, today) {
-  const ct = daysUntil(row.ct_date, today);
-  const vo = daysUntil(row.vo_date, today);
-  if (ct == null || vo == null) return null;
-  return Math.min(ct, vo);
+  const values = [daysUntil(row?.ct_date, today), daysUntil(row?.vo_date, today)].filter((days) => days != null);
+  if (!values.length) return null;
+  return Math.min(...values);
 }
 
 export function withinWindow(row, today, limit) {
@@ -112,16 +111,17 @@ export function normalizeCarInput(input) {
   if (!plate) return { error: "請填車牌號碼" };
   if (plate.length > 20) return { error: "車牌太長" };
   if (carType.length > 40) return { error: "車種太長" };
-  if (!parseIso(ct)) return { error: "請填強制險到期日" };
-  if (!parseIso(vo)) return { error: "請填任意險到期日" };
+  const ctIso = parseIso(ct) ? ct : "";
+  const voIso = parseIso(vo) ? vo : "";
+  if (!ctIso && !voIso) return { error: "請至少填一個到期日" };
   if (note.length > 2000) return { error: "備註太長" };
   return {
     fields: {
       name,
       plate,
       car_type: carType || null,
-      ct_date: ct,
-      vo_date: vo,
+      ct_date: ctIso || null,
+      vo_date: voIso || null,
       note: note || null,
     },
   };

@@ -1,4 +1,4 @@
-const CACHE = "team-hub-20261118k";
+const CACHE = "team-hub-20261118l";
 const SHELL = [
   "./",
   "./index.html",
@@ -7,6 +7,8 @@ const SHELL = [
   "./js/account.js",
   "./js/calendar.js",
   "./js/car-renewals.js",
+  "./js/car-intake.js",
+  "./js/car-ocr.js",
   "./js/client-profile.js",
   "./js/cloud-store.js",
   "./js/config.js",
