@@ -37,6 +37,7 @@ import {
   taipeiDay,
 } from "@hub/profile";
 import { FBFLI_ACTIONS } from "@hub/contact";
+import { dailyQuote } from "@hub/quotes";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
 import {
@@ -340,6 +341,7 @@ async function renderHome() {
     : "這幾天沒有到期的提醒。按自己的拜訪節奏進行即可。";
   $("greetDate").textContent = weekdayLabel(today);
   $("greetLine").textContent = `${greeting(new Date())}，${profile.display_name}。`;
+  $("dailyQuote").textContent = dailyQuote(taipeiDay());
   $("dailyAdvice").textContent = advice;
   const newNames = customers.filter((item) => !item.is_archived && String(item.created_at).slice(0, 10) >= since).length;
   const activity = records.filter((item) => String(item.service_date).slice(0, 10) >= since).length;

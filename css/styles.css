@@ -158,7 +158,15 @@ body[data-page="learn"] .learn-pop { display: grid; color: var(--paper); }
 .page { display: none; }
 .page.active { display: block; }
 .date-line { color: var(--muted); font-size: 13px; margin: 8px 0 6px; letter-spacing: 0.04em; }
-.greet { font-size: 34px; font-weight: 560; letter-spacing: 0.04em; margin: 0 0 16px; }
+.greet { font-size: 34px; font-weight: 560; letter-spacing: 0.04em; margin: 0 0 8px; }
+.daily-quote {
+  margin: 0 0 16px; max-width: 42em; color: var(--navy);
+  font-size: 15px; font-style: italic; font-weight: 520; line-height: 1.65; letter-spacing: 0.02em;
+}
+.daily-quote::before {
+  content: "「"; color: var(--gold); font-style: normal; font-weight: 700;
+  font-size: 22px; line-height: 0; margin-right: 6px; position: relative; top: 3px;
+}
 .demo-line, .privacy-line { color: var(--muted); font-size: 12px; margin: 0 0 12px; }
 .advice {
   display: flex; gap: 12px; background: var(--soft); border-radius: 16px;
