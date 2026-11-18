@@ -75,6 +75,7 @@ function seed() {
       influence_factor: "虛構。太太會先點頭",
       competitor: "虛構。目前沒有其他業務員",
       grade: "A",
+      client_types: ["🏃人壽險客戶", "📈投資型客戶", "🛵機車險客戶", "🚗汽車險客戶", "✈️旅平險客戶", "💳信用卡客戶"],
       analysis_existing: "已有實支實付與意外險。",
       analysis_insured: "本人",
       analysis_beneficiary: "配偶",
@@ -99,6 +100,7 @@ function seed() {
       lead_source: "講座",
       analysis_dream: "想在退休前把房貸還清。",
       grade: "B",
+      client_types: ["✈️旅平險客戶"],
     }),
     customer("TH-1003", PEOPLE.huang, "陳媽媽（示範）", "0912-000-103", ["醫療保障"], "06-21", "虛構資料。在意門診與住院。", {
       gender: "女",
@@ -256,7 +258,7 @@ function seed() {
   ];
 
   return {
-    version: 14,
+    version: 15,
     profiles,
     customers,
     policies,
@@ -303,6 +305,7 @@ function seed() {
     row.relation_business = extra.relation_business ?? null;
     row.strategy_grid = extra.strategy_grid && typeof extra.strategy_grid === "object" ? extra.strategy_grid : {};
     row.grade = ["A", "B", "C", "D"].includes(extra.grade) ? extra.grade : null;
+    row.client_types = Array.isArray(extra.client_types) ? extra.client_types.filter((item) => typeof item === "string") : [];
     return row;
   }
 
@@ -400,7 +403,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 14 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs)) return seed();
+    if (parsed?.version !== 15 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs)) return seed();
     return parsed;
   } catch {
     return seed();

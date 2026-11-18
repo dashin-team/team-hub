@@ -23,6 +23,8 @@ import { ROSTER_RANKS, TEAM_ROSTER, countRanks, filterRoster, groupRoster, roste
 import { CURRENT_CONTEST } from "@hub/contest";
 import {
   ANALYSIS_SECTIONS,
+  ANALYSIS_TEMPLATES,
+  analysisValue,
   filledCount,
   gridCells,
   parseRoc,
@@ -37,25 +39,22 @@ import {
   taipeiDay,
   GRADE_TEXT,
   gradeTrust,
+  CLIENT_TYPES,
+  typeEmoji,
 } from "@hub/profile";
 import { FBFLI_ACTIONS } from "@hub/contact";
 import { dailyQuote } from "@hub/quotes";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
 import {
-  COVERAGE_AREAS,
   KIND_LABEL,
-  POLICY_CATEGORIES,
-  POLICY_STATUS,
   ROLE_LABEL,
-  SERVICE_TYPES,
   addDays,
   canManageTeam,
   canViewPerson,
   esc,
   formatDate,
   isHttpsUrl,
-  isLast4,
   isoDate,
 } from "@hub/metrics";
 
@@ -78,6 +77,7 @@ let assetCat = "全部";
 let selectedCustomerId = null;
 let clientTab = "list";
 let clientGradeFilter = "";
+let clientTypeFilter = "";
 let coverageView = "gaps";
 let calView = "month";
 let calCursor = "";
@@ -286,23 +286,15 @@ function weekdayLabel(iso) {
   return `週${week} · ${m}月${d}日`;
 }
 
-function areaCovered(policies, area) {
-  return policies.some((policy) => {
-    if (policy.status && policy.status !== "active") return false;
-    const text = `${policy.policy_category || ""} ${policy.notes || ""}`;
-    return area.keys.some((key) => text.includes(key));
-  });
-}
-
-function coverageOf(policies) {
-  return COVERAGE_AREAS.map((area) => ({ ...area, covered: areaCovered(policies, area) }));
+function shownReminder(item) {
+  return item && item.kind !== "renewal" && item.kind !== "policy_expiry";
 }
 
 function upcomingItems(tasks, reminders, events, profile, today, days) {
   const end = addDays(today, days);
   const rows = [];
   reminders
-    .filter((item) => item.status === "open" && (profile.role === "admin" || item.owner_id === profile.id))
+    .filter((item) => shownReminder(item) && item.status === "open" && (profile.role === "admin" || item.owner_id === profile.id))
     .forEach((item) => rows.push({ date: String(item.due_at).slice(0, 10), title: item.title, kind: KIND_LABEL[item.kind] || "提醒" }));
   tasks
     .filter((item) => !item.is_done && item.due_date && (profile.role === "admin" || item.owner_id === profile.id))
@@ -327,13 +319,12 @@ function renderContest() {
 
 async function renderHome() {
   const profile = me();
-  const [tasks, reminders, events, announcements, customers, records] = await Promise.all([
+  const [tasks, reminders, events, announcements, customers] = await Promise.all([
     store.listTasks(),
     store.listReminders(),
     store.listCalendarEvents(),
     store.listAnnouncements(),
     store.listCustomers(),
-    store.listServiceRecords(),
   ]);
   const today = isoDate();
   const since = addDays(today, -7);
@@ -347,11 +338,7 @@ async function renderHome() {
   $("dailyQuote").textContent = dailyQuote(taipeiDay());
   $("dailyAdvice").textContent = advice;
   const newNames = customers.filter((item) => !item.is_archived && String(item.created_at).slice(0, 10) >= since).length;
-  const activity = records.filter((item) => String(item.service_date).slice(0, 10) >= since).length;
-  const visits = records.filter((item) => String(item.service_date).slice(0, 10) === today).length;
   const metrics = [
-    [activity, "近7日活動量", "tasks"],
-    [visits, "今日拜訪量", "tasks"],
     [agenda.filter((item) => item.date <= addDays(today, 7)).length, "近7日行程", "tasks"],
   ];
   if (profile.role !== "admin") metrics.unshift([newNames, "近7日新增名單", "clients"]);
@@ -380,7 +367,7 @@ async function renderHome() {
 async function refreshDot() {
   const reminders = await store.listReminders();
   const today = isoDate();
-  const soon = reminders.some((item) => item.status === "open" && item.owner_id === me()?.id && String(item.due_at).slice(0, 10) <= addDays(today, 7));
+  const soon = reminders.some((item) => shownReminder(item) && item.status === "open" && item.owner_id === me()?.id && String(item.due_at).slice(0, 10) <= addDays(today, 7));
   $("avatarDot").hidden = !soon;
 }
 
@@ -551,7 +538,7 @@ function calendarItems(events, tasks, reminders, ownerId) {
     is_done: Boolean(item.is_done),
     allDay: true,
   }));
-  reminders.filter((item) => item.owner_id === ownerId && item.status === "open").forEach((item) => rows.push({
+  reminders.filter((item) => shownReminder(item) && item.owner_id === ownerId && item.status === "open").forEach((item) => rows.push({
     id: item.id,
     source: "reminder",
     owner_id: item.owner_id,
@@ -1013,18 +1000,16 @@ function fillCustomerForm(customer) {
   });
   form.elements.phone.value = customer.phone || "";
   paintGrade(customer.grade || "");
+  paintClientTypes(customer.client_types || []);
   setContactChips(customer.contact_method || "");
   form.elements.hobbies.value = customer.hobbies || "";
   setLeadSource(customer.lead_source || "");
   form.elements.notes.value = customer.notes || "";
-  for (const key of ["work_role", "income", "expense", "debt", "decision_maker", "influence_factor", "competitor"]) {
-    form.elements[key].value = customer[key] || "";
-  }
   syncFieldClears();
   form.elements.relation_social.value = customer.relation_social || "";
   form.elements.relation_business.value = customer.relation_business || "";
   for (const section of ANALYSIS_SECTIONS) {
-    if (section.field) form.elements[section.field].value = customer[section.field] || "";
+    if (section.field) form.elements[section.field].value = analysisValue(section.field, customer[section.field]);
     for (const sub of section.subs || []) form.elements[sub.field].value = customer[sub.field] || "";
   }
   const strategy = strategyFrom(customer);
@@ -1074,6 +1059,7 @@ const EXPORT_COLUMNS = [
   ["ref_code", "編號"],
   ["phone", "手機"],
   ["grade", "客戶分級"],
+  ["client_types", "客戶類型"],
   ["email", "電子信箱"],
   ["nickname", "暱稱"],
   ["gender", "性別"],
@@ -1088,18 +1074,12 @@ const EXPORT_COLUMNS = [
   ["relation_business", "商業關係"],
   ["service_tags", "服務標籤"],
   ["notes", "備註"],
-  ["work_role", "工作"],
-  ["income", "收入"],
-  ["expense", "支出"],
-  ["debt", "負債"],
-  ["decision_maker", "決策者"],
-  ["influence_factor", "影響因子"],
-  ["competitor", "競爭者"],
   ["is_archived", "已封存"],
 ];
 
 function exportValue(customer, key) {
   if (key === "service_tags") return (customer.service_tags || []).join("、");
+  if (key === "client_types") return (customer.client_types || []).join(",");
   if (key === "is_archived") return customer.is_archived ? "是" : "否";
   if (key === "birth_date") return customer.birth_date ? String(customer.birth_date).slice(0, 10) : "";
   const value = customer[key];
@@ -1199,7 +1179,8 @@ async function downloadStrategy() {
 
 function nameButton(item) {
   const badge = item.grade ? `<span class="grade-badge grade-${esc(String(item.grade).toLowerCase())}">${esc(item.grade)}</span>` : "";
-  return `<button class="name-line" type="button" data-action="open-client" data-id="${esc(item.id)}"><span>${esc(item.display_name)}</span>${badge}</button>`;
+  const emojis = (item.client_types || []).map((type) => `<span class="name-emoji" title="${esc(type)}">${esc(typeEmoji(type))}</span>`).join("");
+  return `<button class="name-line" type="button" data-action="open-client" data-id="${esc(item.id)}"><span class="name-text">${esc(item.display_name)}</span>${badge}${emojis}</button>`;
 }
 
 function paintGrade(grade) {
@@ -1215,6 +1196,17 @@ function paintGrade(grade) {
   note.hidden = !value;
   $("gradeText").textContent = value ? `${value}：${GRADE_TEXT[value]}` : "";
   $("gradeTag").textContent = gradeTrust(value);
+}
+
+function paintClientTypes(types) {
+  const selected = (types || []).filter((item) => CLIENT_TYPES.includes(item));
+  const input = $("clientTypes");
+  if (input) input.value = selected.join(",");
+  document.querySelectorAll("#typeChips [data-client-type]").forEach((button) => {
+    const on = selected.includes(button.dataset.clientType);
+    button.classList.toggle("on", on);
+    button.setAttribute("aria-pressed", on ? "true" : "false");
+  });
 }
 
 function taipeiLabel(iso = taipeiDay()) {
@@ -1426,6 +1418,7 @@ async function renderClients() {
   const list = scoped.filter((item) => {
     if (!showArchived && item.is_archived) return false;
     if (clientGradeFilter && item.grade !== clientGradeFilter) return false;
+    if (clientTypeFilter && !(item.client_types || []).includes(clientTypeFilter)) return false;
     const blob = `${item.display_name} ${item.nickname || ""} ${item.ref_code || ""} ${(item.service_tags || []).join(" ")} ${item.notes || ""} ${item.hobbies || ""} ${item.lead_source || ""} ${item.contact_method || ""}`.toLowerCase();
     return blob.includes(q);
   }).sort((a, b) => String(a.display_name).localeCompare(String(b.display_name), "zh-Hant"));
@@ -1437,6 +1430,9 @@ async function renderClients() {
   $("customerOwner").value = owners.some((item) => item.id === keepOwner) ? keepOwner : profile.id;
   document.querySelectorAll("#gradeFilter [data-grade-filter]").forEach((button) => {
     button.classList.toggle("on", (button.dataset.gradeFilter || "") === clientGradeFilter);
+  });
+  document.querySelectorAll("#typeFilter [data-type-filter]").forEach((button) => {
+    button.classList.toggle("on", button.dataset.typeFilter === clientTypeFilter);
   });
   $("clientList").innerHTML = list.length
     ? list.map(nameButton).join("")
@@ -1506,12 +1502,11 @@ async function renderClientDetail(customers, profiles) {
     $("clientDetail").innerHTML = "";
     return;
   }
-  const [policies, records, reminders, logs] = await Promise.all([
-    store.listPolicies(customer.id),
-    store.listServiceRecords(customer.id),
+  const [reminders, logs] = await Promise.all([
     store.listReminders(customer.id),
     store.listContactLogs(customer.id),
   ]);
+  const visibleReminders = reminders.filter(shownReminder);
   const canEdit = clientsAreEditable() && customer.owner_id === me().id;
   $("clientDetail").innerHTML = `<div class="panel" style="margin-top:12px">
     <div class="client-top"><div><h3>${esc(customer.display_name)}</h3><p class="sub">${esc([customer.ref_code, customer.nickname, customer.gender, rocLabel(customer.birth_date), customer.contact_method || customer.preferred_contact].filter(Boolean).join(" · "))} · 負責人 ${esc(nameOf(customer.owner_id, profiles))}</p></div>
@@ -1523,37 +1518,10 @@ async function renderClientDetail(customers, profiles) {
       ${canEdit ? `<div data-fbfli-root data-customer="${esc(customer.id)}">${fbfliEditorHtml()}</div>` : `<p class="muted">這是查看模式，只能看紀錄。</p>`}
       ${contactHistoryHtml(logs)}
     </section>
-    <h3>保單摘要</h3>
-    ${policies.map((item) => `<div class="list-item"><div><b>${esc(item.policy_category)}</b> ${esc(item.insurer_name || "")}<div class="muted">${esc(POLICY_STATUS[item.status] || item.status)} · 到期 ${formatDate(item.expiry_date)} · 續保提醒 ${formatDate(item.renewal_reminder_date)}${item.reference_last4 ? ` · 末四碼 ${esc(item.reference_last4)}` : ""}</div></div>${canEdit ? `<button class="btn secondary small" type="button" data-action="delete-policy" data-id="${esc(item.id)}">刪除</button>` : ""}</div>`).join("") || `<div class="empty">還沒有保單摘要。</div>`}
-    ${canEdit ? `<form id="policyForm" data-customer="${esc(customer.id)}" class="form-grid cols-2" style="margin-top:10px">
-      <label class="field">種類<select name="policy_category">${POLICY_CATEGORIES.map((item) => `<option>${esc(item)}</option>`).join("")}</select></label>
-      <label class="field">保險公司<input name="insurer_name" maxlength="80"></label>
-      <label class="field">生效日<input name="effective_date" type="date"></label>
-      <label class="field">到期日<input name="expiry_date" type="date"></label>
-      <label class="field">續保提醒日<input name="renewal_reminder_date" type="date"></label>
-      <label class="field">末四碼（選填）<input name="reference_last4" maxlength="4" inputmode="numeric"></label>
-      <label class="field">狀態<select name="status"><option value="active">有效</option><option value="expired">已到期</option><option value="lapsed">已停效</option></select></label>
-      <label class="field">備註<input name="notes" maxlength="500"></label>
-      <button class="btn" type="submit">新增保單摘要</button>
-    </form>` : ""}
-    <h3 style="margin-top:18px">服務紀錄</h3>
-    ${records.map((item) => `<div class="list-item"><div><b>${formatDate(item.service_date)} · ${esc(item.service_type)}</b><div>${esc(item.summary)}</div><div class="muted">${esc(item.next_action || "")}${item.next_contact_date ? ` · 下次 ${formatDate(item.next_contact_date)}` : ""}</div></div>${canEdit ? `<button class="btn secondary small" type="button" data-action="delete-service" data-id="${esc(item.id)}">刪除</button>` : ""}</div>`).join("") || `<div class="empty">還沒有服務紀錄。</div>`}
-    ${canEdit ? `<form id="serviceForm" data-customer="${esc(customer.id)}" style="margin-top:10px">
-      <div class="form-grid cols-2">
-        <label class="field">日期<input name="service_date" type="date" value="${isoDate()}" required></label>
-        <label class="field">類型<select name="service_type">${SERVICE_TYPES.map((item) => `<option>${esc(item)}</option>`).join("")}</select></label>
-      </div>
-      <label class="field">摘要<textarea name="summary" required maxlength="4000"></textarea></label>
-      <div class="form-grid cols-2">
-        <label class="field">後續行動<input name="next_action" maxlength="200"></label>
-        <label class="field">下次聯絡<input name="next_contact_date" type="date"></label>
-      </div>
-      <button class="btn" type="submit">新增服務紀錄</button>
-    </form>` : ""}
     <h3 style="margin-top:18px">提醒</h3>
-    ${reminders.map((item) => `<div class="list-item"><div><b>${esc(KIND_LABEL[item.kind] || "提醒")}</b> ${esc(item.title)}<div class="muted">${formatDate(item.due_at)} · ${item.status === "open" ? "未完成" : item.status === "done" ? "已完成" : "已取消"}</div></div>${canEdit && item.status === "open" ? `<button class="btn secondary small" type="button" data-action="done-reminder" data-id="${esc(item.id)}">完成</button>` : ""}</div>`).join("") || `<div class="empty">這位客戶還沒有提醒。</div>`}
+    ${visibleReminders.map((item) => `<div class="list-item"><div><b>${esc(KIND_LABEL[item.kind] || "提醒")}</b> ${esc(item.title)}<div class="muted">${formatDate(item.due_at)} · ${item.status === "open" ? "未完成" : item.status === "done" ? "已完成" : "已取消"}</div></div>${canEdit && item.status === "open" ? `<button class="btn secondary small" type="button" data-action="done-reminder" data-id="${esc(item.id)}">完成</button>` : ""}</div>`).join("") || `<div class="empty">這位客戶還沒有提醒。</div>`}
     ${canEdit ? `<form id="reminderForm" data-customer="${esc(customer.id)}" data-owner="${esc(customer.owner_id)}" class="form-grid cols-3" style="margin-top:10px">
-      <label class="field">種類<select name="kind"><option value="birthday">生日</option><option value="policy_expiry">保單到期</option><option value="renewal">續保</option><option value="follow_up">追蹤</option><option value="other">其他</option></select></label>
+      <label class="field">種類<select name="kind"><option value="birthday">生日</option><option value="follow_up">追蹤</option><option value="other">其他</option></select></label>
       <label class="field">標題<input name="title" required maxlength="120"></label>
       <label class="field">日期<input name="due_at" type="date" required></label>
       <button class="btn" type="submit">新增提醒</button>
@@ -1626,6 +1594,11 @@ function resetCustomerForm() {
   $("customerFormTitle").textContent = "新增名單";
   $("customerCancel").hidden = true;
   paintGrade("");
+  paintClientTypes([]);
+  const fresh = $("customerForm");
+  for (const field of Object.keys(ANALYSIS_TEMPLATES)) {
+    if (fresh.elements[field] && !String(fresh.elements[field].value || "").trim()) fresh.elements[field].value = ANALYSIS_TEMPLATES[field];
+  }
   syncFieldClears();
   if (me()) $("customerOwner").value = me().id;
   paintAnalysis();
@@ -1730,22 +1703,12 @@ async function handleAction(event) {
     if (target.dataset.action === "delete-client") {
       if (!clientsAreEditable()) return;
       const name = target.dataset.name || "這位客戶";
-      if (!window.confirm(`確定要刪除${name}嗎？這位客戶會從名單消失，相關的保單摘要和服務紀錄也會一起刪除，不能復原。`)) return;
+      if (!window.confirm(`確定要刪除${name}嗎？這位客戶會從名單消失，不能復原。`)) return;
       await store.deleteCustomer(id);
       selectedCustomerId = null;
       resetCustomerForm();
       clientTab = "list";
       toast("已刪除這位客戶");
-      await renderClients();
-    }
-    if (target.dataset.action === "delete-policy") {
-      if (!clientsAreEditable()) return;
-      await store.deletePolicy(id);
-      await renderClients();
-    }
-    if (target.dataset.action === "delete-service") {
-      if (!clientsAreEditable()) return;
-      await store.deleteServiceRecord(id);
       await renderClients();
     }
     if (target.dataset.action === "done-reminder") {
@@ -1816,6 +1779,19 @@ function bind() {
     if (gradeButton && !$("customerForm").classList.contains("locked")) {
       const next = gradeButton.dataset.grade;
       paintGrade($("clientGrade").value === next ? "" : next);
+      return;
+    }
+    const typeButton = event.target.closest("#typeChips [data-client-type]");
+    if (typeButton && !$("customerForm").classList.contains("locked")) {
+      const current = String($("clientTypes").value || "").split(",").filter(Boolean);
+      const next = typeButton.dataset.clientType;
+      paintClientTypes(current.includes(next) ? current.filter((item) => item !== next) : current.concat(next));
+      return;
+    }
+    const typeFilter = event.target.closest("[data-type-filter]");
+    if (typeFilter) {
+      clientTypeFilter = clientTypeFilter === typeFilter.dataset.typeFilter ? "" : typeFilter.dataset.typeFilter;
+      renderClients();
       return;
     }
     const gradeFilter = event.target.closest("[data-grade-filter]");
@@ -2070,6 +2046,14 @@ function bind() {
     paintAnalysis();
     syncFieldClears();
   });
+  $("customerForm").addEventListener("focusout", (event) => {
+    const field = event.target?.name;
+    if (!ANALYSIS_TEMPLATES[field]) return;
+    if (!String(event.target.value || "").trim()) {
+      event.target.value = ANALYSIS_TEMPLATES[field];
+      paintAnalysis();
+    }
+  });
   $("customerForm").addEventListener("change", paintAnalysis);
   $("relationOpen").onclick = openRelation;
   $("relationCancel").onclick = () => $("relationSheet").classList.remove("show");
@@ -2153,8 +2137,6 @@ function bind() {
   $("memberCreateForm").addEventListener("submit", onCreateMember);
   document.body.addEventListener("submit", async (event) => {
     const form = event.target;
-    if (form.id === "policyForm") return onPolicy(event);
-    if (form.id === "serviceForm") return onService(event);
     if (form.id === "reminderForm") return onReminder(event);
   });
 
@@ -2263,36 +2245,6 @@ async function onCustomer(event) {
     clientTab = "list";
     fillCustomerForm(saved);
     toast(message);
-    await renderClients();
-  } catch (error) { toast(error.message); }
-}
-
-async function onPolicy(event) {
-  event.preventDefault();
-  if (!clientsAreEditable()) return;
-  const form = event.target;
-  const data = readForm(form);
-  if (!isLast4(data.reference_last4)) return toast("保單只留末四碼，或先留空。");
-  try {
-    await store.savePolicy({ ...data, customer_id: form.dataset.customer, reference_last4: data.reference_last4.trim() || null });
-    toast("已新增保單摘要");
-    await renderClients();
-  } catch (error) { toast(error.message); }
-}
-
-async function onService(event) {
-  event.preventDefault();
-  if (!clientsAreEditable()) return;
-  const form = event.target;
-  const data = readForm(form);
-  if (!data.summary.trim()) return;
-  try {
-    await store.saveServiceRecord({
-      ...data,
-      customer_id: form.dataset.customer,
-      service_date: `${data.service_date}T09:00:00`,
-    });
-    toast("已新增服務紀錄");
     await renderClients();
   } catch (error) { toast(error.message); }
 }
