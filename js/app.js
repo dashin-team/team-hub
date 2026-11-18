@@ -87,6 +87,7 @@ import {
 import { QUOTE_EMPTY_TEXT, quoteCardHtml, visibleQuoteLinks } from "@hub/quickquote";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
+import { createLoaderController, inlineLoaderHtml, loaderLogoSrc } from "@hub/loader";
 import {
   KIND_LABEL,
   ROLE_LABEL,
@@ -115,6 +116,11 @@ const PAGE_NAMES = {
 };
 
 const $ = (id) => document.getElementById(id);
+const brandLoader = createLoaderController({ getEl: () => $("brandLoader") });
+const pendingLoader = (node) => {
+  if (!node) return;
+  node.innerHTML = inlineLoaderHtml(loaderLogoSrc(), esc);
+};
 let store;
 let page = "home";
 let assetCat = "全部";
@@ -325,7 +331,12 @@ async function renderPage() {
   if (page === "roster" && !isAdmin()) page = "home";
   if (page === "announcements" && !canManageTeam(me()?.role)) page = "home";
   applyRoleChrome();
-  if (page === "home") await renderHome();
+  if (page === "home") {
+    pendingLoader($("homeMorning"));
+    pendingLoader($("homeBirthdays"));
+    pendingLoader($("homeCars"));
+    await renderHome();
+  }
   if (page === "ai") await renderTools();
   if (page === "learn") {
     const frame = $("learnFrame");
@@ -333,12 +344,22 @@ async function renderPage() {
     if (frame && frame.getAttribute("src") !== href) frame.src = href;
   }
   if (page === "tasks") await renderCalendar();
-  if (page === "clients") await renderClients();
-  if (page === "cars") await renderCars();
+  if (page === "clients") {
+    pendingLoader($("clientList"));
+    await renderClients();
+  }
+  if (page === "cars") {
+    pendingLoader($("carList"));
+    await renderCars();
+  }
   if (page === "quickquote") renderQuickQuote();
   if (page === "social") renderContest();
-  if (page === "roster") await loadRoster();
+  if (page === "roster") {
+    pendingLoader($("rosterList"));
+    await loadRoster();
+  }
   if (page === "announcements") {
+    pendingLoader($("memberList"));
     await renderMembers();
   }
   await refreshDot();
@@ -2790,11 +2811,14 @@ function bind() {
     event.preventDefault();
     $("loginError").textContent = "";
     const password = $("loginPassword").value;
+    brandLoader.show();
     try {
       await store.signIn($("loginAccount").value, password);
       signedInPassword = password;
+      await brandLoader.hide(true);
       await afterLogin();
     } catch (error) {
+      await brandLoader.hide(true);
       $("loginError").textContent = error.message || "帳號或密碼錯誤";
     }
   });
@@ -3113,11 +3137,16 @@ async function onCreateMember(event) {
   } catch (error) { toast(error.message); }
 }
 
-function enterApp() {
-  show("app");
+async function enterApp() {
+  brandLoader.show();
   const requested = new URLSearchParams(location.search).get("page") || "home";
   page = PAGE_NAMES[requested] && requested !== "tasks" ? requested : "home";
-  renderPage();
+  show("app");
+  try {
+    await renderPage();
+  } finally {
+    await brandLoader.hide();
+  }
 }
 
 function openPassword(first) {
@@ -3138,7 +3167,7 @@ async function afterLogin() {
     openPassword(true);
     return;
   }
-  enterApp();
+  await enterApp();
 }
 
 function passwordProblem(current, next, confirm) {
@@ -3160,14 +3189,14 @@ async function onPassword(event) {
   try {
     if (store.mode === "demo") {
       toast("示範模式不會更改密碼");
-      show("app");
+      await enterApp();
       return;
     }
     await store.updatePassword(next);
     if (passwordFirst) await store.markPasswordChanged();
     signedInPassword = next;
     toast("密碼已更新");
-    enterApp();
+    await enterApp();
   } catch (error) {
     $("passwordError").textContent = error.message;
   }
@@ -3181,26 +3210,31 @@ function registerServiceWorker() {
 async function main() {
   registerServiceWorker();
   bind();
+  document.body.dataset.jsReady = "1";
   try {
     store = await openStore();
   } catch {
+    await brandLoader.hide(true);
     show("loginView");
     $("loginError").textContent = "現在連不上雲端。請稍後再試，或先把 config.js 留空使用示範資料。";
     return;
   }
   if (store.mode === "blocked") {
+    await brandLoader.hide(true);
     show("blockedView");
     return;
   }
   if (store.mode === "cloud" && !store.profile) {
+    await brandLoader.hide(true);
     show("loginView");
     return;
   }
   if (store.mode === "cloud" && store.profile.must_change_password) {
+    await brandLoader.hide(true);
     openPassword(true);
     return;
   }
-  enterApp();
+  await enterApp();
 }
 
 main();

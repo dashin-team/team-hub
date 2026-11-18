@@ -34,6 +34,7 @@ button { cursor: pointer; }
 h1, h2, h3, p { margin-top: 0; }
 
 .boot, .gate { min-height: 100vh; display: grid; place-items: center; padding: 24px 16px; }
+.boot { background: var(--bg); }
 .gate-card, .boot-card {
   width: min(440px, 100%);
   background: var(--soft);
@@ -102,6 +103,61 @@ h1, h2, h3, p { margin-top: 0; }
     animation: none;
   }
   #loginView:not([hidden]) .login-logo-ring { opacity: 0.55; }
+}
+
+.brand-loader {
+  position: fixed; inset: 0; z-index: 80;
+  display: grid; place-items: center; align-content: center; gap: 16px;
+  margin: 0; padding: 24px 16px;
+  background: var(--bg); color: var(--navy);
+}
+.brand-loader[hidden] { display: none !important; }
+.brand-loader-inner { display: grid; justify-items: center; gap: 16px; }
+.brand-loader-mark {
+  position: relative;
+  width: 168px; height: 168px;
+  display: grid; place-items: center;
+}
+.brand-loader-logo {
+  width: 132px; height: 132px; margin: 0;
+  position: relative; z-index: 1;
+  animation: brand-logo-pulse 1.8s ease-in-out infinite;
+}
+.brand-loader-ring {
+  position: absolute; inset: -6px; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 50%, var(--gold) 64%, #3aa36a 78%, #f3e0a8 86%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  animation: brand-ring-spin 2.8s linear infinite;
+  pointer-events: none;
+}
+.brand-loader-text {
+  margin: 0; color: var(--muted);
+  font-size: 14px; letter-spacing: 0.16em; font-weight: 500;
+}
+.brand-loader-inline {
+  display: flex; flex-direction: column; align-items: center; justify-content: center;
+  gap: 8px; padding: 28px 16px; min-height: 120px;
+}
+.brand-loader-inline .brand-loader-mark { width: 64px; height: 64px; }
+.brand-loader-inline .brand-loader-logo { width: 48px; height: 48px; }
+.brand-loader-inline .brand-loader-ring { inset: -5px; }
+.brand-loader-inline .brand-loader-text { font-size: 13px; letter-spacing: 0.12em; }
+#boot.is-error {
+  display: grid; place-items: center;
+}
+#boot.is-error .brand-loader-inner { width: min(440px, 100%); }
+@keyframes brand-logo-pulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.045); opacity: 0.92; }
+}
+@keyframes brand-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@media (prefers-reduced-motion: reduce) {
+  .brand-loader-logo, .brand-loader-ring { animation: none; }
+  .brand-loader-ring { opacity: 0.7; }
 }
 .brand-mark { display: inline-flex; gap: 10px; align-items: center; letter-spacing: 0.14em; font-weight: 700; color: var(--navy); }
 .brand-mark span {
