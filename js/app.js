@@ -1718,7 +1718,7 @@ async function handleAction(event) {
 
 function bind() {
   document.body.addEventListener("click", (event) => {
-    if (event.target.closest("#videoTile")) {
+    if (event.target.closest("#videoNav")) {
       const href = "https://nanen-video.netlify.app";
       const standalone = window.matchMedia("(display-mode: standalone)").matches || navigator.standalone === true;
       if (standalone) location.assign(href);
