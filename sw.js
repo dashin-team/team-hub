@@ -1,4 +1,4 @@
-const CACHE = "team-hub-20261118x";
+const CACHE = "team-hub-20261118y";
 const SHELL = [
   "./",
   "./index.html",
