@@ -30,6 +30,7 @@ import {
   parseRoc,
   relationLabel,
   upcomingBirthdays,
+  monthBirthdays,
   renderAnalysisPng,
   dailyClientPick,
   renderStrategyPng,
@@ -40,6 +41,7 @@ import {
   GRADE_TEXT,
   gradeTrust,
   CLIENT_TYPES,
+  CLIENT_GRADES,
   typeEmoji,
 } from "@hub/profile";
 import { FBFLI_ACTIONS } from "@hub/contact";
@@ -55,6 +57,15 @@ import {
 } from "@hub/cars";
 import { linesFromTextItems, mergeByPlate, normalizePlate, parseFubonText, parseSpreadsheetRecords } from "@hub/intake";
 import { createTesseractProvider } from "@hub/ocr";
+import {
+  CLIENT_TEMPLATE_HEADERS,
+  CLIENT_TEMPLATE_SAMPLE,
+  clientKey,
+  mapClientRecords,
+  mapClientTypes,
+  markDuplicates,
+  typesText,
+} from "@hub/clientimport";
 import { GUIDE_LINKS } from "@hub/guides";
 import { openStore, forceDemoMode } from "@hub/store";
 import {
@@ -738,16 +749,15 @@ async function renderHome() {
     `<button class="metric" type="button" data-nav="${dest}"><b>${esc(value)}</b><span>${esc(label)} →</span></button>`).join("");
   renderHomeMorning(today);
   renderHomeCars(cars, today);
-  const birthdays = upcomingBirthdays(
+  const birthdays = monthBirthdays(
     customers.filter((item) => !item.is_archived && item.owner_id === profile.id),
     today,
-    30,
   );
   $("homeBirthdays").innerHTML = birthdays.length ? birthdays.map((item) => `
-    <button class="bday-row ${item.days === 0 ? "today" : ""}" type="button" data-action="open-birthday" data-id="${esc(item.id)}">
-      <span><b>${esc(item.name)}</b><small> ${item.month}/${item.day}${item.age != null ? ` · ${item.age} 歲` : ""}</small></span>
-      <b>${item.days === 0 ? "今天生日🎂" : `還有 ${item.days} 天`}</b>
-    </button>`).join("") : `<div class="empty">近 30 天沒有客戶生日</div>`;
+    <button class="bday-row ${item.today ? "today" : ""}${item.passed ? " passed" : ""}" type="button" data-action="open-birthday" data-id="${esc(item.id)}">
+      <span><b>${esc(item.name)}</b><small> ${item.label}${item.age != null ? ` · 滿 ${item.age} 歲` : ""}</small></span>
+      ${item.today ? `<b class="bday-today">今天生日 🎉</b>` : ""}
+    </button>`).join("") : `<div class="empty">這個月沒有客戶壽星</div>`;
   $("homeSchedule").innerHTML = agenda.slice(0, 2).map((item) =>
     `<div class="schedule-item"><span>${esc(item.title)}</span><small class="muted">${esc(item.kind)} ${formatDate(item.date)}</small></div>`).join("")
     || `<div class="schedule-empty">（此區間沒有行程）</div>`;
@@ -1528,6 +1538,185 @@ async function exportClients() {
   XLSX.writeFile(book, `名單總覽_${taipeiDay().replace(/-/g, "")}.xlsx`);
 }
 
+// ---- 名單 Excel 匯入 ----
+let clientImportRows = [];
+
+function showClientImportMessage(text, isError) {
+  const node = $("clientImportMsg");
+  if (!node) return;
+  node.hidden = !text;
+  node.textContent = text || "";
+  node.className = isError ? "error" : "ok";
+}
+
+async function downloadClientTemplate() {
+  const XLSX = await loadSheetJs();
+  const sheet = XLSX.utils.aoa_to_sheet([CLIENT_TEMPLATE_HEADERS, CLIENT_TEMPLATE_SAMPLE]);
+  sheet["!cols"] = CLIENT_TEMPLATE_HEADERS.map((header) => ({ wch: header === "備註" ? 24 : header === "客戶類型" ? 18 : 12 }));
+  const book = XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(book, sheet, "名單");
+  XLSX.writeFile(book, "名單匯入範本.xlsx");
+}
+
+async function readClientFile(file) {
+  const kind = fileKind(file);
+  if (kind !== "excel" && kind !== "csv") throw new Error("請選 Excel（.xlsx / .xls）或 CSV 檔");
+  const XLSX = await loadSheetJs();
+  const book = kind === "csv"
+    ? XLSX.read(await file.text(), { type: "string", raw: true })
+    : XLSX.read(await file.arrayBuffer(), { type: "array", cellDates: true });
+  const sheet = book.Sheets[book.SheetNames[0]];
+  if (!sheet) throw new Error("這個檔案沒有讀到資料");
+  const records = XLSX.utils.sheet_to_json(sheet, { defval: "", raw: true });
+  const mapped = mapClientRecords(records, CLIENT_TYPES);
+  if (mapped.error) throw new Error(mapped.error);
+  return mapped;
+}
+
+function clientImportProblems(card) {
+  const value = (field) => card.querySelector(`[data-field="${field}"]`)?.value || "";
+  const problems = [];
+  const name = value("name").trim();
+  if (!name) problems.push("缺姓名");
+  const grade = value("grade");
+  if (grade && !CLIENT_GRADES.includes(grade)) problems.push("分級要是 A/B/C/D");
+  const birth = value("birth").trim();
+  if (birth && parseRoc(birth).error) problems.push("生日格式不對（例：80/05/20）");
+  const mapped = mapClientTypes(value("types"), CLIENT_TYPES);
+  if (mapped.unknown.length) problems.push(`不認得的類型：${mapped.unknown.join("、")}`);
+  return { name, problems, types: mapped.types };
+}
+
+function paintClientImportState() {
+  let savable = 0;
+  const seen = new Set();
+  document.querySelectorAll("#clientImportRows .ocr-card").forEach((card) => {
+    const { name, problems } = clientImportProblems(card);
+    const skip = card.querySelector('[data-field="skip"]').checked;
+    card.querySelector('[data-field="name"]').classList.toggle("missing", !name);
+    card.classList.toggle("import-bad", problems.length > 0);
+    card.classList.toggle("import-skip", skip && !problems.length);
+    const note = card.querySelector("[data-problems]");
+    note.textContent = problems.length ? `⚠️ ${problems.join("；")}，這筆不會儲存` : "";
+    note.hidden = !problems.length;
+    const key = clientKey(name, card.querySelector('[data-field="phone"]').value);
+    if (!problems.length && !skip && !seen.has(key)) savable += 1;
+    if (!problems.length && !skip) seen.add(key);
+  });
+  $("clientImportSave").disabled = savable === 0;
+  $("clientImportSave").textContent = savable ? `確認儲存（${savable} 筆）` : "確認儲存";
+}
+
+function openClientImportReview(rows, blank) {
+  clientImportRows = rows;
+  const existing = rows.filter((row) => row.exists).length;
+  const missing = rows.filter((row) => !row.display_name).length;
+  const bits = [`讀到 ${rows.length} 筆`];
+  if (existing) bits.push(`${existing} 筆已存在`);
+  if (missing) bits.push(`${missing} 筆缺姓名`);
+  if (blank) bits.push(`空白列 ${blank} 列已略過`);
+  $("clientImportInfo").textContent = `${bits.join("，")}。請確認後再儲存；缺姓名的列不會儲存，已存在的客戶預設略過。`;
+  $("clientImportRows").innerHTML = rows.length ? rows.map((row, index) => {
+    const tag = row.exists ? `<span class="ocr-update">已存在</span>` : row.repeat ? `<span class="ocr-update">檔案內重複</span>` : "";
+    const extra = [
+      row.gender && `性別 ${row.gender}`,
+      row.contact_method && `聯絡 ${row.contact_method}`,
+      row.lead_source && `來源 ${row.lead_source}`,
+      row.referrer && `介紹人 ${row.referrer}`,
+      row.hobbies && `興趣 ${row.hobbies}`,
+      row.nickname && `暱稱 ${row.nickname}`,
+      row.email && row.email,
+    ].filter(Boolean).join(" · ");
+    const types = [typesText(row.client_types), ...(row.unknown_types || [])].filter(Boolean).join("、");
+    return `<article class="ocr-card" data-index="${index}">
+      <div class="row spread"><b>第 ${index + 1} 筆</b>${tag}</div>
+      <label class="field">姓名<input data-field="name" value="${esc(row.display_name)}" maxlength="80"></label>
+      <label class="field">手機<input data-field="phone" value="${esc(row.phone)}" maxlength="30" inputmode="tel"></label>
+      <div class="import-pair">
+        <label class="field">客戶分級<select data-field="grade">
+          <option value=""${row.grade ? "" : " selected"}>未分級</option>
+          ${CLIENT_GRADES.map((grade) => `<option value="${grade}"${row.grade === grade ? " selected" : ""}>${grade}</option>`).join("")}
+          ${row.grade && !CLIENT_GRADES.includes(row.grade) ? `<option value="${esc(row.grade)}" selected>${esc(row.grade)}</option>` : ""}
+        </select></label>
+        <label class="field">生日<input data-field="birth" value="${esc(row.birth)}" maxlength="12" placeholder="80/05/20"></label>
+      </div>
+      <label class="field">客戶類型<input data-field="types" value="${esc(types)}" placeholder="人壽險、機車險"></label>
+      <label class="field">備註<input data-field="notes" value="${esc(row.notes)}" maxlength="4000"></label>
+      ${extra ? `<p class="muted import-extra">${esc(extra)}</p>` : ""}
+      <p class="error import-problems" data-problems hidden></p>
+      <label class="import-skip-toggle"><input type="checkbox" data-field="skip"${row.exists || row.repeat ? " checked" : ""}> 略過這筆</label>
+    </article>`;
+  }).join("") : `<div class="empty">檔案裡沒有名單資料</div>`;
+  $("clientImportSheet").classList.add("show");
+  paintClientImportState();
+}
+
+async function importClientFile(file) {
+  showClientImportMessage("");
+  try {
+    const mapped = await readClientFile(file);
+    const profile = me();
+    const existing = (await store.listCustomers()).filter((item) => item.owner_id === profile?.id);
+    openClientImportReview(markDuplicates(mapped.rows, existing), mapped.blank);
+  } catch (error) {
+    const text = error.message || "檔案沒有讀取";
+    showClientImportMessage(text, true);
+    toast(text);
+  }
+}
+
+async function saveClientImport() {
+  paintClientImportState();
+  if ($("clientImportSave").disabled) {
+    toast("沒有可以儲存的資料");
+    return;
+  }
+  const known = new Set();
+  const cards = [...document.querySelectorAll("#clientImportRows .ocr-card")];
+  $("clientImportSave").disabled = true;
+  let created = 0;
+  let skipped = 0;
+  const failures = [];
+  for (const card of cards) {
+    const { name, problems, types } = clientImportProblems(card);
+    const skip = card.querySelector('[data-field="skip"]').checked;
+    const value = (field) => card.querySelector(`[data-field="${field}"]`)?.value || "";
+    const key = clientKey(name, value("phone"));
+    if (skip || problems.length || known.has(key)) {
+      skipped += 1;
+      continue;
+    }
+    const row = clientImportRows[Number(card.dataset.index)] || {};
+    try {
+      await store.saveCustomer({
+        display_name: name,
+        phone: value("phone").trim(),
+        grade: value("grade"),
+        client_types: types,
+        birth_roc: value("birth").trim(),
+        gender: row.gender || "",
+        contact_method: row.contact_method || "",
+        lead_source: row.lead_source || "",
+        referrer: row.referrer || "",
+        hobbies: row.hobbies || "",
+        nickname: row.nickname || "",
+        email: row.email || "",
+        notes: value("notes").trim(),
+      });
+      known.add(key);
+      created += 1;
+    } catch (error) {
+      skipped += 1;
+      failures.push(`${name}：${error.message || "沒有儲存"}`);
+    }
+  }
+  $("clientImportSheet").classList.remove("show");
+  const text = `✅ 匯入完成：新增 ${created} 筆，略過 ${skipped} 筆${failures.length ? `（${failures.length} 筆沒有存成功：${failures.slice(0, 3).join("；")}）` : ""}`;
+  showClientImportMessage(text, failures.length > 0 && created === 0);
+  toast(`匯入完成：新增 ${created} 筆，略過 ${skipped} 筆`);
+  await renderClients();
+}
+
 function showPng(blob, title, filename) {
   if (pngUrl) URL.revokeObjectURL(pngUrl);
   pngUrl = URL.createObjectURL(blob);
@@ -1805,6 +1994,10 @@ async function renderClients() {
     store.listContactLogs(),
   ]);
   paintClientSwitch(profile, profiles);
+  const canImport = clientsAreEditable();
+  $("clientImportBtn").hidden = !canImport;
+  $("clientTemplate").hidden = !canImport;
+  $("clientImportNote").hidden = !canImport;
   const focus = clientFocusId();
   const scoped = customers.filter((item) => item.owner_id === focus);
   const q = $("clientSearch").value.trim().toLowerCase();
@@ -2482,6 +2675,20 @@ function bind() {
   if ($("assetForm")) $("assetForm").addEventListener("submit", onAsset);
   if ($("courseForm")) $("courseForm").addEventListener("submit", onCourse);
   $("customerForm").addEventListener("submit", onCustomer);
+  $("clientImportBtn").onclick = () => $("clientFile").click();
+  $("clientFile").addEventListener("change", (event) => {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (file) importClientFile(file);
+  });
+  $("clientTemplate").onclick = () => downloadClientTemplate().catch((error) => toast(error.message || "範本沒有下載"));
+  $("clientImportRows").addEventListener("input", () => paintClientImportState());
+  $("clientImportRows").addEventListener("change", () => paintClientImportState());
+  $("clientImportClose").onclick = () => $("clientImportSheet").classList.remove("show");
+  $("clientImportSave").onclick = () => saveClientImport().catch((error) => {
+    $("clientImportSave").disabled = false;
+    toast(error.message || "沒有儲存");
+  });
   $("exportClients").onclick = () => exportClients().catch((error) => toast(error.message || "Excel 沒有下載"));
   $("contactChips").addEventListener("click", (event) => {
     const button = event.target.closest("[data-contact]");

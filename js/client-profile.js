@@ -173,6 +173,30 @@ export function upcomingBirthdays(customers, today, withinDays = 30) {
   return rows.sort((a, b) => a.days - b.days || String(a.name).localeCompare(String(b.name), "zh-Hant"));
 }
 
+// 本月壽星：生日在 today 這個月的客戶，依日期排序。age 是今年滿幾歲（不知道出生年就是 null）。
+export function monthBirthdays(customers, today) {
+  const [year, month, day] = String(today).slice(0, 10).split("-").map(Number);
+  const rows = [];
+  for (const customer of customers || []) {
+    const parsed = parseBirth(customer.birth_date || customer.birthday_md || "");
+    if (!parsed.md) continue;
+    const [birthMonth, birthDay] = parsed.md.split("-").map(Number);
+    if (birthMonth !== month) continue;
+    const birthYear = parsed.iso ? Number(parsed.iso.slice(0, 4)) : null;
+    rows.push({
+      id: customer.id,
+      name: customer.display_name,
+      month: birthMonth,
+      day: birthDay,
+      label: `${String(birthMonth).padStart(2, "0")}/${String(birthDay).padStart(2, "0")}`,
+      age: birthYear && birthYear <= year ? year - birthYear : null,
+      today: birthDay === day,
+      passed: birthDay < day,
+    });
+  }
+  return rows.sort((a, b) => a.day - b.day || String(a.name).localeCompare(String(b.name), "zh-Hant"));
+}
+
 export function relationLabel(social, business) {
   const left = String(social ?? "").trim();
   const right = String(business ?? "").trim();

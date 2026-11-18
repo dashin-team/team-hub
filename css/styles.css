@@ -377,7 +377,17 @@ body[data-mode="cloud"] .demo-only,
 body[data-mode="demo"] .cloud-only { display: none !important; }
 .client-tabs { grid-template-columns: repeat(3, minmax(0, 1fr)); margin: 4px 0 14px; }
 .client-tabs button { font-size: 13px; padding: 0 2px; }
-.client-tools { display: flex; justify-content: flex-end; margin-bottom: 8px; }
+.client-tools { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 8px; margin-bottom: 8px; }
+.client-tools .btn { flex: none; }
+#clientImportNote { text-align: right; margin: 0 0 8px; }
+#clientImportMsg { margin: 0 0 8px; }
+.import-pair { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+.ocr-card select { width: 100%; }
+.ocr-card.import-bad { border-color: #8d4a3b; background: #fff6f4; }
+.ocr-card.import-skip { opacity: 0.6; }
+.import-extra { font-size: 12px; margin: 2px 0 6px; }
+.import-problems { margin: 4px 0; }
+.import-skip-toggle { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; color: var(--navy); }
 .name-line {
   display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-start; gap: 6px 8px;
   width: 100%; text-align: left; background: #fff;
@@ -844,6 +854,12 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 @media (min-width: 768px) {
   .home-board { grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 16px; align-items: stretch; }
 }
+#homeBdayCard .section-head button { color: var(--navy); font-weight: 700; }
+.bday-row.passed { opacity: 0.6; }
+.bday-today { color: var(--gold-deep); white-space: nowrap; }
+@media (min-width: 1100px) {
+  .home-board { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+}
 @media (min-width: 768px) {
   .car-stats { grid-template-columns: repeat(4, minmax(0, 1fr)); }
   .car-list { grid-template-columns: repeat(2, minmax(0, 1fr)); }
@@ -851,3 +867,4 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 @media (min-width: 1100px) {
   .car-list { grid-template-columns: repeat(3, minmax(0, 1fr)); }
 }
+#homeBirthdays .bday-row { background: #fff; }
