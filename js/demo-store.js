@@ -2,6 +2,7 @@ import { normalizeEvent } from "@hub/calendar";
 import { addDays, canViewPerson, isoDate } from "@hub/metrics";
 import { cleanActions, redactNote, summarizeNoteLocal } from "@hub/contact";
 import { normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
+import { normalizeCarInput } from "@hub/cars";
 import { randomId, safeLocal, safeSession } from "@hub/safe";
 
 const STORAGE_KEY = "naneun-team-hub-demo-v1";
@@ -257,8 +258,17 @@ function seed() {
     },
   ];
 
+  const car_renewals = [
+    carRenewal(PEOPLE.lin, "陳大明（示範）", "ABC-1234", "轎車", 5, 5, "虛構。兩張保單同一天到期。"),
+    carRenewal(PEOPLE.lin, "林小華（示範）", "DEF-5678", "休旅車", 18, 25, ""),
+    carRenewal(PEOPLE.lin, "黃阿姨（示範）", "GHI-9012", "貨車", 45, 45, ""),
+    carRenewal(PEOPLE.lin, "周先生（示範）", "JKL-3456", "機車", 120, 120, "虛構。還沒到提醒的時候。"),
+    carRenewal(PEOPLE.lin, "吳先生（示範）", "MNO-7788", "轎車", -3, 10, ""),
+    carRenewal(PEOPLE.huang, "趙先生（示範）", "QQQ-0001", "轎車", 2, 2, "虛構。這筆屬於另一位夥伴。"),
+  ];
+
   return {
-    version: 15,
+    version: 16,
     profiles,
     customers,
     policies,
@@ -271,6 +281,7 @@ function seed() {
     course_progress: courseProgress,
     announcements,
     contact_logs: contactLogs,
+    car_renewals,
   };
 
   function customer(code, owner, name, phone, tags, birthday, notes, extra = {}) {
@@ -307,6 +318,21 @@ function seed() {
     row.grade = ["A", "B", "C", "D"].includes(extra.grade) ? extra.grade : null;
     row.client_types = Array.isArray(extra.client_types) ? extra.client_types.filter((item) => typeof item === "string") : [];
     return row;
+  }
+
+  function carRenewal(owner, name, plate, carType, ctOffset, voOffset, note) {
+    return {
+      id: uid(),
+      owner_id: owner,
+      name,
+      plate,
+      car_type: carType,
+      ct_date: addDays(today, ctOffset),
+      vo_date: addDays(today, voOffset),
+      note: note || null,
+      created_at: nowIso(),
+      updated_at: nowIso(),
+    };
   }
 
   function policy(ownerCustomer, category, insurer, expiryIn, renewalIn, last4) {
@@ -403,7 +429,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 15 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs)) return seed();
+    if (parsed?.version !== 16 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs) || !Array.isArray(parsed.car_renewals)) return seed();
     return parsed;
   } catch {
     return seed();
@@ -1032,6 +1058,49 @@ export function createDemoStore() {
 
     async updateMember() {
       throw new Error("示範模式的角色切換只影響這台瀏覽器，不會真的變更權限。");
+    },
+
+    async listCarRenewals() {
+      const me = requireProfile();
+      return (state.car_renewals || []).filter((item) => item.owner_id === me.id);
+    },
+
+    async saveCarRenewal(input) {
+      const me = requireProfile();
+      const norm = normalizeCarInput(input);
+      if (norm.error) throw new Error(norm.error);
+      if (!state.car_renewals) state.car_renewals = [];
+      if (input.id) {
+        const row = state.car_renewals.find((item) => item.id === input.id);
+        if (!row || row.owner_id !== me.id) throw new Error("只能修改自己的車險資料");
+        Object.assign(row, norm.fields, { updated_at: nowIso() });
+        persist();
+        return row;
+      }
+      const row = {
+        id: uid(),
+        owner_id: me.id,
+        ...norm.fields,
+        created_at: nowIso(),
+        updated_at: nowIso(),
+      };
+      state.car_renewals.unshift(row);
+      persist();
+      return row;
+    },
+
+    async deleteCarRenewal(id) {
+      const me = requireProfile();
+      const row = (state.car_renewals || []).find((item) => item.id === id);
+      if (!row || row.owner_id !== me.id) throw new Error("只能刪除自己的車險資料");
+      state.car_renewals = state.car_renewals.filter((item) => item.id !== id);
+      persist();
+    },
+
+    async insertCarRenewals(items) {
+      const created = [];
+      for (const item of items) created.push(await this.saveCarRenewal(item));
+      return created;
     },
   };
 }

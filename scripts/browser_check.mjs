@@ -137,11 +137,13 @@ try {
 
   const homeText = await evalJson(ws, "document.body.innerText");
   const homePage = await evalJson(ws, "document.getElementById('page-home').innerText");
-  if (!homeText.includes("南恩團隊")) throw new Error("沒有團隊名稱");
+  const brand = await evalJson(ws, "document.getElementById('drawerName').textContent");
+  if (!brand.includes("南恩")) throw new Error("沒有團隊名稱");
   if (!homeText.includes("示範資料")) throw new Error("沒有示範資料標示");
-  if (!homePage.includes("近7日行程")) throw new Error("總覽缺統計");
+  if (!homePage.includes("今天早會課程")) throw new Error("總覽缺早會課程");
+  if (homePage.includes("近期行程") || homePage.includes("客戶生日") || homePage.includes("近7日")) throw new Error("總覽不該再顯示舊卡片");
   if (homePage.includes("近7日活動量") || homePage.includes("今日拜訪量")) throw new Error("總覽不該再顯示服務紀錄統計");
-  if (homePage.includes("近7日新增名單") || homePage.includes("客戶生日")) throw new Error("管理員總覽不該出現名單卡片");
+  if (homePage.includes("行事曆")) throw new Error("總覽不該出現行事曆");
   if (homeText.includes("粉絲成長")) throw new Error("總覽不該再顯示競賽排行");
   if (homeText.includes("問卷")) throw new Error("不該出現問卷積分");
   await evalJson(ws, "document.getElementById('menuBtn').click()");
@@ -275,16 +277,16 @@ try {
     if (!text.includes("王先生") || text.includes("陳媽媽")) throw new Error(`夥伴看到不該看的客戶: ${text}`);
     return text;
   }, "member clients");
-  await evalJson(ws, "document.querySelector('[data-nav=tasks]').click()");
-  await evalJson(ws, "document.querySelector('[data-cal-view=day]').click()");
+  await evalJson(ws, "document.querySelector('[data-nav=home]').click()");
   await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('page-tasks').innerText");
-    const team = await evalJson(ws, "document.getElementById('calTeam').innerText");
-    if (!text.includes("約王先生喝咖啡") || text.includes("詩涵示範增員")) throw new Error(`行事曆隔離失敗: ${text.slice(0, 180)}`);
-    if (team.trim()) throw new Error("一般夥伴不該看到團隊盤點");
-    if (!text.includes("盤點") || !text.includes("完成率")) throw new Error("沒有盤點");
+    const text = await evalJson(ws, "document.getElementById('page-home').innerText");
+    const menu = await evalJson(ws, "document.getElementById('drawer').innerText");
+    if (!text.includes("今天早會課程") || !text.includes("陳大明") || !text.includes("查看全部")) throw new Error(text.slice(0, 180));
+    if (text.includes("吳先生") || text.includes("周先生") || text.includes("近期行程")) throw new Error("總覽車險範圍不對");
+    if (menu.includes("行事曆")) throw new Error("選單還留著行事曆");
+    if (!menu.includes("車險續保通知") || !menu.includes("名單") || !menu.includes("訓練")) throw new Error(menu);
     return text;
-  }, "member calendar");
+  }, "home cars");
   await evalJson(ws, "document.getElementById('previewRole').value = 'admin'; document.getElementById('previewRole').dispatchEvent(new Event('change'))");
   await evalJson(ws, "document.querySelector('[data-nav=ai]').click()");
   await waitFor(async () => {
@@ -294,37 +296,6 @@ try {
     if (!first) throw new Error("第一張指南不正確");
     return count;
   }, "tools");
-
-  await evalJson(ws, "document.querySelector('[data-nav=tasks]').click()");
-  await evalJson(ws, "document.querySelector('[data-cal-view=month]').click()");
-  await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('page-tasks').innerText");
-    if (!text.includes("行事曆") || !text.includes("團隊盤點")) throw new Error(`主管行事曆不完整: ${text.slice(0, 160)}`);
-    return text;
-  }, "calendar");
-  await evalJson(ws, "document.querySelector('.cal-cell.today').click()");
-  await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('calBoard').innerText");
-    if (!text.includes("早會")) throw new Error("日檢視沒有團隊早會");
-    return text;
-  }, "calendar day");
-  await evalJson(ws, "document.getElementById('calAdd').click()");
-  await waitFor(async () => {
-    const open = await evalJson(ws, "document.getElementById('calSheet').classList.contains('show')");
-    if (!open) throw new Error("沒有打開新增行程");
-    return open;
-  }, "calendar form");
-  await evalJson(ws, `
-    document.querySelector('#calForm [name=title]').value = '瀏覽器測試約訪';
-    document.querySelector('#calForm [name=event_type]').value = 'visit';
-    document.getElementById('calForm').requestSubmit();
-    true
-  `);
-  await waitFor(async () => {
-    const text = await evalJson(ws, "document.getElementById('calBoard').innerText");
-    if (!text.includes("瀏覽器測試約訪")) throw new Error("活動沒有存進當天");
-    return text;
-  }, "calendar save");
 
   await evalJson(ws, "document.getElementById('resetDemo').click();");
   await waitFor(async () => {
@@ -373,6 +344,13 @@ try {
   await shot(ws, "mobile_coverage");
   const detail = await evalJson(ws, "document.getElementById('clientDetail').innerText + document.getElementById('strategyBoard').innerText");
   if (detail.includes("保障完整度") || !detail.includes("目標")) throw new Error(detail.slice(0, 180));
+
+  await evalJson(ws, "document.querySelector('[data-nav=cars]').click()");
+  await waitFor(async () => {
+    const text = await evalJson(ws, "document.getElementById('page-cars').classList.contains('active') ? document.getElementById('page-cars').innerText : ''");
+    if (!text.includes("陳大明") || !text.includes("強制險") || text.includes("趙先生") || !text.includes("7天內到期")) throw new Error(text.slice(0, 160));
+    return text;
+  }, "cars");
 
   await evalJson(ws, "document.getElementById('previewRole').value = 'manager'; document.getElementById('previewRole').dispatchEvent(new Event('change'))");
   await waitFor(async () => {
