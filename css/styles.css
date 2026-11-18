@@ -77,25 +77,39 @@ textarea { min-height: 110px; resize: vertical; }
   overflow: hidden;
 }
 .drawer.open { transform: none; }
-.drawer-brand { display: flex; flex: none; flex-direction: column; align-items: flex-start; gap: 8px; padding: 8px 12px 16px; overflow: visible; }
+.drawer-brand { display: flex; flex: none; flex-direction: column; align-items: flex-start; gap: 6px; padding: 4px 8px 10px; overflow: visible; }
+.drawer-logo {
+  width: 40px; height: 40px; border-radius: 50%; object-fit: cover; background: var(--paper);
+  box-shadow: 0 0 0 1.5px var(--gold);
+}
 .drawer-brand small { display: block; color: #E7E1D6; letter-spacing: 0.02em; font-size: 12px; line-height: 1.45; white-space: normal; }
 .drawer-avatar {
-  position: relative; width: 72px; height: 72px; border: 2px solid var(--gold); border-radius: 50%; padding: 0; overflow: hidden;
-  background: var(--paper); color: var(--navy); font-size: 28px; font-weight: 650;
+  position: relative; width: 64px; height: 64px; border: 2px solid var(--gold); border-radius: 50%; padding: 0; overflow: hidden;
+  background: var(--paper); color: var(--navy); font-size: 26px; font-weight: 650;
 }
 .drawer-avatar img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.drawer-name { font-size: 18px; font-weight: 650; }
+.drawer-identity {
+  display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 10px; row-gap: 0;
+  width: 100%; min-width: 0;
+}
+.drawer-name, .drawer-grade {
+  font-size: 25px; font-weight: 700; line-height: 1.2; letter-spacing: 0;
+}
+.drawer-name { color: var(--paper); }
+.drawer-grade { color: var(--gold); }
+.drawer-grade:empty { display: none; }
 .drawer nav { display: grid; gap: 4px; align-content: start; flex: 1; min-height: 0; overflow-y: auto; }
 .drawer nav button {
   text-align: left; border: 0; background: transparent; border-radius: 12px;
-  min-height: 48px; padding: 0 14px; font-size: 16px; color: var(--paper);
+  min-height: 44px; padding: 0 14px; font-size: 16px; color: var(--paper);
 }
 .drawer nav button.active { color: var(--gold); background: rgba(201, 162, 74, 0.16); box-shadow: inset 3px 0 0 var(--gold); }
+.drawer-meta { flex: none; margin-top: 4px; }
 .drawer-foot {
   flex: none; margin-top: 8px; padding-top: 8px; border-top: 1px solid rgba(243, 239, 230, 0.24);
   background: var(--navy);
 }
-.drawer-role { margin-top: 8px; color: #E7E1D6; font-size: 12px; }
+.drawer-role { margin-top: 4px; color: #E7E1D6; font-size: 12px; }
 .drawer .btn.secondary { color: var(--paper); border-color: rgba(243, 239, 230, 0.4); }
 .drawer .drawer-logout { background: var(--gold); color: var(--navy); }
 .drawer .field { color: #E7E1D6; }
