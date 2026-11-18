@@ -1,20 +1,22 @@
+import { GRADE_SORT, MEMBER_GRADES, gradeTitle } from "./metrics.js";
+
 // 示範用同仁名單。名字都是虛構的。
 // 雲端模式改呼叫 Supabase 的 team_roster()，不要把真實姓名寫回這個檔案。
 
-export const ROSTER_RANKS = ["UM", "SP", "CA"];
+export const ROSTER_RANKS = MEMBER_GRADES;
 
 export const TEAM_ROSTER = [
   { district: "示範一區", members: [
     { name: "王示範", rank: "UM" },
     { name: "陳小安", rank: "CA" },
-    { name: "林小弟", rank: "CA" },
+    { name: "林小弟", rank: "AM" },
   ] },
   { district: "示範二區", members: [
     { name: "張主管", rank: "SP" },
     { name: "李新人", rank: "CA" },
   ] },
   { district: "示範三區", members: [
-    { name: "周示範", rank: "SP" },
+    { name: "周示範", rank: "DM" },
   ] },
 ];
 
@@ -23,21 +25,19 @@ export function rosterMembers(roster = TEAM_ROSTER) {
 }
 
 export function countRanks(members) {
-  const counts = { UM: 0, SP: 0, CA: 0 };
+  const counts = Object.fromEntries(ROSTER_RANKS.map((rank) => [rank, 0]));
   for (const member of members) {
     if (counts[member.rank] != null) counts[member.rank] += 1;
   }
   return { total: members.length, ...counts };
 }
 
-const GRADE_ORDER = { UM: 1, SP: 2, CA: 3 };
-
 export function groupRoster(rows) {
   const people = (rows || []).filter((row) => row.grade && row.grade !== "ADMIN");
   const sorted = [...people].sort((a, b) => {
     const zone = (a.zone_order ?? 999) - (b.zone_order ?? 999);
     if (zone) return zone;
-    const grade = (GRADE_ORDER[a.grade] ?? 9) - (GRADE_ORDER[b.grade] ?? 9);
+    const grade = (GRADE_SORT[a.grade] ?? 9) - (GRADE_SORT[b.grade] ?? 9);
     if (grade) return grade;
     return String(a.display_name || "").localeCompare(String(b.display_name || ""), "zh-Hant");
   });
