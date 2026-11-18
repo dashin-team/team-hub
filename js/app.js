@@ -304,7 +304,6 @@ async function renderPage() {
   if (page === "social") renderContest();
   if (page === "roster") await loadRoster();
   if (page === "announcements") {
-    await renderAnnouncements();
     await renderMembers();
   }
   await refreshDot();
@@ -747,11 +746,10 @@ function renderQuickQuote() {
 
 async function renderHome() {
   const profile = me();
-  const [tasks, reminders, events, announcements, customers, cars] = await Promise.all([
+  const [tasks, reminders, events, customers, cars] = await Promise.all([
     store.listTasks(),
     store.listReminders(),
     store.listCalendarEvents(),
-    store.listAnnouncements(),
     store.listCustomers(),
     store.listCarRenewals(),
   ]);
@@ -785,10 +783,6 @@ async function renderHome() {
   $("homeSchedule").innerHTML = agenda.slice(0, 2).map((item) =>
     `<div class="schedule-item"><span>${esc(item.title)}</span><small class="muted">${esc(item.kind)} ${formatDate(item.date)}</small></div>`).join("")
     || `<div class="schedule-empty">（此區間沒有行程）</div>`;
-  const visibleNews = announcements.filter((item) => item.published_at).slice(0, 3);
-  $("homeNotices").innerHTML = visibleNews.map((item) =>
-    `<div class="notice"><b>${esc(item.title)}</b><small>${esc(item.body)}</small></div>`).join("")
-    || `<div class="empty">目前沒有公告。</div>`;
   $("secretaryBody").innerHTML = `<p>${esc(advice)}</p><div class="row"><button class="btn secondary small" type="button" data-nav="social">看本季競賽</button><button class="btn secondary small" type="button" data-nav="ai">看投保指南</button></div>`;
 }
 
@@ -2818,7 +2812,7 @@ function bind() {
   $("strategyDownload").onclick = () => downloadStrategy().catch((error) => toast(error.message));
   $("gridFullDownload").onclick = () => downloadAnalysis().catch((error) => toast(error.message));
   $("pngClose").onclick = () => $("pngSheet").classList.remove("show");
-  $("announcementForm").addEventListener("submit", onAnnouncement);
+  $("announcementForm")?.addEventListener("submit", onAnnouncement);
   $("memberAddToggle").onclick = () => {
     $("memberCreateForm").hidden = !$("memberCreateForm").hidden;
   };
