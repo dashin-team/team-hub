@@ -9,34 +9,34 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="大心團隊">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261118e 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261118f 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>大心團隊</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./favicon.ico?v=20261118e" sizes="any">
-  <link rel="icon" href="./favicon.svg?v=20261118e" type="image/svg+xml">
-  <link rel="icon" href="./favicon-32.png?v=20261118e" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118e">
-  <link rel="stylesheet" href="./css/styles.css?v=20261118e">
+  <link rel="icon" href="./favicon.ico?v=20261118f" sizes="any">
+  <link rel="icon" href="./favicon.svg?v=20261118f" type="image/svg+xml">
+  <link rel="icon" href="./favicon-32.png?v=20261118f" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118f">
+  <link rel="stylesheet" href="./css/styles.css?v=20261118f">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261118e",
-      "@hub/guides": "./js/guides.js?v=20261118e",
-      "@hub/store": "./js/store.js?v=20261118e",
-      "@hub/metrics": "./js/metrics.js?v=20261118e",
-      "@hub/config": "./js/config.js?v=20261118e",
-      "@hub/demo-store": "./js/demo-store.js?v=20261118e",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261118e",
-      "@hub/safe": "./js/safe-browser.js?v=20261118e",
-      "@hub/contest": "./js/contest.js?v=20261118e",
-      "@hub/profile": "./js/client-profile.js?v=20261118e",
-      "@hub/calendar": "./js/calendar.js?v=20261118e",
-      "@hub/team": "./js/team-schedule.js?v=20261118e",
-      "@hub/roster": "./js/team-roster.js?v=20261118e",
-      "@hub/account": "./js/account.js?v=20261118e",
-      "@hub/contact": "./js/contact-log.js?v=20261118e",
-      "@hub/quotes": "./js/quotes.js?v=20261118e"
+      "@hub/app": "./js/app.js?v=20261118f",
+      "@hub/guides": "./js/guides.js?v=20261118f",
+      "@hub/store": "./js/store.js?v=20261118f",
+      "@hub/metrics": "./js/metrics.js?v=20261118f",
+      "@hub/config": "./js/config.js?v=20261118f",
+      "@hub/demo-store": "./js/demo-store.js?v=20261118f",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261118f",
+      "@hub/safe": "./js/safe-browser.js?v=20261118f",
+      "@hub/contest": "./js/contest.js?v=20261118f",
+      "@hub/profile": "./js/client-profile.js?v=20261118f",
+      "@hub/calendar": "./js/calendar.js?v=20261118f",
+      "@hub/team": "./js/team-schedule.js?v=20261118f",
+      "@hub/roster": "./js/team-roster.js?v=20261118f",
+      "@hub/account": "./js/account.js?v=20261118f",
+      "@hub/contact": "./js/contact-log.js?v=20261118f",
+      "@hub/quotes": "./js/quotes.js?v=20261118f"
     }
   }
   </script>
@@ -44,7 +44,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118e" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118f" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -63,7 +63,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118e" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118f" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -101,7 +101,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118e" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118f" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -120,8 +120,10 @@
 
   <div id="passwordView" class="gate" hidden>
     <div class="gate-card">
-      <div class="brand-mark"><span>南</span> TEAM HUB</div>
-      <h1 id="passwordTitle">第一次登入，請設定新密碼</h1>
+      <div class="modal-head">
+        <h1 id="passwordTitle">第一次登入，請設定新密碼</h1>
+        <button class="sheet-close" id="passwordClose" type="button" aria-label="關閉">✕</button>
+      </div>
       <p class="sub" id="passwordHint">新密碼至少 8 個字元，而且要和現在的不一樣。</p>
       <form id="passwordForm">
         <label class="field">目前密碼
@@ -142,8 +144,10 @@
 
   <div id="recoveryView" class="gate" hidden>
     <div class="gate-card">
-      <div class="brand-mark"><span>南</span> TEAM HUB</div>
-      <h1>設定新密碼</h1>
+      <div class="modal-head">
+        <h1>設定新密碼</h1>
+        <button class="sheet-close" id="recoveryClose" type="button" aria-label="關閉">✕</button>
+      </div>
       <form id="recoveryForm">
         <label class="field">新密碼
           <input id="newPassword" type="password" autocomplete="new-password" required minlength="6">
@@ -199,7 +203,7 @@
     <div class="main">
       <header class="topbar">
         <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
-        <img class="top-logo" src="./favicon.svg?v=20261118e" alt="" width="28" height="28">
+        <img class="top-logo" src="./favicon.svg?v=20261118f" alt="" width="28" height="28">
         <div class="top-title" id="crumb">總覽</div>
         <a id="learnPop" class="learn-pop" href="https://dashin-team.github.io/nanen-newbie-training/" target="_blank" rel="noopener" aria-label="新視窗開啟" title="新視窗開啟">↗</a>
       </header>
@@ -260,7 +264,10 @@
           </div>
           <div id="clientDetail"></div>
           <form id="customerForm" class="panel client-form" autocomplete="off" hidden>
-            <h3 id="customerFormTitle">新增名單</h3>
+            <div class="form-head">
+              <h3 id="customerFormTitle">新增名單</h3>
+              <button class="sheet-close" id="customerFormClose" type="button" aria-label="關閉">✕</button>
+            </div>
             <input type="hidden" name="id">
             <input type="hidden" name="birthday_md_keep">
             <input type="hidden" name="relation_social" id="relationSocial">
@@ -528,10 +535,11 @@
     </div>
   </div>
 
-  <div id="fbfliSheet" class="sheet" hidden role="dialog" aria-modal="true" aria-labelledby="fbfliTitle" data-fbfli-root>
-    <div class="row spread">
+  <div id="fbfliSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="fbfliTitle">
+    <div class="modal" data-fbfli-root>
+    <div class="modal-head">
       <h3 id="fbfliTitle">今日做了什麼</h3>
-      <button class="icon-btn" id="fbfliClose" type="button" aria-label="關閉">✕</button>
+      <button class="sheet-close" id="fbfliClose" type="button" aria-label="關閉">✕</button>
     </div>
     <p id="fbfliWho" class="sub"></p>
     <p id="fbfliDate" class="fbfli-date"></p>
@@ -553,20 +561,26 @@
       <textarea data-fbfli-summary maxlength="2000"></textarea>
     </div>
     <button class="btn" type="button" data-fbfli-save>儲存</button>
+    </div>
   </div>
 
-  <div id="secretary" class="sheet" hidden>
-    <div class="row spread">
-      <h3>秘書</h3>
-      <button class="icon-btn" id="secretaryClose" type="button" aria-label="關閉">✕</button>
+  <div id="secretary" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="secretaryTitle">
+    <div class="modal">
+    <div class="modal-head">
+      <h3 id="secretaryTitle">秘書</h3>
+      <button class="sheet-close" id="secretaryClose" type="button" aria-label="關閉">✕</button>
     </div>
     <p class="sub">依照你今天的行程與回報，整理下一步。不會連到外部聊天服務。</p>
     <div id="secretaryBody"></div>
+    </div>
   </div>
 
   <div id="relationSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="relationTitle">
     <div class="modal">
-      <h3 id="relationTitle">請自行評分與準客戶的關係定位級別 (1~10分)</h3>
+      <div class="modal-head">
+        <h3 id="relationTitle">請自行評分與準客戶的關係定位級別 (1~10分)</h3>
+        <button class="sheet-close" id="relationClose" type="button" aria-label="關閉">✕</button>
+      </div>
       <label class="field">社交
         <select id="relationSocialPick"></select>
       </label>
@@ -582,7 +596,10 @@
 
   <div id="cellSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="cellSheetTitle">
     <div class="modal">
-      <h3 id="cellSheetTitle"></h3>
+      <div class="modal-head">
+        <h3 id="cellSheetTitle"></h3>
+        <button class="sheet-close" id="cellClose" type="button" aria-label="關閉">✕</button>
+      </div>
       <p id="cellSheetHint" class="note-hint"></p>
       <textarea id="cellSheetBody" rows="6" maxlength="4000"></textarea>
       <div id="cellSheetSubs"></div>
@@ -592,11 +609,11 @@
   </div>
 
   <div id="gridFull" class="grid-full" hidden>
-    <div class="row spread">
+    <div class="form-head">
       <strong>客戶資料分析表</strong>
       <div class="row">
         <button class="btn secondary small" id="gridFullDownload" type="button">下載圖片</button>
-        <button class="btn secondary small" id="gridFullClose" type="button">關閉</button>
+        <button class="sheet-close" id="gridFullClose" type="button" aria-label="關閉">✕</button>
       </div>
     </div>
     <div id="gridFullBody"></div>
@@ -604,7 +621,10 @@
 
   <div id="pngSheet" class="modal-bg" role="dialog" aria-modal="true">
     <div class="modal">
-      <h3 id="pngSheetTitle">客戶資料分析表</h3>
+      <div class="modal-head">
+        <h3 id="pngSheetTitle">客戶資料分析表</h3>
+        <button class="sheet-close" id="pngCloseX" type="button" aria-label="關閉">✕</button>
+      </div>
       <p class="sub">若沒有自動存檔，可以長按圖片儲存。</p>
       <img id="pngPreview" alt="客戶資料分析表">
       <a id="pngDownload" class="btn" download="客戶資料分析表.png">下載圖片</a>
@@ -614,9 +634,9 @@
 
   <div id="calSheet" class="modal-bg" role="dialog" aria-modal="true" aria-labelledby="calSheetTitle">
     <div class="modal">
-      <div class="row spread">
+      <div class="modal-head">
         <h3 id="calSheetTitle">活動</h3>
-        <button class="icon-btn" id="calSheetClose" type="button" aria-label="關閉">✕</button>
+        <button class="sheet-close" id="calSheetClose" type="button" aria-label="關閉">✕</button>
       </div>
       <form id="calForm" autocomplete="off">
         <input type="hidden" name="id">
@@ -656,6 +676,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261118e"></script>
+  <script type="module" src="./js/app.js?v=20261118f"></script>
 </body>
 </html>
