@@ -111,6 +111,23 @@ function seed() {
     }),
     customer("TH-1004", PEOPLE.zhang, "周先生（示範）", "0912-000-104", ["退休規劃"], "", "虛構資料。五年內打算退休。", { grade: "D" }),
     customer("TH-1005", PEOPLE.wu, "林小弟（示範）", "0912-000-105", ["意外保障"], "01-09", "虛構資料。常騎車通勤。"),
+    customer("TH-1006", PEOPLE.manager, "蔡小姐（示範）", "0912-000-106", ["家庭保障"], today.slice(5), "虛構資料。由主管夥伴服務。", {
+      nickname: "小蔡",
+      birth_date: `1988-${today.slice(5)}`,
+      gender: "女",
+      contact_method: "LINE",
+      hobbies: "散步、看電影",
+      lead_source: "轉介紹",
+      grade: "B",
+      client_types: ["🏃人壽險客戶", "✈️旅平險客戶"],
+    }),
+    customer("TH-1007", PEOPLE.manager, "鄭先生（示範）", "0912-000-107", ["車險"], "08-15", "虛構資料。名下有一台自用小客車。", {
+      gender: "男",
+      birth_date: "1983-08-15",
+      contact_method: "電話",
+      grade: "C",
+      client_types: ["🚗汽車險客戶"],
+    }),
   ];
 
   const policies = [
@@ -265,10 +282,12 @@ function seed() {
     carRenewal(PEOPLE.lin, "周先生（示範）", "JKL-3456", "機車", 120, 120, "虛構。還沒到提醒的時候。"),
     carRenewal(PEOPLE.lin, "吳先生（示範）", "MNO-7788", "轎車", -3, 10, ""),
     carRenewal(PEOPLE.huang, "趙先生（示範）", "QQQ-0001", "轎車", 2, 2, "虛構。這筆屬於另一位夥伴。"),
+    carRenewal(PEOPLE.manager, "鄭先生（示範）", "NAN-2601", "03 自用小客車", 8, 20, "虛構。主管示範用的車險資料。"),
+    carRenewal(PEOPLE.manager, "徐太太（示範）", "NAN-2602", "01 普通重型機車", 28, 28, "虛構。機車強制險示範。"),
   ];
 
   return {
-    version: 16,
+    version: 17,
     profiles,
     customers,
     policies,
@@ -433,7 +452,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 16 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs) || !Array.isArray(parsed.car_renewals)) return seed();
+    if (parsed?.version !== 17 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs) || !Array.isArray(parsed.car_renewals)) return seed();
     return parsed;
   } catch {
     return seed();
