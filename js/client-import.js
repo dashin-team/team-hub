@@ -5,12 +5,12 @@ export const CLIENT_TEMPLATE_HEADERS = ["姓名", "手機", "客戶分級", "客
 export const CLIENT_TEMPLATE_SHEET = "名單";
 export const GUIDE_SHEET_NAME = "填寫說明";
 export const CLIENT_SAMPLE_NOTE = "範例，請刪除";
-export const CLIENT_SAMPLE_NAMES = ["陳範例", "林示範"];
+export const CLIENT_SAMPLE_NAMES = ["陳範例", "林示範", "王小明（範例）"];
 
-// 範例列僅供同仁對照格式；匯入時會略過（備註含「範例」，或姓名為陳範例／林示範）。
+// 範例列僅供同仁對照格式；匯入時會略過（備註或姓名含「範例」，或姓名為陳範例／林示範／王小明（範例））。
 export const CLIENT_TEMPLATE_SAMPLES = [
-  ["王小明", "0912-345-678", "B", "人壽險、機車險", "80/05/20", "男", "LINE", "朋友介紹", "", "登山", CLIENT_SAMPLE_NOTE],
-  ["陳範例", "0987-654-321", "A", "汽車險", "1990/03/15", "女", "手機", "轉介紹", "王小明", "瑜珈", CLIENT_SAMPLE_NOTE],
+  ["王小明（範例）", "0912-345-678", "B", "人壽險、機車險", "80/05/20", "男", "LINE", "朋友介紹", "", "登山", CLIENT_SAMPLE_NOTE],
+  ["陳範例", "0987-654-321", "A", "汽車險", "1990/03/15", "女", "手機", "轉介紹", "王小明（範例）", "瑜珈", CLIENT_SAMPLE_NOTE],
   ["林示範", "0911-222-333", "C", "旅平險、信用卡", "75/11/08", "男", "LINE", "陌生開發", "", "", CLIENT_SAMPLE_NOTE],
 ];
 
@@ -34,7 +34,7 @@ export const CLIENT_TEMPLATE_GUIDE = [
   ["注意事項", "", ""],
   ["1", "", "身分證字號不需要填，也不會儲存。請不要把身分證字號放進檔案。"],
   ["2", "", "請在第一個工作表「名單」填資料；本「填寫說明」工作表匯入時會被忽略。"],
-  ["3", "", "範例列（備註含「範例」，或姓名正好是陳範例、林示範）匯入時會自動略過。請刪除範例後再填真實資料。"],
+  ["3", "", "範例列（備註或姓名含「範例」，或姓名正好是陳範例、林示範、王小明（範例））匯入時會自動略過，介紹人欄的範例姓名也不會帶進正式資料。請刪除範例後再填真實資料。"],
   ["4", "", "已存在的客戶（同姓名＋手機）匯入時會標成「已存在」並略過，不會重複新增。"],
 ];
 
@@ -44,10 +44,15 @@ export function pickDataSheet(sheetNames, preferred = CLIENT_TEMPLATE_SHEET) {
   return names.find((name) => name !== GUIDE_SHEET_NAME) || names[0] || "";
 }
 
+export function isSamplePersonName(name) {
+  const text = String(name || "").trim();
+  return Boolean(text) && (text.includes("範例") || CLIENT_SAMPLE_NAMES.includes(text));
+}
+
 export function isClientSampleRow(row) {
   const note = String(row?.notes ?? row?.note ?? row?.["備註"] ?? "");
   const name = String(row?.display_name ?? row?.name ?? row?.["姓名"] ?? "").trim();
-  return note.includes("範例") || CLIENT_SAMPLE_NAMES.includes(name);
+  return note.includes("範例") || isSamplePersonName(name);
 }
 
 export function clientTemplateSheets() {
@@ -250,6 +255,7 @@ export function mapClientRecords(records, clientTypes) {
       samples += 1;
       continue;
     }
+    if (isSamplePersonName(row.referrer)) row.referrer = "";
     rows.push(row);
   }
   return { rows, blank, samples, columns: Object.keys(map) };

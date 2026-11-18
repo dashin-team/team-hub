@@ -490,13 +490,18 @@ export function createCloudStore(url, anonKey) {
         team_id: profile.team_id,
         owner_id: profile.id,
         customer_id: input.customer_id,
-        log_date: taipeiDay(),
+        log_date: /^\d{4}-\d{2}-\d{2}$/.test(String(input.log_date || "").slice(0, 10)) ? String(input.log_date).slice(0, 10) : taipeiDay(),
         actions,
         note,
         summary,
       }).select().single();
       fail(error, "聯絡紀錄沒有儲存");
       return data;
+    },
+
+    async deleteContactLog(id) {
+      const { error } = await sb.from("contact_logs").delete().eq("id", id).eq("owner_id", profile.id);
+      fail(error, "聯絡紀錄沒有刪除");
     },
 
     async summarizeContactNote(note, customer) {

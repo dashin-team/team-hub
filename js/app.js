@@ -52,16 +52,19 @@ import {
   CAR_TEMPLATE_SAMPLES,
   CAR_TEMPLATE_SHEET,
   applyLineRenewal,
+  carTypeSelectOptions,
   dateGap,
   dayPhrase,
   daysUntil,
   defaultCtRenewYears,
   isFullyRenewed,
+  isMotorcycleType,
   lineIsRenewed,
   minDays,
   normalizeCarInput,
   pickDataSheet as pickCarSheet,
   renewalExportStatus,
+  resolvedCarType,
   renewalStatus,
   undoLineRenewal,
   upcomingLines,
@@ -396,7 +399,7 @@ function carLine(label, iso, today, row, kind) {
     : `<span class="car-pill ${status.key}">${status.label}</span>`;
   const action = renewed
     ? `<button class="btn secondary small car-renew-btn" type="button" data-action="car-undo-renew" data-id="${esc(row.id)}" data-kind="${kind}">取消續保</button>`
-    : `<button class="btn secondary small car-renew-btn" type="button" data-action="car-renew" data-id="${esc(row.id)}" data-kind="${kind}"><span>已完成</span><span>續保✅</span></button>`;
+    : `<button class="btn secondary small car-renew-btn" type="button" data-action="car-renew" data-id="${esc(row.id)}" data-kind="${kind}">已續保</button>`;
   return `<div class="car-line"><span class="car-kind">${label}</span><span>${esc(String(iso).slice(0, 10).replace(/-/g, "/"))}</span><span>${esc(dayPhrase(days))}</span>${pill}${action}</div>`;
 }
 
@@ -435,7 +438,7 @@ let carRenewId = "";
 function openCarRenewSheet(row) {
   carRenewId = row?.id || "";
   const years = defaultCtRenewYears(row?.car_type);
-  $("carRenewHint").textContent = /機車/.test(String(row?.car_type || ""))
+  $("carRenewHint").textContent = isMotorcycleType(row?.car_type)
     ? "機車強制險常見是續保 2 年，也可改選 1 年。"
     : "請選擇要把強制險到期日往後延多久。預設是 1 年。";
   $("carRenewOne").className = years === 1 ? "btn" : "btn secondary";
@@ -460,12 +463,21 @@ async function commitLineUndo(row, kind) {
   await renderCars();
 }
 
+
+function fillCarTypeSelect(select, current) {
+  if (!select) return;
+  const options = carTypeSelectOptions(current);
+  const picked = resolvedCarType(current);
+  select.innerHTML = options.map((item) => `<option value="${esc(item.value)}">${esc(item.label)}</option>`).join("");
+  select.value = options.some((item) => item.value === picked) ? picked : "";
+}
+
 function openCarForm(row) {
   $("carError").textContent = "";
   $("carId").value = row?.id || "";
   $("carName").value = row?.name || "";
   $("carPlate").value = row?.plate || "";
-  $("carType").value = row?.car_type || "";
+  fillCarTypeSelect($("carType"), row?.car_type || "");
   $("carCt").value = row?.ct_date ? String(row.ct_date).slice(0, 10) : "";
   $("carVo").value = row?.vo_date ? String(row.vo_date).slice(0, 10) : "";
   $("carNote").value = row?.note || "";
@@ -1897,9 +1909,15 @@ function fbfliChips() {
     `<button class="fbfli-chip" type="button" data-fbfli-action="${esc(action)}" aria-pressed="false">${esc(action)}</button>`).join("");
 }
 
-function fbfliEditorHtml() {
+function fbfliLogDate(root) {
+  const raw = String(root?.querySelector("[data-fbfli-date]")?.value || "").slice(0, 10);
+  return /^\d{4}-\d{2}-\d{2}$/.test(raw) ? raw : taipeiDay();
+}
+
+function fbfliEditorHtml(dateIso = taipeiDay()) {
   const mic = micAvailable();
-  return `<p class="fbfli-date">${esc(taipeiLabel())}</p>
+  const iso = /^\d{4}-\d{2}-\d{2}$/.test(String(dateIso || "")) ? dateIso : taipeiDay();
+  return `<label class="fbfli-date-wrap"><span class="sr-only">紀錄日期</span><input class="fbfli-date" type="date" data-fbfli-date value="${esc(iso)}" aria-label="紀錄日期"></label>
     <div class="fbfli-chips">${fbfliChips()}</div>
     <label class="field">備註
       <div class="fbfli-note">
@@ -1923,7 +1941,9 @@ function contactHistoryHtml(logs) {
   return `<div class="fbfli-history">${rows.map((item) => {
     const actions = (item.actions || []).join("、");
     const body = item.summary || item.note || "";
-    return `<article class="fbfli-log"><b>${esc(taipeiLabel(item.log_date))}</b>${actions ? ` ${esc(actions)}` : ""}${body ? `<p>${esc(body)}</p>` : ""}</article>`;
+    const canDelete = clientsAreEditable() && item.owner_id === me()?.id;
+    const del = canDelete ? `<button class="fbfli-del" type="button" data-action="delete-fbfli" data-id="${esc(item.id)}" aria-label="刪除這筆紀錄">✕</button>` : "";
+    return `<article class="fbfli-log"><div class="fbfli-log-top"><div><b>${esc(taipeiLabel(item.log_date))}</b>${actions ? ` ${esc(actions)}` : ""}</div>${del}</div>${body ? `<p>${esc(body)}</p>` : ""}</article>`;
   }).join("")}</div>`;
 }
 
@@ -1937,6 +1957,8 @@ function pickRow(item, loggedToday) {
 
 function resetFbfli(root) {
   if (!root) return;
+  const date = root.querySelector("[data-fbfli-date]");
+  if (date) date.value = taipeiDay();
   root.querySelectorAll("[data-fbfli-action]").forEach((button) => button.setAttribute("aria-pressed", "false"));
   const note = root.querySelector("[data-fbfli-note]");
   if (note) note.value = "";
@@ -2025,8 +2047,8 @@ async function saveFbfli(root) {
     toast("請先選今天做了什麼，或寫一句備註。");
     return;
   }
-  await store.saveContactLog({ customer_id: root.dataset.customer, actions, note, summary });
-  toast("已記下今天的 FBFLI");
+  await store.saveContactLog({ customer_id: root.dataset.customer, actions, note, summary, log_date: fbfliLogDate(root) });
+  toast("已記下 FBFLI");
   if (root.id === "fbfliSheet") root.classList.remove("show");
   await renderClients();
 }
@@ -2038,7 +2060,6 @@ function openFbfliSheet(customerId) {
   const sheet = $("fbfliSheet");
   sheet.dataset.customer = customer.id;
   $("fbfliWho").textContent = customer.display_name;
-  $("fbfliDate").textContent = taipeiLabel();
   resetFbfli(sheet);
   bindFbfli(sheet);
   sheet.classList.add("show");
@@ -2181,11 +2202,7 @@ async function renderClientDetail(customers, profiles) {
     $("clientDetail").innerHTML = "";
     return;
   }
-  const [reminders, logs] = await Promise.all([
-    store.listReminders(customer.id),
-    store.listContactLogs(customer.id),
-  ]);
-  const visibleReminders = reminders.filter(shownReminder);
+  const logs = await store.listContactLogs(customer.id);
   const canEdit = clientsAreEditable() && customer.owner_id === me().id;
   $("clientDetail").innerHTML = `<div class="panel" style="margin-top:12px">
     <div class="client-top"><div><h3>${esc(customer.display_name)}</h3><p class="sub">${esc([customer.ref_code, customer.nickname, customer.gender, rocLabel(customer.birth_date), customer.contact_method || customer.preferred_contact].filter(Boolean).join(" · "))} · 負責人 ${esc(nameOf(customer.owner_id, profiles))}</p></div>
@@ -2197,14 +2214,6 @@ async function renderClientDetail(customers, profiles) {
       ${canEdit ? `<div data-fbfli-root data-customer="${esc(customer.id)}">${fbfliEditorHtml()}</div>` : `<p class="muted">這是查看模式，只能看紀錄。</p>`}
       ${contactHistoryHtml(logs)}
     </section>
-    <h3 style="margin-top:18px">提醒</h3>
-    ${visibleReminders.map((item) => `<div class="list-item"><div><b>${esc(KIND_LABEL[item.kind] || "提醒")}</b> ${esc(item.title)}<div class="muted">${formatDate(item.due_at)} · ${item.status === "open" ? "未完成" : item.status === "done" ? "已完成" : "已取消"}</div></div>${canEdit && item.status === "open" ? `<button class="btn secondary small" type="button" data-action="done-reminder" data-id="${esc(item.id)}">完成</button>` : ""}</div>`).join("") || `<div class="empty">這位客戶還沒有提醒。</div>`}
-    ${canEdit ? `<form id="reminderForm" data-customer="${esc(customer.id)}" data-owner="${esc(customer.owner_id)}" class="form-grid cols-3" style="margin-top:10px">
-      <label class="field">種類<select name="kind"><option value="birthday">生日</option><option value="follow_up">追蹤</option><option value="other">其他</option></select></label>
-      <label class="field">標題<input name="title" required maxlength="120"></label>
-      <label class="field">日期<input name="due_at" type="date" required></label>
-      <button class="btn" type="submit">新增提醒</button>
-    </form>` : `<p class="muted">提醒屬於負責夥伴。主管可以查看客戶與服務，個人提醒預設不互相瀏覽。</p>`}
   </div>`;
   const fbfliRoot = $("clientDetail").querySelector("[data-fbfli-root]");
   if (fbfliRoot) bindFbfli(fbfliRoot);
@@ -2416,6 +2425,13 @@ async function handleAction(event) {
     if (target.dataset.action === "done-reminder") {
       if (!clientsAreEditable()) return;
       await store.setReminderStatus(id, "done");
+      await renderClients();
+    }
+    if (target.dataset.action === "delete-fbfli") {
+      if (!clientsAreEditable()) return;
+      if (!window.confirm("確定要刪除這筆 FBFLI 紀錄嗎？刪除後不能復原。")) return;
+      await store.deleteContactLog(id);
+      toast("已刪除 FBFLI 紀錄");
       await renderClients();
     }
     if (target.dataset.action === "save-member") {

@@ -1,5 +1,5 @@
 import assert from "node:assert/strict";
-import { CLIENT_TEMPLATE_GUIDE, CLIENT_TEMPLATE_HEADERS, CLIENT_TEMPLATE_SAMPLES, CLIENT_TEMPLATE_SHEET, clientHeaderMap, clientTemplateSheets, cleanBirth, mapClientRecords, mapClientTypes, markDuplicates, pickDataSheet } from "../js/client-import.js";
+import { CLIENT_TEMPLATE_GUIDE, CLIENT_TEMPLATE_HEADERS, CLIENT_TEMPLATE_SAMPLES, CLIENT_TEMPLATE_SHEET, clientHeaderMap, clientTemplateSheets, cleanBirth, isClientSampleRow, mapClientRecords, mapClientTypes, markDuplicates, pickDataSheet } from "../js/client-import.js";
 
 const TYPES = ["🏃人壽險客戶", "📈投資型客戶", "🛵機車險客戶", "🚗汽車險客戶", "✈️旅平險客戶", "💳信用卡客戶", "🏭團險客戶", "📓產險健康險客戶"];
 
@@ -51,5 +51,30 @@ assert.equal(mixed.rows[0].birth, "1992-01-02");
 
 const guideMapped = mapClientRecords(aoaToRecords(sheets["填寫說明"]), TYPES);
 assert.ok(guideMapped.error);
+
+
+if (!CLIENT_TEMPLATE_SAMPLES[0][0].includes("範例") || CLIENT_TEMPLATE_SAMPLES[1][8] !== "王小明（範例）") {
+  throw new Error("template sample referrer");
+}
+assert.equal(onlySamples.rows.length, 0);
+assert.ok(!JSON.stringify(onlySamples.rows).includes("王小明"));
+assert.equal(isClientSampleRow({ display_name: "王小明（範例）", notes: "" }), true);
+assert.equal(isClientSampleRow({ display_name: "王小明", notes: "範例，請刪除" }), true);
+assert.equal(isClientSampleRow({ display_name: "王小明", notes: "正式資料" }), false);
+
+const leftoverReferrer = mapClientRecords(aoaToRecords([
+  CLIENT_TEMPLATE_HEADERS,
+  ...CLIENT_TEMPLATE_SAMPLES,
+  ["測試丙（虛構）", "0911222333", "B", "人壽險", "1990/02/02", "男", "LINE", "轉介紹", "王小明（範例）", "", "正式資料"],
+]), TYPES);
+assert.equal(leftoverReferrer.samples, CLIENT_TEMPLATE_SAMPLES.length);
+assert.equal(leftoverReferrer.rows.length, 1);
+assert.equal(leftoverReferrer.rows[0].display_name, "測試丙（虛構）");
+assert.equal(leftoverReferrer.rows[0].referrer, "");
+
+const realWang = mapClientRecords([{ 姓名: "王小明", 手機: "0912000000", 備註: "正式客戶", 介紹人: "陳同事" }], TYPES);
+assert.equal(realWang.rows.length, 1);
+assert.equal(realWang.rows[0].display_name, "王小明");
+assert.equal(realWang.rows[0].referrer, "陳同事");
 
 console.log("client import checks passed");

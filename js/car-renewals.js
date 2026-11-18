@@ -13,17 +13,101 @@ export const GUIDE_SHEET_NAME = "填寫說明";
 export const CAR_SAMPLE_NOTE = "範例，請刪除";
 export const CAR_SAMPLE_NAMES = ["陳範例", "林示範"];
 
+export const CAR_TYPES = [
+  "01 普通重型機車",
+  "02 普通輕型機車",
+  "03 自用小客車",
+  "04 自用小貨車",
+  "22 客貨兩用車",
+  "32 大型重型機車",
+  "34 小型輕型機車",
+  "35 微型電動二輪車",
+];
+
+const MOTORCYCLE_CODES = ["01", "02", "32", "34", "35"];
+
+const CAR_TYPE_ALIASES = {
+  "01": "01 普通重型機車",
+  "普通重型機車": "01 普通重型機車",
+  "普重": "01 普通重型機車",
+  "02": "02 普通輕型機車",
+  "普通輕型機車": "02 普通輕型機車",
+  "普輕": "02 普通輕型機車",
+  "03": "03 自用小客車",
+  "自用小客車": "03 自用小客車",
+  "自小客車": "03 自用小客車",
+  "自小客": "03 自用小客車",
+  "小客車": "03 自用小客車",
+  "轎車": "03 自用小客車",
+  "04": "04 自用小貨車",
+  "自用小貨車": "04 自用小貨車",
+  "自小貨車": "04 自用小貨車",
+  "自小貨": "04 自用小貨車",
+  "小貨車": "04 自用小貨車",
+  "貨車": "04 自用小貨車",
+  "22": "22 客貨兩用車",
+  "客貨兩用車": "22 客貨兩用車",
+  "客貨兩用": "22 客貨兩用車",
+  "32": "32 大型重型機車",
+  "大型重型機車": "32 大型重型機車",
+  "大重": "32 大型重型機車",
+  "34": "34 小型輕型機車",
+  "小型輕型機車": "34 小型輕型機車",
+  "小輕": "34 小型輕型機車",
+  "35": "35 微型電動二輪車",
+  "微型電動二輪車": "35 微型電動二輪車",
+};
+
+export function mapCarType(value) {
+  const raw = String(value ?? "").trim();
+  if (!raw) return "";
+  if (CAR_TYPES.includes(raw)) return raw;
+  const compact = raw.replace(/[\s\u3000]/g, "");
+  if (CAR_TYPE_ALIASES[raw]) return CAR_TYPE_ALIASES[raw];
+  if (CAR_TYPE_ALIASES[compact]) return CAR_TYPE_ALIASES[compact];
+  const coded = raw.match(/^(\d{1,2})(?:\s+|\.|．|、|-|—|–)?(.*)$/);
+  if (coded) {
+    const code = coded[1].padStart(2, "0");
+    const found = CAR_TYPES.find((item) => item.startsWith(`${code} `));
+    if (found) return found;
+  }
+  return "";
+}
+
+export function resolvedCarType(value) {
+  const raw = String(value ?? "").trim();
+  return mapCarType(raw) || raw;
+}
+
+export function carTypeSelectOptions(current) {
+  const raw = String(current || "").trim();
+  const selected = resolvedCarType(raw);
+  const options = [{ value: "", label: "請選擇" }, ...CAR_TYPES.map((item) => ({ value: item, label: item }))];
+  if (selected && !options.some((item) => item.value === selected)) {
+    options.push({ value: selected, label: selected });
+  }
+  return options;
+}
+
+export function isMotorcycleType(carType) {
+  const raw = String(carType || "").trim();
+  const resolved = resolvedCarType(raw);
+  const code = (resolved.match(/^(\d{2})\s/) || [])[1];
+  if (MOTORCYCLE_CODES.includes(code)) return true;
+  return /機車|電動二輪/.test(raw);
+}
+
 export const CAR_TEMPLATE_SAMPLES = [
-  ["王小明", "ABC-1234", "轎車", "116/03/01", "2027/03/01", CAR_SAMPLE_NOTE],
-  ["陳範例", "DEF-5678", "機車", "115/12/15", "", CAR_SAMPLE_NOTE],
-  ["林示範", "GHI-9012", "休旅車", "2027/06/30", "2027/06/30", CAR_SAMPLE_NOTE],
+  ["王小明", "ABC-1234", "03 自用小客車", "116/03/01", "2027/03/01", CAR_SAMPLE_NOTE],
+  ["陳範例", "DEF-5678", "01 普通重型機車", "115/12/15", "", CAR_SAMPLE_NOTE],
+  ["林示範", "GHI-9012", "04 自用小貨車", "2027/06/30", "2027/06/30", CAR_SAMPLE_NOTE],
 ];
 
 export const CAR_TEMPLATE_GUIDE = [
   ["欄位", "是否必填", "說明"],
   ["姓名", "必填", "客戶姓名"],
   ["車牌", "必填", "車牌號碼，例如 ABC-1234"],
-  ["車種", "選填", "例如：轎車、機車、休旅車"],
+  ["車種", "選填", "請填下列之一，可只填代碼：01 普通重型機車、02 普通輕型機車、03 自用小客車、04 自用小貨車、22 客貨兩用車、32 大型重型機車、34 小型輕型機車、35 微型電動二輪車。舊名稱如自小客車、轎車會對到對應代碼；對不到就保留原字。"],
   ["強制險到期日", "擇一必填", "與任意險到期日至少填一個。可填民國（116/03/01）或西元（2027/03/01）"],
   ["任意險到期日", "擇一必填", "同上。沒有投保可留空"],
   ["備註", "選填", "自由註記。範例列請保留「範例，請刪除」，匯入時會自動略過"],
@@ -102,7 +186,7 @@ export function isFullyRenewed(row, today) {
 }
 
 export function defaultCtRenewYears(carType) {
-  return /機車/.test(String(carType || "")) ? 2 : 1;
+  return isMotorcycleType(carType) ? 2 : 1;
 }
 
 export function addYearsIso(iso, years) {
@@ -239,7 +323,7 @@ export function parseImportDate(value) {
 export function normalizeCarInput(input) {
   const name = String(input?.name || "").trim();
   const plate = String(input?.plate || "").trim();
-  const carType = String(input?.car_type || "").trim();
+  const carType = resolvedCarType(input?.car_type || "");
   const ct = String(input?.ct_date || "").slice(0, 10);
   const vo = String(input?.vo_date || "").slice(0, 10);
   const note = String(input?.note || "").trim();
