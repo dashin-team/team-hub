@@ -45,6 +45,64 @@ h1, h2, h3, p { margin-top: 0; }
   display: block; width: 132px; height: 132px; margin: 0 auto 4px; border-radius: 50%;
   box-shadow: 0 10px 24px rgba(90, 68, 36, 0.16);
 }
+
+.login-card { padding: 32px 22px 28px; }
+.login-logo-wrap {
+  position: relative;
+  width: 168px; height: 168px;
+  margin: 0 auto 24px;
+  display: grid; place-items: center;
+}
+.login-logo-wrap .login-logo {
+  width: 156px; height: 156px; margin: 0;
+  position: relative; z-index: 1;
+}
+.login-logo-ring {
+  position: absolute; inset: -6px; border-radius: 50%;
+  background: conic-gradient(from 0deg, transparent 0 58%, rgba(201, 162, 74, 0.0) 62%, var(--gold) 78%, #f3e0a8 86%, transparent 100%);
+  -webkit-mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  mask: radial-gradient(farthest-side, transparent calc(100% - 3px), #000 calc(100% - 2px));
+  opacity: 0;
+  pointer-events: none;
+}
+#loginView:not([hidden]) .login-logo {
+  animation: login-logo-enter 0.9s ease-out both;
+}
+#loginView:not([hidden]) .login-logo-ring {
+  animation: login-ring-fade 0.6s ease-out 0.35s both, login-ring-spin 6s linear 0.35s infinite;
+}
+#loginView:not([hidden]) #loginForm,
+#loginView:not([hidden]) .login-card > .muted {
+  animation: login-form-enter 0.7s ease-out 0.4s both;
+}
+.login-card .btn[type="submit"] { width: 100%; }
+.login-card > .muted { margin: 12px 0 0; text-align: center; }
+@keyframes login-logo-enter {
+  0% { opacity: 0; transform: scale(0.86); }
+  62% { opacity: 1; transform: scale(1.04); }
+  100% { opacity: 1; transform: scale(1); }
+}
+@keyframes login-ring-fade {
+  from { opacity: 0; }
+  to { opacity: 0.9; }
+}
+@keyframes login-ring-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+@keyframes login-form-enter {
+  from { opacity: 0; transform: translateY(10px); }
+  to { opacity: 1; transform: none; }
+}
+@media (prefers-reduced-motion: reduce) {
+  #loginView:not([hidden]) .login-logo,
+  #loginView:not([hidden]) .login-logo-ring,
+  #loginView:not([hidden]) #loginForm,
+  #loginView:not([hidden]) .login-card > .muted {
+    animation: none;
+  }
+  #loginView:not([hidden]) .login-logo-ring { opacity: 0.55; }
+}
 .brand-mark { display: inline-flex; gap: 10px; align-items: center; letter-spacing: 0.14em; font-weight: 700; color: var(--navy); }
 .brand-mark span {
   width: 36px; height: 36px; border-radius: 50%; display: grid; place-items: center;
