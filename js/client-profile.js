@@ -52,6 +52,21 @@ export const PROFILE_TEXT_FIELDS = [
 
 export const FINANCE_FIELDS = ["work_role", "income", "expense", "debt", "decision_maker", "influence_factor", "competitor"];
 
+export const CLIENT_GRADES = ["A", "B", "C", "D"];
+
+export const GRADE_TEXT = {
+  A: "（一兩個月內可以成交）確認客戶屬性＋預計銷售的商品＋預計銷售的ＦＹＣ且講得出原因",
+  B: "可以講保險，也願意聊保險，且有成交簡易商品（產險，信用卡，旅平險）",
+  C: "知道你在做保險，但會跟你聊天，但不會跟你聊保險",
+  D: "不知道你在做保險，知道你在做保險就不太跟你聊天",
+};
+
+export function gradeTrust(grade) {
+  if (grade === "A" || grade === "B") return "專業信任";
+  if (grade === "C" || grade === "D") return "社交信任";
+  return "";
+}
+
 export function rocLabel(iso) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "").slice(0, 10));
   if (!match) return "";
@@ -181,6 +196,9 @@ export function normalizeCustomerInput(input) {
   if (!name) return { error: "請填姓名。" };
   fields.display_name = name;
   fields.phone = String(input.phone ?? "").trim();
+  const grade = String(input.grade ?? "").trim().toUpperCase();
+  if (grade && !CLIENT_GRADES.includes(grade)) return { error: "客戶分級請選 A、B、C 或 D。" };
+  fields.grade = grade || null;
   fields.strategy_grid = strategyFrom(input);
   return { fields };
 }

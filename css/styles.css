@@ -378,8 +378,31 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 .client-tabs button { font-size: 13px; padding: 0 2px; }
 .client-tools { display: flex; justify-content: flex-end; margin-bottom: 8px; }
 .name-line {
-  display: block; width: 100%; text-align: left; background: #fff;
+  display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  width: 100%; text-align: left; background: #fff;
   border: 1px solid var(--line); border-radius: 16px; padding: 14px 16px; margin-bottom: 8px; font-weight: 650;
+}
+.grade-legend {
+  background: var(--soft); border: 1px solid var(--line); border-radius: 16px;
+  padding: 10px 12px; margin: 0 0 10px;
+}
+.grade-legend summary { cursor: pointer; font-weight: 700; color: var(--navy); }
+.grade-legend p { margin: 8px 0 0; font-size: 13px; line-height: 1.55; color: var(--navy); }
+.grade-filter { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
+.grade-filter button {
+  min-height: 36px; min-width: 44px; border-radius: 999px; border: 1px solid var(--line);
+  background: #fff; color: var(--navy); padding: 0 12px;
+}
+.grade-filter button.on { background: var(--navy); color: var(--paper); border-color: var(--navy); font-weight: 700; }
+.grade-badge {
+  flex: none; min-width: 22px; height: 22px; display: inline-grid; place-items: center;
+  border-radius: 6px; font-size: 12px; font-weight: 700; background: var(--navy); color: var(--paper);
+}
+.grade-badge.c, .grade-badge.d { background: var(--gold); color: var(--navy); }
+.grade-note { margin: 6px 0 0; font-size: 13px; line-height: 1.55; color: var(--navy); }
+.grade-tag {
+  display: inline-block; margin-left: 6px; padding: 1px 8px; border-radius: 99px;
+  background: #F4E7C4; color: var(--navy); font-size: 12px; font-weight: 700;
 }
 
 .stack { display: grid; gap: 10px; }
@@ -412,7 +435,7 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 }
 
 .client-form { margin-top: 16px; }
-#customerForm.locked :is(input, textarea, select, .choice, #sourceChips button, .nine-cell, .field-clear) { pointer-events: none; }
+#customerForm.locked :is(input, textarea, select, .choice, #sourceChips button, #gradeChips button, .nine-cell, .field-clear) { pointer-events: none; }
 #customerForm.locked :is([type="submit"], #customerCancel, #birthBtn) { display: none !important; }
 .npss {
   position: relative;

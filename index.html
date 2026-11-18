@@ -9,34 +9,34 @@
   <meta name="mobile-web-app-capable" content="yes">
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="大心團隊">
-  <!-- 改了 js 或 css 後，請把下面所有 v=20261118g 一起換成新版本。說明在 README。 -->
+  <!-- 改了 js 或 css 後，請把下面所有 v=20261118h 一起換成新版本。說明在 README。 -->
   <meta http-equiv="Cache-Control" content="no-cache">
   <title>大心團隊</title>
   <link rel="manifest" href="./manifest.webmanifest">
-  <link rel="icon" href="./favicon.ico?v=20261118g" sizes="any">
-  <link rel="icon" href="./favicon.svg?v=20261118g" type="image/svg+xml">
-  <link rel="icon" href="./favicon-32.png?v=20261118g" sizes="32x32" type="image/png">
-  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118g">
-  <link rel="stylesheet" href="./css/styles.css?v=20261118g">
+  <link rel="icon" href="./favicon.ico?v=20261118h" sizes="any">
+  <link rel="icon" href="./favicon.svg?v=20261118h" type="image/svg+xml">
+  <link rel="icon" href="./favicon-32.png?v=20261118h" sizes="32x32" type="image/png">
+  <link rel="apple-touch-icon" href="./apple-touch-icon.png?v=20261118h">
+  <link rel="stylesheet" href="./css/styles.css?v=20261118h">
   <script type="importmap">
   {
     "imports": {
-      "@hub/app": "./js/app.js?v=20261118g",
-      "@hub/guides": "./js/guides.js?v=20261118g",
-      "@hub/store": "./js/store.js?v=20261118g",
-      "@hub/metrics": "./js/metrics.js?v=20261118g",
-      "@hub/config": "./js/config.js?v=20261118g",
-      "@hub/demo-store": "./js/demo-store.js?v=20261118g",
-      "@hub/cloud-store": "./js/cloud-store.js?v=20261118g",
-      "@hub/safe": "./js/safe-browser.js?v=20261118g",
-      "@hub/contest": "./js/contest.js?v=20261118g",
-      "@hub/profile": "./js/client-profile.js?v=20261118g",
-      "@hub/calendar": "./js/calendar.js?v=20261118g",
-      "@hub/team": "./js/team-schedule.js?v=20261118g",
-      "@hub/roster": "./js/team-roster.js?v=20261118g",
-      "@hub/account": "./js/account.js?v=20261118g",
-      "@hub/contact": "./js/contact-log.js?v=20261118g",
-      "@hub/quotes": "./js/quotes.js?v=20261118g"
+      "@hub/app": "./js/app.js?v=20261118h",
+      "@hub/guides": "./js/guides.js?v=20261118h",
+      "@hub/store": "./js/store.js?v=20261118h",
+      "@hub/metrics": "./js/metrics.js?v=20261118h",
+      "@hub/config": "./js/config.js?v=20261118h",
+      "@hub/demo-store": "./js/demo-store.js?v=20261118h",
+      "@hub/cloud-store": "./js/cloud-store.js?v=20261118h",
+      "@hub/safe": "./js/safe-browser.js?v=20261118h",
+      "@hub/contest": "./js/contest.js?v=20261118h",
+      "@hub/profile": "./js/client-profile.js?v=20261118h",
+      "@hub/calendar": "./js/calendar.js?v=20261118h",
+      "@hub/team": "./js/team-schedule.js?v=20261118h",
+      "@hub/roster": "./js/team-roster.js?v=20261118h",
+      "@hub/account": "./js/account.js?v=20261118h",
+      "@hub/contact": "./js/contact-log.js?v=20261118h",
+      "@hub/quotes": "./js/quotes.js?v=20261118h"
     }
   }
   </script>
@@ -44,7 +44,7 @@
 <body>
   <div id="boot" class="boot">
     <div class="boot-card" id="bootCard">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118g" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118h" width="132" height="132" alt="大心 TN826">
       <h1>正在打開團隊數位總部</h1>
       <p class="sub">Fall in Love · Full Intelligent</p>
     </div>
@@ -63,7 +63,7 @@
         var card = document.getElementById("bootCard");
         if (!card) return;
         card.innerHTML =
-          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118g" width="132" height="132" alt="大心 TN826">' +
+          '<img class="hub-logo" src="./assets/logo-daxin.png?v=20261118h" width="132" height="132" alt="大心 TN826">' +
           "<h1>沒有打開</h1>" +
           '<p class="sub">' + escapeText(message) + "</p>" +
           '<button class="btn" type="button" id="bootReload">重新載入</button>';
@@ -101,7 +101,7 @@
 
   <div id="loginView" class="gate" hidden>
     <div class="gate-card">
-      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118g" width="132" height="132" alt="大心 TN826">
+      <img class="hub-logo" src="./assets/logo-daxin.png?v=20261118h" width="132" height="132" alt="大心 TN826">
       <h1>南恩團隊登入</h1>
       <p class="sub">用管理者給的帳號登入。這裡不能自行註冊。</p>
       <form id="loginForm">
@@ -203,7 +203,7 @@
     <div class="main">
       <header class="topbar">
         <button class="menu-btn" id="menuBtn" type="button" aria-label="開啟選單" aria-expanded="false">☰</button>
-        <img class="top-logo" src="./favicon.svg?v=20261118g" alt="" width="28" height="28">
+        <img class="top-logo" src="./favicon.svg?v=20261118h" alt="" width="28" height="28">
         <div class="top-title" id="crumb">總覽</div>
         <a id="learnPop" class="learn-pop" href="https://dashin-team.github.io/nanen-newbie-training/" target="_blank" rel="noopener" aria-label="新視窗開啟" title="新視窗開啟">↗</a>
       </header>
@@ -255,6 +255,22 @@
             <div class="client-tools">
               <button class="btn secondary small" id="exportClients" type="button">匯出 Excel</button>
             </div>
+            <details class="grade-legend">
+              <summary>客戶分級 ABCD</summary>
+              <p>A,B＝專業信任（議題銷售：如何精準銷售議題？就有機會直接銷售商品）</p>
+              <p>C,D＝社交信任（你可以來找我，但不要跟我講保險）→ 只能聊話題，還不能切入議題</p>
+              <p>A：（一兩個月內可以成交）確認客戶屬性＋預計銷售的商品＋預計銷售的ＦＹＣ且講得出原因</p>
+              <p>B：可以講保險，也願意聊保險，且有成交簡易商品（產險，信用卡，旅平險）</p>
+              <p>C：知道你在做保險，但會跟你聊天，但不會跟你聊保險</p>
+              <p>D：不知道你在做保險，知道你在做保險就不太跟你聊天</p>
+            </details>
+            <div class="grade-filter" id="gradeFilter" role="group" aria-label="依分級篩選">
+              <button type="button" data-grade-filter="" class="on">全部</button>
+              <button type="button" data-grade-filter="A">A</button>
+              <button type="button" data-grade-filter="B">B</button>
+              <button type="button" data-grade-filter="C">C</button>
+              <button type="button" data-grade-filter="D">D</button>
+            </div>
             <input class="search" id="clientSearch" placeholder="搜尋客戶、標籤或備註">
             <label class="checkline"><input id="showArchived" type="checkbox"> 顯示已封存</label>
             <div id="clientList"></div>
@@ -290,6 +306,17 @@
               </div>
             </div>
             <label class="npss"><span>手機</span><input name="phone" maxlength="30" inputmode="tel"></label>
+            <div class="chip-field" id="gradeField">
+              <span>客戶分級</span>
+              <div class="type-pills" id="gradeChips" role="group" aria-label="客戶分級">
+                <button type="button" data-grade="A">A</button>
+                <button type="button" data-grade="B">B</button>
+                <button type="button" data-grade="C">C</button>
+                <button type="button" data-grade="D">D</button>
+              </div>
+              <input type="hidden" name="grade" id="clientGrade">
+              <p class="grade-note" id="gradeNote" hidden><span id="gradeText"></span><span class="grade-tag" id="gradeTag"></span></p>
+            </div>
             <div class="chip-field">
               <span>聯絡方式</span>
               <div class="type-pills" id="contactChips">
@@ -689,6 +716,6 @@
   </div>
 
   <div id="toast" class="toast" role="status"></div>
-  <script type="module" src="./js/app.js?v=20261118g"></script>
+  <script type="module" src="./js/app.js?v=20261118h"></script>
 </body>
 </html>

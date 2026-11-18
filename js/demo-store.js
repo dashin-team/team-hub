@@ -74,6 +74,7 @@ function seed() {
       decision_maker: "虛構。夫妻一起決定",
       influence_factor: "虛構。太太會先點頭",
       competitor: "虛構。目前沒有其他業務員",
+      grade: "A",
       analysis_existing: "已有實支實付與意外險。",
       analysis_insured: "本人",
       analysis_beneficiary: "配偶",
@@ -97,13 +98,15 @@ function seed() {
       hobbies: "烘焙",
       lead_source: "講座",
       analysis_dream: "想在退休前把房貸還清。",
+      grade: "B",
     }),
     customer("TH-1003", PEOPLE.huang, "陳媽媽（示範）", "0912-000-103", ["醫療保障"], "06-21", "虛構資料。在意門診與住院。", {
       gender: "女",
       birth_date: "1975-06-21",
       contact_method: "見面",
+      grade: "C",
     }),
-    customer("TH-1004", PEOPLE.zhang, "周先生（示範）", "0912-000-104", ["退休規劃"], "", "虛構資料。五年內打算退休。"),
+    customer("TH-1004", PEOPLE.zhang, "周先生（示範）", "0912-000-104", ["退休規劃"], "", "虛構資料。五年內打算退休。", { grade: "D" }),
     customer("TH-1005", PEOPLE.wu, "林小弟（示範）", "0912-000-105", ["意外保障"], "01-09", "虛構資料。常騎車通勤。"),
   ];
 
@@ -253,7 +256,7 @@ function seed() {
   ];
 
   return {
-    version: 13,
+    version: 14,
     profiles,
     customers,
     policies,
@@ -299,6 +302,7 @@ function seed() {
     row.relation_social = extra.relation_social ?? null;
     row.relation_business = extra.relation_business ?? null;
     row.strategy_grid = extra.strategy_grid && typeof extra.strategy_grid === "object" ? extra.strategy_grid : {};
+    row.grade = ["A", "B", "C", "D"].includes(extra.grade) ? extra.grade : null;
     return row;
   }
 
@@ -396,7 +400,7 @@ function loadState() {
     const raw = safeLocal.getItem(STORAGE_KEY);
     if (!raw) return seed();
     const parsed = JSON.parse(raw);
-    if (parsed?.version !== 13 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs)) return seed();
+    if (parsed?.version !== 14 || !Array.isArray(parsed.profiles) || !Array.isArray(parsed.contact_logs)) return seed();
     return parsed;
   } catch {
     return seed();
