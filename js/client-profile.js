@@ -41,7 +41,16 @@ export const PROFILE_TEXT_FIELDS = [
   "analysis_health",
   "analysis_next",
   "analysis_family",
+  "work_role",
+  "income",
+  "expense",
+  "debt",
+  "decision_maker",
+  "influence_factor",
+  "competitor",
 ];
+
+export const FINANCE_FIELDS = ["work_role", "income", "expense", "debt", "decision_maker", "influence_factor", "competitor"];
 
 export function rocLabel(iso) {
   const match = /^(\d{4})-(\d{2})-(\d{2})$/.exec(String(iso || "").slice(0, 10));
@@ -139,7 +148,10 @@ function cleanScore(value) {
 
 export function normalizeCustomerInput(input) {
   const fields = {};
-  for (const key of PROFILE_TEXT_FIELDS) fields[key] = String(input[key] ?? "").trim();
+  for (const key of PROFILE_TEXT_FIELDS) {
+    const text = String(input[key] ?? "").trim();
+    fields[key] = FINANCE_FIELDS.includes(key) ? text.slice(0, 200) : text;
+  }
   const roc = String(input.birth_roc ?? "").trim();
   if (roc) {
     const parsed = parseBirth(roc);

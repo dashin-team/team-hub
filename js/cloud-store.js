@@ -3,7 +3,7 @@ import { normalizeEvent } from "@hub/calendar";
 import { canViewPerson } from "@hub/metrics";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/+esm";
 import { cleanActions, redactNote, summarizeNoteLocal } from "@hub/contact";
-import { normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
+import { FINANCE_FIELDS, normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
 
 function fail(error, fallback) {
   if (!error) return;
@@ -60,10 +60,11 @@ export function createCloudStore(url, anonKey) {
     }
   });
 
-  function strategyColumnMissing(error) {
+  function optionalColumnMissing(error) {
     if (!error) return false;
     const message = String(error.message || "");
-    if (!/strategy_grid/i.test(message)) return false;
+    const known = /strategy_grid|work_role|income|expense|debt|decision_maker|influence_factor|competitor/i.test(message);
+    if (!known) return false;
     return error.code === "PGRST204" || error.code === "42703" || /schema cache|does not exist|column/i.test(message);
   }
 
@@ -84,13 +85,15 @@ export function createCloudStore(url, anonKey) {
       ? sb.from("customers").update(body).eq("id", id).select().single()
       : sb.from("customers").insert(body).select().single());
     let result = await send(payload);
-    if (strategyColumnMissing(result.error)) {
+    if (optionalColumnMissing(result.error)) {
       const rest = { ...payload };
       delete rest.strategy_grid;
+      for (const key of FINANCE_FIELDS) delete rest[key];
       result = await send(rest);
       if (!result.error && result.data) {
         result.data.strategy_grid = payload.strategy_grid || {};
         result.data.strategy_pending = true;
+        result.data.fields_pending = true;
       }
     }
     return result;
@@ -349,6 +352,11 @@ export function createCloudStore(url, anonKey) {
     async deleteCalendarEvent(id) {
       const { error } = await sb.from("calendar_events").delete().eq("id", id);
       fail(error, "活動沒有刪除");
+    },
+
+    async deleteCustomer(id) {
+      const { error } = await sb.from("customers").delete().eq("id", id).eq("owner_id", profile.id);
+      fail(error, "客戶沒有刪除");
     },
 
     async listCustomers() {
