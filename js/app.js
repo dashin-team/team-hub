@@ -84,6 +84,7 @@ import {
   canManageTeam,
   canViewPerson,
   esc,
+  gradeTitle,
   formatDate,
   isHttpsUrl,
   isoDate,
@@ -190,8 +191,11 @@ function applyRoleChrome() {
   document.body.dataset.page = page;
   $("modeBadge").textContent = store.mode === "demo" ? "示範資料" : "雲端資料";
   $("modeBadge").classList.toggle("cloud", store.mode === "cloud");
+  $("modeBadge").hidden = store.mode !== "demo";
   const name = shownName(profile);
   $("drawerName").textContent = name;
+  const gradeNode = $("drawerGrade");
+  if (gradeNode) gradeNode.textContent = gradeTitle(profile?.grade);
   $("whoName").textContent = profile ? ROLE_LABEL[profile.role] || "" : "";
   paintAvatar(profile, name);
   $("adviceAvatar") && ($("adviceAvatar").textContent = name.slice(0, 1) || "南");

@@ -125,6 +125,15 @@ export function isCloudConfigured(url, key) {
 }
 
 export const ROLE_LABEL = { admin: "管理員", manager: "主管", member: "一般夥伴" };
+// 職級存在 profiles.grade（UM / SP / CA / ADMIN），沒有另外的職稱欄位。中文職稱是畫面用的對照。
+export const GRADE_TITLE = { CA: "業務代表", SP: "業務主任", UM: "區經理", ADMIN: "管理員" };
+export function gradeTitle(grade) {
+  const code = String(grade || "").trim().toUpperCase();
+  if (!code) return "";
+  if (code === "ADMIN") return GRADE_TITLE.ADMIN;
+  const title = GRADE_TITLE[code];
+  return title ? `${code} ${title}` : code;
+}
 export const SOURCE_LABEL = { manual: "手動回報", meta_api: "官方 API", imported: "匯入" };
 export const CONNECTION_LABEL = {
   manual: "手動回報",
