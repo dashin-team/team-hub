@@ -41,14 +41,24 @@ export const PROFILE_TEXT_FIELDS = [
   "analysis_health",
   "analysis_next",
   "analysis_family",
-  "work_role",
-  "income",
-  "expense",
-  "debt",
-  "decision_maker",
-  "influence_factor",
-  "competitor",
 ];
+
+export const ANALYSIS_TEMPLATES = {
+  analysis_work: "工作：\n收入：\n支出：\n負債：",
+  analysis_decision: "決策者：\n影響因子：\n競爭者：",
+};
+
+export function analysisValue(field, value) {
+  const text = String(value ?? "").replace(/\r\n/g, "\n").trim();
+  return text || ANALYSIS_TEMPLATES[field] || "";
+}
+
+export function analysisFilled(field, value) {
+  const text = String(value ?? "").replace(/\r\n/g, "\n").trim();
+  if (!text) return false;
+  const template = ANALYSIS_TEMPLATES[field];
+  return !template || text !== template;
+}
 
 export const FINANCE_FIELDS = ["work_role", "income", "expense", "debt", "decision_maker", "influence_factor", "competitor"];
 
@@ -60,6 +70,22 @@ export const GRADE_TEXT = {
   C: "知道你在做保險，但會跟你聊天，但不會跟你聊保險",
   D: "不知道你在做保險，知道你在做保險就不太跟你聊天",
 };
+
+export const CLIENT_TYPES = [
+  "🏃人壽險客戶",
+  "📈投資型客戶",
+  "🛵機車險客戶",
+  "🚗汽車險客戶",
+  "✈️旅平險客戶",
+  "💳信用卡客戶",
+  "🏭團險客戶",
+  "📓產險健康險客戶",
+];
+
+export function typeEmoji(value) {
+  const match = /^(\P{Script=Han}+)/u.exec(String(value || ""));
+  return match ? match[1] : String(value || "");
+}
 
 export function gradeTrust(grade) {
   if (grade === "A" || grade === "B") return "專業信任";
@@ -165,7 +191,7 @@ export function normalizeCustomerInput(input) {
   const fields = {};
   for (const key of PROFILE_TEXT_FIELDS) {
     const text = String(input[key] ?? "").trim();
-    fields[key] = FINANCE_FIELDS.includes(key) ? text.slice(0, 200) : text;
+    fields[key] = analysisFilled(key, text) || !ANALYSIS_TEMPLATES[key] ? text : "";
   }
   const roc = String(input.birth_roc ?? "").trim();
   if (roc) {
@@ -199,6 +225,15 @@ export function normalizeCustomerInput(input) {
   const grade = String(input.grade ?? "").trim().toUpperCase();
   if (grade && !CLIENT_GRADES.includes(grade)) return { error: "客戶分級請選 A、B、C 或 D。" };
   fields.grade = grade || null;
+  const rawTypes = Array.isArray(input.client_types)
+    ? input.client_types
+    : String(input.client_types ?? "").split(/[,，]/);
+  const types = [];
+  for (const item of rawTypes.map((entry) => String(entry || "").trim()).filter(Boolean)) {
+    if (!CLIENT_TYPES.includes(item)) return { error: "客戶類型不在選項裡。" };
+    if (!types.includes(item)) types.push(item);
+  }
+  fields.client_types = types;
   fields.strategy_grid = strategyFrom(input);
   return { fields };
 }
@@ -216,9 +251,9 @@ export function gridCells(draft) {
   return ANALYSIS_SECTIONS.map((section) => {
     const heading = `${section.n}. ${section.title}`;
     if (section.auto) return { ...section, heading, text: summary, filled: false, editable: false };
-    const body = String(draft[section.field] || "");
-    let filled = body.trim().length > 0;
-    let text = body.trim();
+    const body = analysisValue(section.field, draft[section.field]);
+    let filled = analysisFilled(section.field, draft[section.field]);
+    let text = body;
     if (section.subs) {
       const extra = section.subs.map((sub) => `${sub.label}：${String(draft[sub.field] || "").trim()}`).join("\n");
       filled = filled || section.subs.some((sub) => String(draft[sub.field] || "").trim());

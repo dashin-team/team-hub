@@ -139,7 +139,8 @@ try {
   const homePage = await evalJson(ws, "document.getElementById('page-home').innerText");
   if (!homeText.includes("南恩團隊")) throw new Error("沒有團隊名稱");
   if (!homeText.includes("示範資料")) throw new Error("沒有示範資料標示");
-  if (!homePage.includes("近7日活動量")) throw new Error("總覽缺統計");
+  if (!homePage.includes("近7日行程")) throw new Error("總覽缺統計");
+  if (homePage.includes("近7日活動量") || homePage.includes("今日拜訪量")) throw new Error("總覽不該再顯示服務紀錄統計");
   if (homePage.includes("近7日新增名單") || homePage.includes("客戶生日")) throw new Error("管理員總覽不該出現名單卡片");
   if (homeText.includes("粉絲成長")) throw new Error("總覽不該再顯示競賽排行");
   if (homeText.includes("問卷")) throw new Error("不該出現問卷積分");
@@ -242,8 +243,8 @@ try {
   }, "strategy grid");
 
   await waitFor(async () => {
-    const ok = await evalJson(ws, "document.getElementById('clientDetail').innerText.includes('末四碼') && document.getElementById('strategyBoard').innerText.includes('目標')");
-    if (!ok) throw new Error("保單摘要或策略分析沒有留下");
+    const ok = await evalJson(ws, "document.getElementById('clientDetail').innerText.includes('FBFLI') && !document.getElementById('clientDetail').innerText.includes('保單摘要') && !document.getElementById('clientDetail').innerText.includes('服務紀錄') && document.getElementById('strategyBoard').innerText.includes('目標')");
+    if (!ok) throw new Error("客戶明細沒有留下 FBFLI 或策略分析");
     return ok;
   }, "policy pane");
 

@@ -29,7 +29,7 @@
 7. 五份都只要執行一次。不要把 `scripts/` 裡的測試檔貼進去。
 8. 已經上線的資料庫，再執行一次 `supabase/migrations/202411170007_strategy_grid.sql`。這份加上客戶策略分析圖。還沒執行時，其他名單欄位仍可儲存，策略圖要等欄位加上之後才會寫進雲端。
 9. 再執行一次 `supabase/migrations/202411170008_admin_reset_password.sql`。這份讓管理員新增、重設、刪除夥伴，並讓主管只看自己區的客戶。執行完後，請自己在 SQL Editor 放入團隊預設密碼，不要把密碼寫進檔案：`insert into private.app_settings (key, value) values ('default_password', '你的預設密碼');`
-10. 再執行 `supabase/migrations/202411170009_avatars.sql`（頭像）、`supabase/migrations/202411170010_last_sign_in.sql`（上次登入）、`supabase/migrations/202411170011_client_readonly.sql`（名單寫入只限本人）、`supabase/migrations/202411170012_contact_logs.sql`（FBFLI 紀錄）、`supabase/migrations/202411180001_customer_fields.sql`（財務與決策欄位）、`supabase/migrations/202411180002_customer_grade.sql`（客戶分級）。這幾份都還沒套到正式資料庫，請自己執行。整理備註的函式在 `supabase/functions/summarize-note`，要自己部署，並用 `supabase secrets set OPENAI_API_KEY=...` 放鑰匙。沒有鑰匙時畫面會用本機整理，並標「示範模式」。
+10. 再執行 `supabase/migrations/202411170009_avatars.sql`（頭像）、`supabase/migrations/202411170010_last_sign_in.sql`（上次登入）、`supabase/migrations/202411170011_client_readonly.sql`（名單寫入只限本人）、`supabase/migrations/202411170012_contact_logs.sql`（FBFLI 紀錄）、`supabase/migrations/202411180001_customer_fields.sql`（財務與決策欄位）、`supabase/migrations/202411180002_customer_grade.sql`（客戶分級）、`supabase/migrations/202411180003_client_types.sql`（客戶類型）。這幾份都還沒套到正式資料庫，請自己執行。整理備註的函式在 `supabase/functions/summarize-note`，要自己部署，並用 `supabase secrets set OPENAI_API_KEY=...` 放鑰匙。沒有鑰匙時畫面會用本機整理，並標「示範模式」。
 
 左側 **Table Editor** 應看得到 `teams`、`profiles`、`customers` 和 `social_accounts` 等資料表。
 

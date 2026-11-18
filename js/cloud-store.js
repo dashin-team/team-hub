@@ -63,7 +63,7 @@ export function createCloudStore(url, anonKey) {
   function optionalColumnMissing(error) {
     if (!error) return false;
     const message = String(error.message || "");
-    const known = /strategy_grid|work_role|income|expense|debt|decision_maker|influence_factor|competitor|\bgrade\b/i.test(message);
+    const known = /strategy_grid|work_role|income|expense|debt|decision_maker|influence_factor|competitor|\bgrade\b|client_types/i.test(message);
     if (!known) return false;
     return error.code === "PGRST204" || error.code === "42703" || /schema cache|does not exist|column/i.test(message);
   }
@@ -88,7 +88,7 @@ export function createCloudStore(url, anonKey) {
     if (optionalColumnMissing(result.error)) {
       const rest = { ...payload };
       const message = String(result.error.message || "");
-      const optionalKeys = ["strategy_grid", "grade", ...FINANCE_FIELDS];
+      const optionalKeys = ["strategy_grid", "grade", "client_types", ...FINANCE_FIELDS];
       const mentioned = optionalKeys.filter((key) => new RegExp(`\\b${key}\\b`, "i").test(message));
       for (const key of (mentioned.length ? mentioned : optionalKeys)) delete rest[key];
       result = await send(rest);
@@ -387,6 +387,7 @@ export function createCloudStore(url, anonKey) {
         relation_business: norm.fields.relation_business,
         is_archived: Boolean(input.is_archived),
         grade: norm.fields.grade,
+        client_types: norm.fields.client_types || [],
         privacy_notice_recorded_at: new Date().toISOString(),
       };
       for (const key of PROFILE_TEXT_FIELDS) payload[key] = norm.fields[key] || null;
