@@ -1,5 +1,5 @@
 import { normalizeEvent } from "@hub/calendar";
-import { addDays, canViewPerson, isoDate } from "@hub/metrics";
+import { MEMBER_GRADES, addDays, canViewPerson, isoDate } from "@hub/metrics";
 import { cleanActions, redactNote, summarizeNoteLocal } from "@hub/contact";
 import { normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
 import { normalizeCarInput } from "@hub/cars";
@@ -35,9 +35,9 @@ function seed() {
     ["admin", "梁仕翰", "admin", "han@example.com", "南恩", "ADMIN", "", false, "2026-11-17T14:05:00Z"],
     ["manager", "陳可恩", "manager", "keen@example.com", "可恩", "SP", "示範一區", true, null],
     ["lin", "林子安", "member", "zian@example.com", "子安", "CA", "示範一區", false, "2026-11-17T01:20:00Z"],
-    ["huang", "黃詩涵", "member", "shihan@example.com", "詩涵", "CA", "示範二區", true, "2026-11-16T10:00:00Z"],
+    ["huang", "黃詩涵", "manager", "shihan@example.com", "詩涵", "AM", "示範二區", true, "2026-11-16T10:00:00Z"],
     ["zhang", "張柏宇", "member", "boyu@example.com", "柏宇", "UM", "示範二區", false, null],
-    ["wu", "吳心怡", "member", "xinyi@example.com", "心怡", "CA", "示範一區", true, "2026-11-17T06:40:00Z"],
+    ["wu", "吳心怡", "manager", "xinyi@example.com", "心怡", "DM", "示範一區", true, "2026-11-17T06:40:00Z"],
   ].map(([key, name, role, email, account, grade, zone, mustChange, lastSignIn]) => ({
     id: PEOPLE[key],
     team_id: DEMO_TEAM_ID,
@@ -549,7 +549,7 @@ export function createDemoStore() {
       const grade = String(input.grade || "").trim().toUpperCase();
       if (!name) throw new Error("請填姓名");
       if (!account || /\s|@/.test(account)) throw new Error("帳號請不要空白或 @");
-      if (!["UM", "SP", "CA"].includes(grade)) throw new Error("職級請選 UM、SP 或 CA");
+      if (!MEMBER_GRADES.includes(grade)) throw new Error("職級請選 CA、SP、AM、UM 或 DM");
       if (!zone) throw new Error("請填區");
       if (state.profiles.some((item) => String(item.account || "").toLowerCase() === account)) {
         throw new Error("這個帳號已經有人使用");

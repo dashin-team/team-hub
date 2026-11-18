@@ -819,12 +819,10 @@ function renderRoster() {
   const totals = countRanks(everyone);
   $("rosterStats").innerHTML = [
     ["全部", totals.total],
-    ["UM", totals.UM],
-    ["SP", totals.SP],
-    ["CA", totals.CA],
+    ...ROSTER_RANKS.map((rank) => [gradeTitle(rank), totals[rank] || 0]),
   ].map(([label, count]) => `<span class="roster-stat"><b>${count}</b>${esc(label)}</span>`).join("");
   $("rosterRanks").innerHTML = ["", ...ROSTER_RANKS].map((rank) => {
-    const label = rank || "全部";
+    const label = rank ? gradeTitle(rank) : "全部";
     const on = rosterRank === rank ? " active" : "";
     return `<button class="tag-outline${on}" type="button" data-roster-rank="${rank}">${label}</button>`;
   }).join("");
@@ -838,7 +836,7 @@ function renderRoster() {
         const remove = member.id && member.id !== meId && member.role !== "admin"
           ? `<button class="btn danger small" type="button" data-action="remove-member" data-id="${esc(member.id)}" data-name="${esc(member.name)}">刪除夥伴</button>`
           : "";
-        return `<div class="roster-row"><div class="roster-person"><b>${esc(member.name)}</b><small>上次登入 ${esc(formatLastSignIn(member.lastSignIn))}</small></div><span class="rank ${esc(String(member.rank || "").toLowerCase())}">${esc(member.rank)}</span>${remove}</div>`;
+        return `<div class="roster-row"><div class="roster-person"><b>${esc(member.name)}</b><small>上次登入 ${esc(formatLastSignIn(member.lastSignIn))}</small></div><span class="rank ${esc(String(member.rank || "").toLowerCase())}">${esc(gradeTitle(member.rank) || member.rank)}</span>${remove}</div>`;
       }).join("")}
     </article>`).join("") || `<div class="empty">沒有符合的同仁。</div>`;
 }
@@ -2187,7 +2185,7 @@ async function renderMembers() {
   const cards = shown.map((item) => {
     const changedPw = item.must_change_password === false;
     const account = item.account ? `帳號 ${item.account}` : "帳號 —";
-    const grade = item.grade ? ` · ${item.grade}` : "";
+    const grade = item.grade ? ` · ${gradeTitle(item.grade)}` : "";
     const email = item.email ? `<div class="muted">${esc(item.email)}</div>` : "";
     const signedIn = activityById.has(item.id) ? activityById.get(item.id) : item.last_sign_in_at;
     const controls = profile.role === "admin" && item.id !== profile.id && item.role !== "admin" && item.is_active !== false

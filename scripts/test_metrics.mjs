@@ -48,8 +48,10 @@ assert(isServiceRoleKey("header." + btoa(JSON.stringify({ role: "service_role" }
 assert(!isCloudConfigured("https://abc.supabase.co", "service_role_secret_value_here"), "設定檔不得使用 service role");
 
 assert(gradeTitle("SP") === "SP 業務主任", "SP 職級");
-assert(gradeTitle("ca") === "CA 業務代表", "CA 職級大小寫");
-assert(gradeTitle("UM") === "UM 區經理", "UM 職級");
+assert(gradeTitle("ca") === "CA 行銷專員", "CA 職級大小寫");
+assert(gradeTitle("AM") === "AM 業務襄理", "AM 職級");
+assert(gradeTitle("UM") === "UM 業務經理", "UM 職級");
+assert(gradeTitle("DM") === "DM 處經理", "DM 職級");
 assert(gradeTitle("ADMIN") === "管理員", "管理員不顯示代碼");
 assert(gradeTitle("") === "" && gradeTitle(null) === "", "沒有職級則空白");
 

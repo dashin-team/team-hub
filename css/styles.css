@@ -75,6 +75,7 @@ textarea { min-height: 110px; resize: vertical; }
   transform: translateX(-105%); transition: transform 0.22s ease;
   display: flex; flex-direction: column; padding: 16px 14px 12px;
   overflow: hidden;
+  font-family: "LXGW WenKai TC", "霞鶩文楷 TC", "PingFang TC", "Noto Sans TC", "Microsoft JhengHei", "Segoe UI", sans-serif;
 }
 .drawer.open { transform: none; }
 .drawer-brand { display: flex; flex: none; flex-direction: column; align-items: flex-start; gap: 6px; padding: 4px 8px 10px; overflow: visible; }
@@ -743,7 +744,9 @@ body[data-mode="demo"] .cloud-only { display: none !important; }
 .rank {
   flex: none; min-width: 36px; text-align: center; border-radius: 999px; padding: 2px 8px; font-size: 12px; font-weight: 700;
 }
+.rank.dm { background: #efe4f4; color: #5a2f6e; }
 .rank.um { background: #f3e6d0; color: #6d4e2e; }
+.rank.am { background: #f8ead4; color: #7a4a12; }
 .rank.sp { background: #e7eef3; color: #2c4a63; }
 .rank.ca { background: #e7f3ea; color: #24613d; }
 
