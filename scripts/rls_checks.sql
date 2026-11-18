@@ -264,6 +264,42 @@ begin
   if n <> 0 then raise exception '其他團隊不該看到南恩的客戶'; end if;
 end $$;
 
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000003', true);
+
+insert into public.car_renewals (name, plate, car_type, ct_date, vo_date, note)
+values ('王先生（示範）', 'ABC-1234', '轎車', '2026-12-01', '2026-12-08', '虛構');
+
+do $$
+declare n int;
+begin
+  select count(*) into n from public.car_renewals;
+  if n <> 1 then raise exception '夥伴應看到自己的車險，實際 %', n; end if;
+end $$;
+
+do $$
+begin
+  insert into public.car_renewals (owner_id, name, plate, ct_date, vo_date)
+  values ('20000000-0000-4000-8000-000000000004', '不該建立', 'ZZZ-0001', '2026-12-01', '2026-12-01');
+  raise exception '夥伴不該替別人建立車險';
+exception
+  when insufficient_privilege or check_violation then
+    null;
+  when others then
+    if sqlerrm like '%不該替別人%' then raise; end if;
+end $$;
+
+select set_config('request.jwt.claim.sub', '20000000-0000-4000-8000-000000000002', true);
+
+do $$
+declare n int;
+begin
+  select count(*) into n from public.car_renewals;
+  if n <> 0 then raise exception '主管不該看到別人的車險，實際 %', n; end if;
+  update public.car_renewals set plate = 'ZZZ-0000';
+  get diagnostics n = row_count;
+  if n <> 0 then raise exception '主管不該改別人的車險，實際 %', n; end if;
+end $$;
+
 set local role anon;
 select set_config('request.jwt.claim.sub', '', true);
 select set_config('request.jwt.claim.role', 'anon', true);

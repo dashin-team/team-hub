@@ -4,6 +4,7 @@ import { canViewPerson } from "@hub/metrics";
 import { createClient } from "https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.49.8/+esm";
 import { cleanActions, redactNote, summarizeNoteLocal } from "@hub/contact";
 import { FINANCE_FIELDS, normalizeCustomerInput, PROFILE_TEXT_FIELDS, taipeiDay } from "@hub/profile";
+import { normalizeCarInput } from "@hub/cars";
 
 function fail(error, fallback) {
   if (!error) return;
@@ -538,6 +539,41 @@ export function createCloudStore(url, anonKey) {
     async listMemberActivity() {
       const { data, error } = await sb.rpc("admin_member_activity");
       if (error) return [];
+      return data || [];
+    },
+
+    async listCarRenewals() {
+      return rows(sb.from("car_renewals").select("*").order("ct_date"), "讀取車險資料時發生問題");
+    },
+
+    async saveCarRenewal(input) {
+      const norm = normalizeCarInput(input);
+      if (norm.error) throw new Error(norm.error);
+      const payload = { ...norm.fields, owner_id: profile.id };
+      if (input.id) {
+        const { data, error } = await sb.from("car_renewals").update(payload).eq("id", input.id).eq("owner_id", profile.id).select().single();
+        fail(error, "車險資料沒有更新");
+        return data;
+      }
+      const { data, error } = await sb.from("car_renewals").insert(payload).select().single();
+      fail(error, "車險資料沒有新增");
+      return data;
+    },
+
+    async deleteCarRenewal(id) {
+      const { error } = await sb.from("car_renewals").delete().eq("id", id).eq("owner_id", profile.id);
+      fail(error, "車險資料沒有刪除");
+    },
+
+    async insertCarRenewals(items) {
+      const payload = items.map((item) => {
+        const norm = normalizeCarInput(item);
+        if (norm.error) throw new Error(norm.error);
+        return { ...norm.fields, owner_id: profile.id };
+      });
+      if (!payload.length) return [];
+      const { data, error } = await sb.from("car_renewals").insert(payload).select();
+      fail(error, "匯入沒有寫入");
       return data || [];
     },
 
